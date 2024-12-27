@@ -19,7 +19,7 @@ only a terminal with default properties:
 	  </body>
 	  <script type="module">
 	    import { AnsiTerm } from "./xwterm.js";
-	    var ansi = new AnsiTerm("");
+	    var ansi = new AnsiTerm();
 	    </script>
 	</html>
 

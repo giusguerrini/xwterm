@@ -134,6 +134,9 @@ export class AnsiTerm {
 
 	constructor(params)
 	{
+		if (! params) {
+			params = "";
+		}
 		if (typeof params == 'string') {
 			params = { divId: params };
 		}
