@@ -56,7 +56,7 @@ requests. Also, the terminal needs to communicate its initial size to the host t
 an additional parameter in GET request. By default, the terminal generate these
 requests:
 
-- "/?size=<lines>x<columns>": configure the screen size (e.g., "/?size=40x120").
+- "/?size=*lines*x*columns*": configure the screen size (e.g., "/?size=40x120").
 - "/?console": requests pending character to display.
 - "/": the POST request containing the stream of terminal events (mainly keys).
 
