@@ -967,8 +967,8 @@ export class AnsiTerm {
 		else {
 			f = this.transitions[0][ch];
 			if (! f) {
-			// Normal characters are NOT handles explicitly in state 0,
-			// so this test is ttrue only for special characters.
+			// Normal characters are NOT handled explicitly in state 0,
+			// so this test is true only for special characters.
 				f = this.transitions[this.state][""];
 			}
 		}
