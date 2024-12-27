@@ -3,9 +3,9 @@
 
 ## Introduction
 The goal of this project is to provide a simple, pure javascript terminal emulator frontend
-(i.e., the client side). Connecting to a terminal service is a user's job.
-For testing purtposes, a very basic terminal server is available here.
-This project is still a work-in-progress.
+(i.e., the client side). Connecting to a terminal service is a user's responsibility.
+For testing purposes, a very basic terminal server is available here.
+This project is still under development.
 
 ## Usage
 The following HTML code shows a minimal example of use. It generates a page containing
@@ -36,7 +36,7 @@ The constructor also accepts some configuration parameters, which you can pass a
 array of key/value pairs. The most important keys are:
 
 - nLines : number of text lines (default 25)
-- nColumns : number o characters in a line (default 80)
+- nColumns : number of characters in a line (default 80)
 - divId : the ID of the div where you want the terminal to be placed (default "", which
 means that the constructor will create a div by itself)
 
@@ -49,6 +49,24 @@ For testing purposes, you can find a minimal terminal server written in Python i
 go to the "example" folder and launch "./example.py", then open your browser at the URL
 http://127.0.0.1:8000 . **Do not use the example as if it were a real terminal server**; it
 is meant only to familiarize with the AnsiTerm class and ease its development.
+
+The terminal gets the stream of characters to display by periodically sending HTTP GET
+requests, and sends terminal events (e.g., key events) to the host by sending HTTP POST
+requests. Also, the terminal needs to communicate its initial size to the host through
+an additional parameter in GET request. By default, the terminal generate these
+requests:
+
+- "/?size=<lines>x<columns>": configure the screen size (e.g., "/?size=40x120").
+- "/?console": requests pending character to display.
+- "/": the POST request containing the stream of terminal events (mainly keys).
+
+These defaults can be changed by specifying these parameters:
+
+- "config": specifies the request by which the terminal sends the screen size. The strings
+"?lines?" and "?columns?" here are used as placeholders for the actual number of
+lines and columns. The default is "/?size=?lines?x?columns?".
+- "source": The request to get the stream of pending characters. Default is "/?console".
+- "dest": The POST request to send terminal events. Default is "/".
 
 ## TODO
 Many things to do:
