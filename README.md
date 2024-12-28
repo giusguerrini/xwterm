@@ -68,6 +68,14 @@ lines and columns. The default is "/?size=?lines?x?columns?".
 - "source": The request to get the stream of pending characters. Default is "/?console".
 - "dest": The POST request to send terminal events. Default is "/".
 
+## SCREENSHOTS
+here are some images taken while running the shell and some applications that require
+full support of graphics functions (Midnight Commander, htop, vim):
+![Bash prompt](./doc/xwterm-screenshot-bash.png)
+![Midnight Commander](./doc/xwterm-screenshot-mc.png)
+![Htop](./doc/xwterm-screenshot-htop.png)
+![Vim](./doc/xwterm-screenshot-vim.png)
+
 ## TODO
 Many things to do:
 - Clean up code and add comments.
@@ -81,4 +89,6 @@ Many things to do:
   not work. Also, "Copy as rich text" and rectangular selection would be useful.
 - Add management of alternate chracter set (see "G0/G1" character set selection sequences).
 - Add history buffer (and scroll bar, of course).
+
+## Enjoy!
 
