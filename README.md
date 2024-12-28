@@ -69,7 +69,7 @@ lines and columns. The default is "/?size=?lines?x?columns?".
 - "dest": The POST request to send terminal events. Default is "/".
 
 ## SCREENSHOTS
-here are some images taken while running the shell and some applications that require
+Here are some images taken while running the shell and some applications that require
 full support of graphics functions (Midnight Commander, htop, vim):
 ![Bash prompt](./doc/xwterm-screenshot-bash.png)
 ![Midnight Commander](./doc/xwterm-screenshot-mc.png)
