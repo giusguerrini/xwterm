@@ -3,6 +3,7 @@
 /*	
  *	For a full description of XTerm/ANSI sequences see:
 	
+	https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
 	https://www.commandlinux.com/man-page/man4/console_codes.4.html
 */			
 
@@ -102,6 +103,7 @@ export class AnsiTerm {
 			posx: this.posx,
 			posy: this.posy,
 			bold: this.bold,
+			italic: this.italic,
 			blink: this.blink,
 			underline: this.underline,
 			reverse: this.reverse,
@@ -119,6 +121,7 @@ export class AnsiTerm {
 		this.underline = this.grstate.underline;
 		this.reverse = this.grstate.reverse;
 		this.setbold(this.grstate.bold);
+		this.setitalic(this.grstate.italic);
 		this.setpos(this.grstate.posx, this.grstate.posy);
 		this.scrollregion_l = this.grstate.scrollregion_l;
 		this.scrollregion_h = this.grstate.scrollregion_h;
@@ -182,6 +185,7 @@ export class AnsiTerm {
 		this.status_ok = false;
 
 		this.bold = false;
+		this.italic = false;
 
 		this.url_source = this.source;
 		//this.url_source = this.url + this.source;
@@ -189,7 +193,6 @@ export class AnsiTerm {
 		this.url_config = this.config;
 		//this.url_dest = this.url + this.dest;
 		this.fullfont = this.fontsize.toString() + "px " + this.font;
-		this.fullfont_bold = "bold " + this.fullfont;
 		this.status_fullfont = this.fontsize.toString() + "px " + this.status_font;
 
 
@@ -1031,7 +1034,8 @@ export class AnsiTerm {
 					blink: this.blink,
 					underline: this.underline,
 					reverse: this.reverse,
-					bold: this.bold
+					bold: this.bold,
+					italic: this.italic
 				};
 			}
 		}
@@ -1111,6 +1115,7 @@ export class AnsiTerm {
 		let fg = this.foreground;
 		let ul = this.underline;
 		let bold = this.bold;
+		let italic = this.italic;
 		let reverse = this.reverse;
 		let blink = this.blink;
 
@@ -1123,6 +1128,7 @@ export class AnsiTerm {
 				this.background = ch.background;
 				this.foreground = ch.foreground;
 				this.setbold(ch.bold);
+				this.setitalic(ch.italic);
 				this.underline = ch.underline;
 				this.blink = ch.blink;
 				this.reverse = ch.reverse;
@@ -1135,6 +1141,7 @@ export class AnsiTerm {
 		this.background = bg;
 		this.foreground = fg;
 		this.setbold(bold);
+		this.setitalic(italic);
 		this.underline = ul;
 		this.blink = blink;
 		this.reverse = reverse;
@@ -1430,11 +1437,30 @@ export class AnsiTerm {
 		}
 	}
 
+	setfontstyle()
+	{
+		let f = this.fullfont;
+		if (this.italic) {
+			f = "italic " + f;
+		}
+		if (this.bold) {
+			f = "bold " + f;
+		}
+		this.gc.font = f;
+	}
+
+	setitalic(f)
+	{
+		if (f != this.italic) {
+			this.italic = f;
+			this.setfontstyle();
+		}
+	}
 	setbold(f)
 	{
 		if (f != this.bold) {
-			this.gc.font = f ? this.fullfont_bold : this.fullfont;
 			this.bold = f;
+			this.setfontstyle();
 		}
 	}
 
@@ -1446,6 +1472,7 @@ export class AnsiTerm {
 		this.underline = false;
 		this.reverse = false;
 		this.setbold(false);
+		this.setitalic(false);
 	}
 
 	setattr()
@@ -1510,6 +1537,12 @@ export class AnsiTerm {
 			}
 			else if (a == 22) {
 				this.setbold(false);
+			}
+			else if (a == 3) {
+				this.setitalic(true);
+			}
+			else if (a == 23) {
+				this.setitalic(false);
 			}
 			else if (a == 4) {
 				this.underline = true;
@@ -1667,6 +1700,7 @@ export class AnsiTerm {
 			blink: false,
 			reverse: false,
 			bold: false,
+			italic: false,
 			underline: false,
 		});
 	}
@@ -1716,6 +1750,7 @@ export class AnsiTerm {
 			blink: this.blink,
 			reverse: this.reverse,
 			bold: this.bold,
+			italic: this.italic,
 			underline: this.underline,
 		});
 		this.printchar_in_place_pix(ch, this.posx, this.posy, this.pospx, this.pospy);
