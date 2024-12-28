@@ -68,7 +68,7 @@ lines and columns. The default is "/?size=?lines?x?columns?".
 - "source": The request to get the stream of pending characters. Default is "/?console".
 - "dest": The POST request to send terminal events. Default is "/".
 
-## SCREENSHOTS
+## Screenshots
 Here are some images taken while running the shell and some applications that require
 full support of graphics functions (Midnight Commander, htop, vim):
 ![Bash prompt](./doc/xwterm-screenshot-bash.png)
