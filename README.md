@@ -80,7 +80,7 @@ full support of graphics functions (Midnight Commander, htop, vim):
 Many things to do:
 - Clean up code and add comments.
 - Add WebSockets: at the moment, the only available channel to the backend is HTTP GET/POST.
-- Add better support for server-side sessions (e.g., coockies, access tokens...)
+- Add better support for server-side sessions (e.g., cookies, access tokens...)
 - Add custom CSS properties to configure the terminal. Currently, the configuration comes
   from a set of parameters passed to the constructor.
 - Add a configuration item to choose the terminal mode (e.g., "pure ANSI", "xterm", "xterm-256"...).
