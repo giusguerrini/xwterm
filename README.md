@@ -1,5 +1,5 @@
 # xwterm
-**Simple web Xterm and ANSI terminal emulator - pure JavaScrpt, no dependencies**   
+**Simple web Xterm and ANSI terminal emulator - pure JavaScript, no dependencies**   
 
 ## Introduction
 The goal of this project is to provide a simple, pure javascript terminal emulator frontend
