@@ -53,7 +53,7 @@ is meant only to familiarize with the AnsiTerm class and ease its development.
 The terminal gets the stream of characters to display by periodically sending HTTP GET
 requests, and sends terminal events (e.g., key events) to the host by sending HTTP POST
 requests. Also, the terminal needs to communicate its initial size to the host through
-an additional parameter in GET request. By default, the terminal generate these
+an additional parameter in GET request. By default, the terminal generates these
 requests:
 
 - "/?size=*lines*x*columns*": configure the screen size (e.g., "/?size=40x120").
