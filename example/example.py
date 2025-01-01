@@ -146,13 +146,18 @@ class HttpHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 s = '{\n"text" : \"'
                 b = []
+                n = 0;
                 while True:
                     try:
                         c = os.read(fd, 1)
+                        n = n + 1
+                        if n > 2000:
+                            break
                     except Exception as e:
                         #print(e)
                         break
                     b = b + [c]
+                    #print(b)
                 #print(b)
                 try:
                     for c in b:
