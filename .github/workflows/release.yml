@@ -20,7 +20,7 @@ jobs:
           node-version: '14'
 
       - name: Install dependencies
-        run: npm install terser
+        run: npm install terser -g
 
       - name: Minify JavaScript
         run: terser src/xwterm.js -o dist/xwterm.min.js
