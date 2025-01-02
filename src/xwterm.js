@@ -1,5 +1,6 @@
 
 	
+const ANSITERM_VERSION = "0.1.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -747,7 +748,6 @@ export class AnsiTerm {
 			this.div.classList.add("ansi-terminal");
 			this.div.style.display = "grid";
 			this.div.style.gridTemplateColumns = "auto";
-			//this.title = document.createElement("p");
 			this.title = document.createElement("div");
 			this.title.style.border = "2px solid black";
 			this.title.style.backgroundColor = this.title_background;
@@ -757,11 +757,33 @@ export class AnsiTerm {
 			this.canvas = document.createElement("canvas");
 			this.canvas.tabIndex = 0;
 			this.div.appendChild(this.canvas);
+			this.status_div_container = document.createElement("div");
+			this.status_div_container.style.font = this.status_fullfont;
+			this.status_div_container.style.border = "1px solid black";
+			this.status_div_container.style.display = "grid";
+			this.status_div_container.style.gridTemplateColumns = "auto fit-content(10%) fit-content(10%) fit-content(10%)";
+			this.div.appendChild(this.status_div_container);
 			this.status_div = document.createElement("div");
-			//this.status_div.style.padding = "5px"; // Provvisorio
 			this.status_div.style.font = this.status_fullfont;
-			this.status_div.style.border = "2px solid black";
-			this.div.appendChild(this.status_div);
+			this.status_div.style.border = "1px solid black";
+			this.status_div_container.appendChild(this.status_div);
+			this.version_div = document.createElement("div");
+			this.version_div.style.font = this.status_fullfont;
+			this.version_div.style.backgroundColor = this.status_background_ok;
+			this.version_div.style.color = this.status_foreground_ok;
+			this.version_div.style.border = "1px solid black";
+			this.version_div.innerText = "xwterm " + ANSITERM_VERSION;
+			this.status_div_container.appendChild(this.version_div);
+			this.copy_button = document.createElement("button");
+			this.copy_button.style.backgroundColor = this.keyboard_background;
+			this.copy_button.style.color = this.keyboard_foreground;
+			this.copy_button.innerText = "Copy";
+			this.status_div_container.appendChild(this.copy_button);
+			this.paste_button = document.createElement("button");
+			this.paste_button.style.backgroundColor = this.keyboard_background;
+			this.paste_button.style.color = this.keyboard_foreground;
+			this.paste_button.innerText = "Paste";
+			this.status_div_container.appendChild(this.paste_button);
 			this.keyboard_div = document.createElement("div");
 			this.keyboard_div.style.display = "grid";
 			this.keyboard_div.style.gridTemplateColumns = "auto auto auto auto auto auto auto auto auto auto auto auto";
