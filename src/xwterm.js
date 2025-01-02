@@ -1,40 +1,89 @@
 
 	
 /*	
- *	For a full description of XTerm/ANSI sequences see:
+ A simple XTerm/ANSIterm emulator for web applications.
+ 
+ The class "AnsiTerm" is defined here. It implements a
+ terminal emulator by drawing characters on a canvas element.
+ The canvas participates to a hierarchy of elements whose root
+ is a "div". Other participants are a "title" element, buttons
+ and a "status" element. The "status" element is used to show
+ the status of the terminal, while the buttons are used to
+ send function keys to the terminal. The "title" element is
+ used to show the title of the terminal. The "div" element
+ contains all the other elements. It may be created by the
+ class or passed as a parameter to the constructor. The class
+ may be used to create a terminal emulator in a web page by
+ creating an instance of the class.
+
+ The class mainatins a state machine to interpret ANSI sequences.
+ The state machine is implemented as a dictionary of dictionaries.
+ The outer dictionary is indexed by the current state of the machine.
+ The inner dictionaries are indexed by the characters that may be
+ received in that state. The values of the inner dictionaries are
+ functions that are executed when the corresponding character is
+ received. The functions may change the state of the machine, write
+ characters on the screen, change the attributes of the characters
+ and so on. The state machine is created by the method "create_sm".
+ Although in theory it would be more clean to define the state machine
+ as a static member of the class, I prefer to define it as a method
+ of the class to make it easier to read and understand. In particular,
+ it's handy to have direct access to "this" inside the functions that
+ define the state machine.
+ 
+ At the moment, the class uses HTTP GET requests to receive data from
+ the server. HTTP POST is used to send data to the server.
+ The class is designed to be used with a server that
+ implements a simple protocol to send and receive data. An important
+ feature to be added is the ability to use WebSockets to communicate
+ with the server. This would allow the server to send data to the
+ client without the need for the client to poll the server as it
+ does now.
+
+ The screen is implemented as a two-dimensional array of objects.
+ Each object is a character. The character object has the following
+ members:
+  - ch: the character to be displayed
+  - fg: the foreground color
+  - bg: the background color
+  - bold: true if the character is bold
+  - italic: true if the character is italic
+  - underline: true if the character is underlined
+  - reverse: true if the character is reverse video
+  - blink: true if the character blinks
+  - selected: true if the character is selected
+ The class's constructor calculates the size of the canvas and the
+ size of the characters to be displayed. The characters are drawn
+ on the canvas using the "fillText" method of the canvas context.
+ Some optimizations are done to avoid drawing of single characters
+ during scroll operations. A copyRegion is used instead.
+
+ The cursor is drawn as a rectangle that blinks. To optimize the
+ rendering, the cursor is drawn only at the end of a block of
+ characters from the server. 
+ 
+----------------------
+
+
+ Coding conventions:
+ - Although modern JavaScript implements private methods,
+  I prefer not to use them for the sake of compatibility.
+  In this source, private methods are prefixed by an underscore.
+  This rule does not apply to non-function members. Lowercase
+  identifiers are preferred for non-function members.
+ - Method and members intendended to be public are camelCase.
+ - Classes are PascalCase.
+ - Constants are UPPERCASE.
+
+ 
+ For a full description of XTerm/ANSI sequences see:
 	
 	https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
 	https://www.commandlinux.com/man-page/man4/console_codes.4.html
 */			
 
-
 export class AnsiTerm {
 
-	init()
-	{
-		this.flush();
-		this.state = 0;
-		this.paramstr = "";
-		this.clear_timer();	
-	}
-
-	getargs()
-	{
-		return this.paramstr.split(";");
-	}
-
-	getarg(index, val_default)
-	{
-		let args = this.getargs();
-		let v;
-		if (args[index] && args[index] != "") {
-			v = Number(args[index]);
-		}
-		else {
-			v = val_default;
-		}
-		return v;
-	}
 
 	reset()
 	{
@@ -127,13 +176,473 @@ export class AnsiTerm {
 		this.scrollregion_h = this.grstate.scrollregion_h;
 	}
 
-	ti(f)
+	/*
+	Implementation of XTerm/ANSI state machine.
+	For each state, a set of transitions is defined.
+	Each transition is a function that is executed when
+	a character is received in that state. The function
+	may change the state and/or execute the action corresponding
+	to the received sequence.
+	
+	*/
+
+	// Flush pending (non-special) chracters and reset state machine
+	_init()
+	{
+		this.flush();
+		this.state = 0;
+		this.paramstr = "";
+		this.clear_timer();	
+	}
+
+	// A small helper to automate the transition to state 0
+	// after executing the required function. It eases the
+	// definition of the state machine.
+	_ti(f)
 	{
 		return () => {
 			f();
-			this.init();
+			this._init();
 		};
 	}
+
+	
+	_create_sm()
+	{
+		this.transitions = {
+
+			// Base state
+			0: {
+				"\x00": () => { this._init(); }, // NUL
+				"\x05": () => { this._init(); }, // ENQ
+				"\x07": () => { this._init(); }, //this.on_bell,
+				"\x08": () => {
+						this.flush();
+						if (this.posx == 0) {
+							this.setpos(this.ncolumns - 1, this.posy - 1);
+						}
+						else {
+							this.incpos(-1, 0);
+						}
+				},
+				"\x09": () => { this.tab(); },
+				"\x0A": () => { this.newline(); },
+				"\x0B": () => { this.newline(); }, // VT, but "treated as LF", they say
+				"\x0C": () => { this.newline(); }, // FF, but "treated as LF", they say
+				"\x0D": () => {
+						this.flush();
+						this.setpos(0, this.posy);
+				},
+				"\x0E": () => { this._init(); }, // SO
+				"\x0F": () => { this._init(); }, // SI
+				"\x7F": () => { this._init(); }, // DEL
+				"\x1B": () => { // ESC !!!
+					this.flush();
+					this.state = 1;
+				},
+				"\x18": () => { this._init(); }, // CAN
+				"\x1A": () => { this._init(); }, // SUB
+				"": () => {
+					this.pending_text += this.ch;
+				}, // default
+			},
+
+			// Start of sequence
+			1: {
+				"7": this._ti(() => { this.savestate(); }), // Save current state (cursor coordinates, attributes, character sets pointed at by G0, G1).
+				"8": this._ti(() => { this.restorestate(); }),
+				"c": this._ti(() => { this.reset(); }), // Full reset
+				"D": this._ti(() => { this.newline(); }), // Index (down with scroll)
+				"E": this._ti(() => { // Next line
+					this.setpos(0, this.posy);
+					this.newline();
+				}),
+				"H": () => { this._init(); }, // Horizontal tab set
+				"M": this._ti(() => { this.upline(); }), // Reverse Index (up with scroll)
+				"N": () => { this._init(); }, // Single shift 2
+				"O": () => { this._init(); }, // Single shift 3
+				"P": () => { // Device Control String
+					this.state = 7;
+				},
+				"X": () => { this._init(); }, // Start of string (ignored)
+				"Z": this._ti(() => { this.send_id(); }), // DEC private identification. The kernel returns the string ESC [ ? 6 c, claiming that it is a VT102
+				"[": () => { // CSI
+					this.state = 2;
+				},
+				"]": () => { // OSC: Operating System Command
+					this.state = 3;
+				},
+				"%": () => { // Start sequence selecting character set					
+					this.state = 4;
+				},
+				"#": () => { // Tests
+					this.state = 5;
+				},
+				"(": () => { // 	Start sequence defining G0 character set
+					this.def_G0 = true;
+					this.state = 6;
+				},
+				")": () => { // 	Start sequence defining G1 character set
+					this.def_G0 = false;
+					this.state = 6; // TODO: G0/G1 character set selection
+				},
+				">": () => { this._init(); }, // Numeric keypad mode
+				"=": () => { this._init(); }, // Application keypad mode
+				"\x18": () => { this._init(); }, // CAN
+				"\x1A": () => { this._init(); }, // SUB
+				"": () => { this._init(); },
+			},
+
+			// CSI
+
+			2: {
+				"?": () => {
+					this.state = 8;
+				},
+				"@": () => { this._init(); }, // ICH	Insert the indicated # of blank characters.
+				"A": this._ti(() => {
+					this.incpos(0, -this.getarg(0, 1));
+				}), // CUU	Move cursor up the indicated # of rows.
+				"B": this._ti(() => {
+					this.incpos(0, this.getarg(0, 1));
+				}), // CUD	Move cursor down the indicated # of rows.
+				"C": this._ti(() => {
+					this.incpos(this.getarg(0, 1), 0);
+				}), // CUF	Move cursor right the indicated # of columns.
+				"D": this._ti(() => {
+					this.incpos(-this.getarg(0, 1), 0);
+				}), // CUB	Move cursor left the indicated # of columns.
+				"E": this._ti(() => {
+					this.setpos(0, this.posy + this.getarg(0, 1));
+				}), // CNL	Move cursor down the indicated # of rows, to column 1.
+				"F": this._ti(() => {
+					this.setpos(0, this.posy - this.getarg(0, 1));
+				}), // CPL	Move cursor up the indicated # of rows, to column 1.
+				"G": this._ti(() => {
+					this.setpos(this.getarg(0, 1) - 1, this.posy);
+				}), // CHA	Move cursor to indicated column in current row.
+				"H": this._ti(() => {
+					this.setpos(this.getarg(1, 1) - 1, this.getarg(0, 1) - 1);
+				}), // CUP	Move cursor to the indicated row, column (origin at 1,1).
+				"J": this._ti(() => {
+					this.erase_screen(this.getarg(0, 0));
+				}), // ED	Erase display (default: this._ti(from cursor to end of display).
+						// ESC [ 1 J: this._ti(erase from start to cursor.
+						// ESC [ 2 J: this._ti(erase whole display.
+						// ESC [ 3 J: this._ti(erase whole display including scroll-back buffer (since Linux 3.0).
+				"K": this._ti(() => {
+					this.erase_line(this.getarg(0, 0));
+				}), // EL	Erase line (default: this._ti(from cursor to end of line).
+						// ESC [ 1 K: this._ti(erase from start of line to cursor.
+						// ESC [ 2 K: this._ti(erase whole line.
+				"L": this._ti(() => {
+					this.insert_lines(this.getarg(0, 1));
+				}), // IL	Insert the indicated # of blank lines.
+				"M": this._ti(() => {
+					this.delete_lines(this.getarg(0, 1));
+				}), // DL	Delete the indicated # of lines.
+				"P": this._ti(() => {
+					this.delete_chars(this.getarg(0, 1));
+				}), // DCH	Delete the indicated # of characters on current line.
+				"X": this._ti(() => {
+					this.erase_chars(this.getarg(0, 1));
+				}), // ECH	Erase the indicated # of characters on current line.
+				"a": this._ti(() => {
+					this.incpos(this.getarg(0, 1), 0);
+				}), // HPR	Move cursor right the indicated # of columns.
+				"c": this._ti(() => { this.send_id(); }), // DA: "I am a Vt102"
+				"d": this._ti(() => {
+					this.setpos(this.posx, this.getarg(0, 1) - 1);
+				}), // VPA	Move cursor to the indicated row, current column.
+				"e": this._ti(() => {
+					this.setpos(this.posx, this.posy + this.getarg(0, 1));
+				}), // VPR	Move cursor down the indicated # of rows.
+				"f": this._ti(() => {
+					this.setpos(this.getarg(0, 1) - 1, this.getarg(1, 1) - 1);
+				}), // HVP	Move cursor to the indicated row, column.
+				"g": () => { this._init(); }, // TBC	Without parameter: clear tab stop at current position.
+						// ESC [ 3 g: delete all tab stops.
+				"h": () => { this._init(); }, // SM	Set Mode (see below).
+				"l": () => { this._init(); }, // RM	Reset Mode (see below).
+				"m": this._ti(() => { this.setattr(); }), // SGR	Set attributes (see below).
+				"n": this._ti(() => {
+					let v = this.getarg(0,0);
+					if (v == 6) {
+						this.send_pos();
+					}
+					else if (v == 5) {
+						this.send_ok();
+					}
+				}), // DSR	Status report (see below).
+				"q": () => { this._init(); }, // DECLL	Set keyboard LEDs.
+						// ESC [ 0 q: clear all LEDs
+						// ESC [ 1 q: set Scroll Lock LED
+						// ESC [ 2 q: set Num Lock LED
+						// ESC [ 3 q: set Caps Lock LED
+				"r": this._ti(() => {
+					this.scrollregion_l = this.getarg(0,1) - 1;
+					this.scrollregion_h = this.getarg(1,this.nlines) - 1;
+					this._init();
+				}), // DECSTBM	Set scrolling region; parameters are top and bottom row.
+				"s": this._ti(() => {
+					this.save_posx = this.posx;
+					this.save_posy = this.posy;
+					this._init();
+				}), // ?	Save cursor location.
+				"u": this._ti(() => {
+					this.setpos(this.save_posx, this.save_posy);
+					this._init();
+				}), // ?	Restore cursor location.
+				"`": this._ti(() => {
+					this.setpos(this.getarg(0, 1) - 1, this.posy);
+					this._init();
+				}), // HPA	Move cursor to indicated column in current row.
+				"t": this._ti(() => {
+					this.screen_geometry();
+					this._init();
+				}), // ?	Restore cursor location.
+				">": () => {
+					this.state = 9;
+				},
+				"0": () => { this.addparam(); },
+				"1": () => { this.addparam(); },
+				"2": () => { this.addparam(); },
+				"3": () => { this.addparam(); },
+				"4": () => { this.addparam(); },
+				"5": () => { this.addparam(); },
+				"6": () => { this.addparam(); },
+				"7": () => { this.addparam(); },
+				"8": () => { this.addparam(); },
+				"9": () => { this.addparam(); },
+				";": () => { this.addparam(); },
+				"\x18": () => { this._init(); }, // CAN
+				"\x1A": () => { this._init(); }, // SUB
+				"": () => { this._init(); },
+			},
+
+			// OSC (cont.)
+			3: {
+				"\x1B": () => {
+					this.state = 13;
+				},
+				"\x07": this._ti(() => {
+					this.do_osc();
+				}),
+				"\x18": () => { this._init(); }, // CAN
+				"\x1A": () => { this._init(); }, // SUB
+				"": () => { this.addparam(); },
+			},
+
+			// OSC (cont.)
+			13: {
+				"\\": this._ti(() => {
+					this.do_osc();
+				}),
+				"": () => { this._init(); },
+			},
+
+			4: { // TODO; character set selection
+				"@": () => { this._init(); }, // default character set
+				"G": () => { this._init(); }, // UTF-8
+				"\x18": () => { this._init(); }, // CAN
+				"\x1A": () => { this._init(); }, // SUB
+				"": () => { this._init(); },
+			},
+
+			// TESTS
+			5: {
+				"8": this._ti(() => {
+					for (let y = 0; y < this.nlines; ++y) {
+						for (let x = 0; x < this.ncolumns; ++x) {
+							this.printchar_in_place((x+y) % 10, x, y);
+						}
+					}
+					this._init();
+				}), // Screen alignment test - fill screen with E's.
+				"\x18": () => { this._init(); }, // CAN
+				"\x1A": () => { this._init(); }, // SUB
+				"": () => { this._init(); },
+			},
+
+			/*
+			ESC ( B		   Select default (ISO 8859-1 mapping)
+			ESC ( 0		   Select VT100 graphics mapping
+			ESC ( U		   Select null mapping - straight to character ROM
+			ESC ( K		   Select user mapping - the map that is loaded by the utility mapscrn(8).
+			
+			Same for ESC ), but it defines G1 (TODO).
+			*/
+			6: {
+				"B": () => { this._init(); }, 
+				"0": () => { this._init(); }, 
+				"U": () => { this._init(); }, 
+				"K": () => { this._init(); }, 
+				"\x18": () => { this._init(); }, // CAN
+				"\x1A": () => { this._init(); }, // SUB
+				"": () => { this._init(); }, 
+			},
+
+			// DCS, "interesting" to manage...
+			7: {
+				"\x18": () => { this._init(); }, // CAN
+				"\x1A": () => { this._init(); }, // SUB
+				"": () => { this.addparam(); }, 
+			},
+
+			// ESC [ ?   Why? Why???
+
+			8: {
+				"0": () => { this.addparam(); },
+				"1": () => { this.addparam(); },
+				"2": () => { this.addparam(); },
+				"3": () => { this.addparam(); },
+				"4": () => { this.addparam(); },
+				"5": () => { this.addparam(); },
+				"6": () => { this.addparam(); },
+				"7": () => { this.addparam(); },
+				"8": () => { this.addparam(); },
+				"9": () => { this.addparam(); },
+				";": () => { this.addparam(); },
+				"l": this._ti(() => {
+					this.setfeature(this.getarg(0,0), false);
+				}), // RESET
+				"h": this._ti(() => {
+					this.setfeature(this.getarg(0,0), true);
+				}), // SET
+				"\x18": () => { this._init(); }, // CAN
+				"\x1A": () => { this._init(); }, // SUB
+				"": () => { this._init(); },
+			},
+
+			9: {
+				"0": () => { this.addparam(); },
+				"1": () => { this.addparam(); },
+				"2": () => { this.addparam(); },
+				"3": () => { this.addparam(); },
+				"4": () => { this.addparam(); },
+				"5": () => { this.addparam(); },
+				"6": () => { this.addparam(); },
+				"7": () => { this.addparam(); },
+				"8": () => { this.addparam(); },
+				"9": () => { this.addparam(); },
+				";": () => { this.addparam(); },
+				"c": this._ti(() => {
+					this.send_version();
+					this._init();
+				}), // RESET
+				"\x18": () => { this._init(); }, // CAN
+				"\x1A": () => { this._init(); }, // SUB
+				"": () => { this._init(); },
+			},
+		};
+
+	}
+
+	static key_translations = {
+			"Enter": "\r",
+			"Backspace": "\x7f", //"\x08",
+			"Tab": "\t",
+			"Escape": "\x1B",
+
+			"CapsLock": "none",
+			"NumLock": "none",
+			"ScrollLock": "none",
+			"Pause": "none",
+
+			"AltLeft": "none",
+			"Altright": "none",
+			"ControlLeft": "none",
+			"ControlRight": "none",
+			"ShiftLeft": "none",
+			"MetaLeft": "none",
+			"MetaRight": "none",
+			"ContextMenu": "none",
+
+			"NumpadEnter": "\r",
+			"NumpadDivide": "numpad",
+			"NumpadMultiply": "numpad",
+			"NumpadAdd": "numpad",
+			"NumpadSubtract": "numpad",
+			"Numpad0": "numpad",
+			"Numpad1": "numpad",
+			"Numpad2": "numpad",
+			"Numpad3": "numpad",
+			"Numpad4": "numpad",
+			"Numpad5": "numpad",
+			"Numpad6": "numpad",
+			"Numpad7": "numpad",
+			"Numpad8": "numpad",
+			"Numpad9": "numpad",
+			"NumpadDecimal": "numpad",
+
+			"ArrowUp": "\x1b[A",
+			"ArrowDown": "\x1b[B",
+			"ArrowRight": "\x1b[C",
+			"ArrowLeft": "\x1b[D",
+			"Home": "\x1b[H",
+			"End": "\x1b[F",
+			"Insert": "\x1b[2~",
+			"Delete": "\x1b[3~",
+			"PageUp": "\x1b[5~",
+			"PageDown": "\x1b[6~",
+			"F1": "\x1bOP",
+			"F2": "\x1bOQ",
+			"F3": "\x1bOR",
+			"F4": "\x1bOS",
+			"F5": "\x1b[15~",
+			"F6": "\x1b[17~",
+			"F7": "\x1b[18~",
+			"F8": "\x1b[19~",
+			"F9": "\x1b[20~",
+			"F10": "\x1b[21~",
+			"F11": "\x1b[23~",
+			"F12": "\x1b[24~",
+	};
+
+	static key_translations_app = {
+			"ArrowUp": "\x1bOA",
+			"ArrowDown": "\x1bOB",
+			"ArrowRight": "\x1bOC",
+			"ArrowLeft": "\x1bOD",
+			"Home": "\x1bOH",
+			"End": "\x1bOF",
+	};
+
+	static key_translations_numlock_on = {
+			"NumpadDivide": "/",
+			"NumpadMultiply": "*",
+			"NumpadAdd": "+",
+			"NumpadSubtract": "-",
+			"Numpad0": "Insert",
+			"Numpad1": "End",
+			"Numpad2": "ArrowDown",
+			"Numpad3": "PageDown",
+			"Numpad4": "ArrowLeft",
+			"Numpad5": "\x0c", // "Clear", non defined, let's try CTRL-L
+			"Numpad6": "ArrowRight",
+			"Numpad7": "Home",
+			"Numpad8": "ArrowUp",
+			"Numpad9": "PageUp",
+			"NumpadDecimal": "numpad",
+	};
+
+	static key_translations_numlock_off = {
+			"NumpadDivide": "/",
+			"NumpadMultiply": "*",
+			"NumpadAdd": "+",
+			"NumpadSubtract": "-",
+			"Numpad0": "0",
+			"Numpad1": "1",
+			"Numpad2": "2",
+			"Numpad3": "3",
+			"Numpad4": "4",
+			"Numpad5": "5",
+			"Numpad6": "6",
+			"Numpad7": "7",
+			"Numpad8": "8",
+			"Numpad9": "9",
+			"NumpadDecimal": ".",
+	};
 
 	constructor(params)
 	{
@@ -172,7 +681,8 @@ export class AnsiTerm {
 		this.selection_background = params["selectionForeground"] || "rgb(255,192,192)";
 		this.blink_is_bold = params["blinkIsBold"] || true;
 		this.timeout = params["timeout"] || 0; //10000;
-		this.title_text = "ANSI Terminal";
+		this.title_text = params["titleText"] || "ANSI Terminal";
+
 		this.underline = false;
 		this.blink = false;
 		this.reverse = false;
@@ -444,108 +954,6 @@ export class AnsiTerm {
 		this.set_title(this.title_text);
 		this.set_status(false);
 
-		this.key_translations = {
-			"Enter": "\r",
-			"Backspace": "\x7f", //"\x08",
-			"Tab": "\t",
-			"Escape": "\x1B",
-
-			"CapsLock": "none",
-			"NumLock": "none",
-			"ScrollLock": "none",
-			"Pause": "none",
-
-			"AltLeft": "none",
-			"Altright": "none",
-			"ControlLeft": "none",
-			"ControlRight": "none",
-			"ShiftLeft": "none",
-			"MetaLeft": "none",
-			"MetaRight": "none",
-			"ContextMenu": "none",
-
-			"NumpadEnter": "\r",
-			"NumpadDivide": "numpad",
-			"NumpadMultiply": "numpad",
-			"NumpadAdd": "numpad",
-			"NumpadSubtract": "numpad",
-			"Numpad0": "numpad",
-			"Numpad1": "numpad",
-			"Numpad2": "numpad",
-			"Numpad3": "numpad",
-			"Numpad4": "numpad",
-			"Numpad5": "numpad",
-			"Numpad6": "numpad",
-			"Numpad7": "numpad",
-			"Numpad8": "numpad",
-			"Numpad9": "numpad",
-			"NumpadDecimal": "numpad",
-
-			"ArrowUp": "\x1b[A",
-			"ArrowDown": "\x1b[B",
-			"ArrowRight": "\x1b[C",
-			"ArrowLeft": "\x1b[D",
-			"Home": "\x1b[H",
-			"End": "\x1b[F",
-			"Insert": "\x1b[2~",
-			"Delete": "\x1b[3~",
-			"PageUp": "\x1b[5~",
-			"PageDown": "\x1b[6~",
-			"F1": "\x1bOP",
-			"F2": "\x1bOQ",
-			"F3": "\x1bOR",
-			"F4": "\x1bOS",
-			"F5": "\x1b[15~",
-			"F6": "\x1b[17~",
-			"F7": "\x1b[18~",
-			"F8": "\x1b[19~",
-			"F9": "\x1b[20~",
-			"F10": "\x1b[21~",
-			"F11": "\x1b[23~",
-			"F12": "\x1b[24~",
-		};
-		this.key_translations_app = {
-			"ArrowUp": "\x1bOA",
-			"ArrowDown": "\x1bOB",
-			"ArrowRight": "\x1bOC",
-			"ArrowLeft": "\x1bOD",
-			"Home": "\x1bOH",
-			"End": "\x1bOF",
-		};
-		this.key_translations_numlock_on = {
-			"NumpadDivide": "/",
-			"NumpadMultiply": "*",
-			"NumpadAdd": "+",
-			"NumpadSubtract": "-",
-			"Numpad0": "Insert",
-			"Numpad1": "End",
-			"Numpad2": "ArrowDown",
-			"Numpad3": "PageDown",
-			"Numpad4": "ArrowLeft",
-			"Numpad5": "\x0c", // "Clear", non defined, let's try CTRL-L
-			"Numpad6": "ArrowRight",
-			"Numpad7": "Home",
-			"Numpad8": "ArrowUp",
-			"Numpad9": "PageUp",
-			"NumpadDecimal": "numpad",
-		};
-		this.key_translations_numlock_off = {
-			"NumpadDivide": "/",
-			"NumpadMultiply": "*",
-			"NumpadAdd": "+",
-			"NumpadSubtract": "-",
-			"Numpad0": "0",
-			"Numpad1": "1",
-			"Numpad2": "2",
-			"Numpad3": "3",
-			"Numpad4": "4",
-			"Numpad5": "5",
-			"Numpad6": "6",
-			"Numpad7": "7",
-			"Numpad8": "8",
-			"Numpad9": "9",
-			"NumpadDecimal": ".",
-		};
 		this.app_cursor_keys = false;
 
 		this.timer = null;
@@ -555,353 +963,7 @@ export class AnsiTerm {
 		this.paramstr = "";
 		this.def_G0 = false;
 
-		this.transitions = {
-
-			// Baset state
-			0: {
-				"\x00": () => { this.init(); }, // NUL
-				"\x05": () => { this.init(); }, // ENQ
-				"\x07": () => { this.init(); }, //this.on_bell,
-				"\x08": () => {
-						this.flush();
-						if (this.posx == 0) {
-							this.setpos(this.ncolumns - 1, this.posy - 1);
-						}
-						else {
-							this.incpos(-1, 0);
-						}
-				},
-				"\x09": () => { this.tab(); },
-				"\x0A": () => { this.newline(); },
-				"\x0B": () => { this.newline(); }, // VT, but "treated as LF", they say
-				"\x0C": () => { this.newline(); }, // FF, but "treated as LF", they say
-				"\x0D": () => {
-						this.flush();
-						this.setpos(0, this.posy);
-				},
-				"\x0E": () => { this.init(); }, // SO
-				"\x0F": () => { this.init(); }, // SI
-				"\x7F": () => { this.init(); }, // DEL
-				"\x1B": () => { // ESC !!!
-					this.flush();
-					this.state = 1;
-				},
-				"\x18": () => { this.init(); }, // CAN
-				"\x1A": () => { this.init(); }, // SUB
-				"": () => {
-					this.pending_text += this.ch;
-				}, // default
-			},
-
-			// Start o sequence
-			1: {
-				"7": this.ti(() => { this.savestate(); }), // Save current state (cursor coordinates, attributes, character sets pointed at by G0, G1).
-				"8": this.ti(() => { this.restorestate(); }),
-				"c": this.ti(() => { this.reset(); }), // Full reset
-				"D": this.ti(() => { this.newline(); }), // Index (down with scroll)
-				"E": () => { // Next line
-					this.setpos(0, this.posy);
-					this.newline();
-					this.init();
-				},
-				"H": () => { this.init(); }, // Horizontal tab set
-				"M": this.ti(() => { this.upline(); }), // Reverse Index (up with scroll)
-				"N": () => { this.init(); }, // Single shift 2
-				"O": () => { this.init(); }, // Single shift 3
-				"P": () => { // Device Control String
-					this.state = 7;
-				},
-				"X": () => { this.init(); }, // Start of string (ignored)
-				"Z": this.ti(() => { this.send_id(); }), // DEC private identification. The kernel returns the string ESC [ ? 6 c, claiming that it is a VT102
-				"[": () => { // CSI
-					this.state = 2;
-				},
-				"]": () => { // OSC: Operating System Command
-					this.state = 3;
-				},
-				"%": () => { // Start sequence selecting character set					
-					this.state = 4;
-				},
-				"#": () => { // Tests
-					this.state = 5;
-				},
-				"(": () => { // 	Start sequence defining G0 character set
-					this.def_G0 = true;
-					this.state = 6;
-				},
-				")": () => { // 	Start sequence defining G1 character set
-					this.def_G0 = false;
-					this.state = 6; // TODO: G0/G1 character set selection
-				},
-				">": () => { this.init(); }, // Numeric keypad mode
-				"=": () => { this.init(); }, // Application keypad mode
-				"\x18": () => { this.init(); }, // CAN
-				"\x1A": () => { this.init(); }, // SUB
-				"": () => { this.init(); },
-			},
-
-			// CSI
-
-			2: {
-				"?": () => {
-					this.state = 8;
-				},
-				"@": () => { this.init(); }, // ICH	Insert the indicated # of blank characters.
-				"A": () => {
-					this.incpos(0, -this.getarg(0, 1));
-					this.init();
-				}, // CUU	Move cursor up the indicated # of rows.
-				"B": () => {
-					this.incpos(0, this.getarg(0, 1));
-					this.init();
-				}, // CUD	Move cursor down the indicated # of rows.
-				"C": () => {
-					this.incpos(this.getarg(0, 1), 0);
-					this.init();
-				}, // CUF	Move cursor right the indicated # of columns.
-				"D": () => {
-					this.incpos(-this.getarg(0, 1), 0);
-					this.init();
-				}, // CUB	Move cursor left the indicated # of columns.
-				"E": () => {
-					this.setpos(0, this.posy + this.getarg(0, 1));
-					this.init();
-				}, // CNL	Move cursor down the indicated # of rows, to column 1.
-				"F": () => {
-					this.setpos(0, this.posy - this.getarg(0, 1));
-					this.init();
-				}, // CPL	Move cursor up the indicated # of rows, to column 1.
-				"G": () => {
-					this.setpos(this.getarg(0, 1) - 1, this.posy);
-					this.init();
-				}, // CHA	Move cursor to indicated column in current row.
-				"H": () => {
-					this.setpos(this.getarg(1, 1) - 1, this.getarg(0, 1) - 1);
-					this.init();
-				}, // CUP	Move cursor to the indicated row, column (origin at 1,1).
-				"J": () => {
-					this.erase_screen(this.getarg(0, 0));
-					this.init();
-				}, // ED	Erase display (default: from cursor to end of display).
-						// ESC [ 1 J: erase from start to cursor.
-						// ESC [ 2 J: erase whole display.
-						// ESC [ 3 J: erase whole display including scroll-back buffer (since Linux 3.0).
-				"K": () => {
-					this.erase_line(this.getarg(0, 0));
-					this.init();
-				}, // EL	Erase line (default: from cursor to end of line).
-						// ESC [ 1 K: erase from start of line to cursor.
-						// ESC [ 2 K: erase whole line.
-				"L": () => {
-					this.insert_lines(this.getarg(0, 1));
-					this.init();
-				}, // IL	Insert the indicated # of blank lines.
-				"M": () => {
-					this.delete_lines(this.getarg(0, 1));
-					this.init();
-				}, // DL	Delete the indicated # of lines.
-				"P": () => {
-					this.delete_chars(this.getarg(0, 1));
-					this.init();
-				}, // DCH	Delete the indicated # of characters on current line.
-				"X": () => {
-					this.erase_chars(this.getarg(0, 1));
-					this.init();
-				}, // ECH	Erase the indicated # of characters on current line.
-				"a": () => {
-					this.incpos(this.getarg(0, 1), 0);
-					this.init();
-				}, // HPR	Move cursor right the indicated # of columns.
-				"c": this.ti(() => { this.send_id(); }), // DA: "I am a Vt102"
-				"d": () => {
-					this.setpos(this.posx, this.getarg(0, 1) - 1);
-					this.init();
-				}, // VPA	Move cursor to the indicated row, current column.
-				"e": () => {
-					this.setpos(this.posx, this.posy + this.getarg(0, 1));
-					this.init();
-				}, // VPR	Move cursor down the indicated # of rows.
-				"f": () => {
-					this.setpos(this.getarg(0, 1) - 1, this.getarg(1, 1) - 1);
-					this.init();
-				}, // HVP	Move cursor to the indicated row, column.
-				"g": () => { this.init(); }, // TBC	Without parameter: clear tab stop at current position.
-						// ESC [ 3 g: delete all tab stops.
-				"h": () => { this.init(); }, // SM	Set Mode (see below).
-				"l": () => { this.init(); }, // RM	Reset Mode (see below).
-				"m": this.ti(() => { this.setattr(); }), // SGR	Set attributes (see below).
-				"n": () => {
-					let v = this.getarg(0,0);
-					if (v == 6) {
-						this.send_pos();
-					}
-					else if (v == 5) {
-						this.send_ok();
-					}
-					this.init();
-				}, // DSR	Status report (see below).
-				"q": () => { this.init(); }, // DECLL	Set keyboard LEDs.
-						// ESC [ 0 q: clear all LEDs
-						// ESC [ 1 q: set Scroll Lock LED
-						// ESC [ 2 q: set Num Lock LED
-						// ESC [ 3 q: set Caps Lock LED
-				"r": () => {
-					this.scrollregion_l = this.getarg(0,1) - 1;
-					this.scrollregion_h = this.getarg(1,this.nlines) - 1;
-					this.init();
-				}, // DECSTBM	Set scrolling region; parameters are top and bottom row.
-				"s": () => {
-					this.save_posx = this.posx;
-					this.save_posy = this.posy;
-					this.init();
-				}, // ?	Save cursor location.
-				"u": () => {
-					this.setpos(this.save_posx, this.save_posy);
-					this.init();
-				}, // ?	Restore cursor location.
-				"`": () => {
-					this.setpos(this.getarg(0, 1) - 1, this.posy);
-					this.init();
-				}, // HPA	Move cursor to indicated column in current row.
-				"t": () => {
-					this.screen_geometry();
-					this.init();
-				}, // ?	Restore cursor location.
-				">": () => {
-					this.state = 9;
-				},
-				"0": () => { this.addparam(); },
-				"1": () => { this.addparam(); },
-				"2": () => { this.addparam(); },
-				"3": () => { this.addparam(); },
-				"4": () => { this.addparam(); },
-				"5": () => { this.addparam(); },
-				"6": () => { this.addparam(); },
-				"7": () => { this.addparam(); },
-				"8": () => { this.addparam(); },
-				"9": () => { this.addparam(); },
-				";": () => { this.addparam(); },
-				"\x18": () => { this.init(); }, // CAN
-				"\x1A": () => { this.init(); }, // SUB
-				"": () => { this.init(); },
-			},
-
-			3: {
-				"\x1B": () => {
-					this.state = 13;
-				},
-				"\x07": () => {
-					this.do_osc();
-					this.init();
-				},
-				"\x18": () => { this.init(); }, // CAN
-				"\x1A": () => { this.init(); }, // SUB
-				"": () => { this.addparam(); },
-			},
-
-			13: {
-				"\\": () => {
-					this.do_osc();
-					this.init();
-				},
-				"": () => { this.init(); },
-			},
-
-			4: {
-				"@": () => { this.init(); }, // default character set
-				"G": () => { this.init(); }, // UTF-8
-				"\x18": () => { this.init(); }, // CAN
-				"\x1A": () => { this.init(); }, // SUB
-				"": () => { this.init(); },
-			},
-
-			5: {
-				"8": () => {
-					for (let y = 0; y < this.nlines; ++y) {
-						for (let x = 0; x < this.ncolumns; ++x) {
-							this.printchar_in_place((x+y) % 10, x, y);
-						}
-					}
-					this.init();
-				}, // Screen alignment test - fill screen with E's.
-				"\x18": () => { this.init(); }, // CAN
-				"\x1A": () => { this.init(); }, // SUB
-				"": () => { this.init(); },
-			},
-
-			/*
-			ESC ( B		   Select default (ISO 8859-1 mapping)
-			ESC ( 0		   Select VT100 graphics mapping
-			ESC ( U		   Select null mapping - straight to character ROM
-			ESC ( K		   Select user mapping - the map that is loaded by the utility mapscrn(8).
-			
-			Same for ESC ), but it defines G1 (TODO).
-			*/
-			6: {
-				"B": () => { this.init(); }, 
-				"0": () => { this.init(); }, 
-				"U": () => { this.init(); }, 
-				"K": () => { this.init(); }, 
-				"\x18": () => { this.init(); }, // CAN
-				"\x1A": () => { this.init(); }, // SUB
-				"": () => { this.init(); }, 
-			},
-
-			// DCS, "interesting" to manage...
-			7: {
-				"\x18": () => { this.init(); }, // CAN
-				"\x1A": () => { this.init(); }, // SUB
-				"": () => { this.addparam(); }, 
-			},
-
-			// ESC [ ?   Why? Why???
-
-			8: {
-				"0": () => { this.addparam(); },
-				"1": () => { this.addparam(); },
-				"2": () => { this.addparam(); },
-				"3": () => { this.addparam(); },
-				"4": () => { this.addparam(); },
-				"5": () => { this.addparam(); },
-				"6": () => { this.addparam(); },
-				"7": () => { this.addparam(); },
-				"8": () => { this.addparam(); },
-				"9": () => { this.addparam(); },
-				";": () => { this.addparam(); },
-				"l": () => {
-					this.setfeature(this.getarg(0,0), false);
-					this.init();
-				}, // RESET
-				"h": () => {
-					this.setfeature(this.getarg(0,0), true);
-					this.init();
-				}, // SET
-				"\x18": () => { this.init(); }, // CAN
-				"\x1A": () => { this.init(); }, // SUB
-				"": () => { this.init(); },
-			},
-
-			9: {
-				"0": () => { this.addparam(); },
-				"1": () => { this.addparam(); },
-				"2": () => { this.addparam(); },
-				"3": () => { this.addparam(); },
-				"4": () => { this.addparam(); },
-				"5": () => { this.addparam(); },
-				"6": () => { this.addparam(); },
-				"7": () => { this.addparam(); },
-				"8": () => { this.addparam(); },
-				"9": () => { this.addparam(); },
-				";": () => { this.addparam(); },
-				"c": () => {
-					this.send_version();
-					this.init();
-				}, // RESET
-				"\x18": () => { this.init(); }, // CAN
-				"\x1A": () => { this.init(); }, // SUB
-				"": () => { this.init(); },
-			},
-		};
+		this._create_sm();
 
 		this.timer = setTimeout( (() => { this.setsize(); }), this.immediate_refresh);
 
@@ -923,6 +985,24 @@ export class AnsiTerm {
 			}
 			this.pending_text = "";
 		}
+	}
+
+	getargs()
+	{
+		return this.paramstr.split(";");
+	}
+
+	getarg(index, val_default)
+	{
+		let args = this.getargs();
+		let v;
+		if (args[index] && args[index] != "") {
+			v = Number(args[index]);
+		}
+		else {
+			v = val_default;
+		}
+		return v;
 	}
 
 	addparam()
@@ -954,7 +1034,7 @@ export class AnsiTerm {
 		// CAN, SUB, timeout and maybe something else
 		// cause immediate abort of sequences.
 		if (reset) {
-			this.init();
+			this._init();
 			return;
 		}
 
@@ -1878,19 +1958,19 @@ export class AnsiTerm {
 			this.dump();
 		}
 		///////////
-		if (this.key_translations[e.code] == "numpad") {
+		if (AnsiTerm.key_translations[e.code] == "numpad") {
 			if (key.length != 1) {
 				key = "";
-				e.key = this.key_translations_numlock_on[e.code];
+				e.key = AnsiTerm.key_translations_numlock_on[e.code];
 				e.code = e.key;
 			}
 			e.code = e.key;	
 		}
-		if (this.app_cursor_keys && this.key_translations_app[e.code]) {
-			key = this.key_translations_app[e.code];
+		if (this.app_cursor_keys && AnsiTerm.key_translations_app[e.code]) {
+			key = AnsiTerm.key_translations_app[e.code];
 		}
-		else if (this.key_translations[e.code]) {
-			key = this.key_translations[e.code];
+		else if (AnsiTerm.key_translations[e.code]) {
+			key = AnsiTerm.key_translations[e.code];
 			if (key == "none") {
 				key = "";
 			}

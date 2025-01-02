@@ -17,7 +17,7 @@ DEFAULT_NCOLUMNS=120
 
 CONSOLE_URL="/"
 DATA_REQUEST_PARAM="console"
-SET_SIZE_PARAM="size" # es. size=25x80
+SET_SIZE_PARAM="size" # e.g. size=25x80
 DEFAULT_URL="/example.html"
 
 
@@ -36,68 +36,29 @@ def set_size(fd, li, co):
 
 set_size(fd, DEFAULT_NLINES, DEFAULT_NCOLUMNS)
 
-#os.write(fd, bytes("echo ciao $$; pwd; n=1; ###while : ; do sleep 1; echo $n; n=$[$n+1]; done\n", "UTF-8"))
-#os.write(fd, bytes("\necho -en '\\x1b[19t'\n", "UTF-8"))
-#os.write(fd, bytes("\nresize\n", "UTF-8"))
 os.write(fd, bytes("\n", "UTF-8"))
 
-
-#whileTrue:
-#l = os.read(fd, 1)
-#os.write(1, l)
-
-#Handler= http.server.SimpleHTTPRequestHandler
-
-
-
-#withsocketserver.TCPServer(("", PORT), Handler) as httpd:
-#print("serving at port", PORT)
-#httpd.serve_forever()
 
 from http.server import HTTPServer
 from http.server import BaseHTTPRequestHandler
 
-#Subclass HTTPServer with some additional callbacks
 class CallbackHTTPServer(HTTPServer):
 
     def server_activate(self):
-        #self.RequestHandlerClass.pre_start()
         HTTPServer.server_activate(self)
-        #self.RequestHandlerClass.post_start()
 
     def server_close(self):
-        #self.RequestHandlerClass.pre_stop()
         HTTPServer.server_close(self)
-        #self.RequestHandlerClass.post_stop()
 
 
 # HTTP request handler
 class HttpHandler(BaseHTTPRequestHandler):
 
-#    @classmethod
-#    def pre_start(cls):
-#        print('Before calling socket.listen()')
-#
-#    @classmethod
-#    def post_start(cls):
-#        print('After calling socket.listen()')
-#
-#    @classmethod
-#    def pre_stop(cls):
-#        print('Before calling socket.close()')
-#
-#    @classmethod
-#    def post_stop(cls):
-#        print('After calling socket.close()')
-
     def do_POST(self):
-        #print("I have just received an HTTP POST request")
         length = int(self.headers.get('content-length'))
         field_data = self.rfile.read(length)
         fields = field_data.decode("UTF-8")
-        #print("Tasti ricevuti: ", fields)
         try:
-            #d = fields["data"]
             d = field_data
             os.write(fd, d)
         except Exception as e:
@@ -106,7 +67,6 @@ class HttpHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        #print("I have just received an HTTP GET request", self.path)
         url = self.path.split("?")
         if len(url) == 1:
             url.append("")
@@ -157,10 +117,7 @@ class HttpHandler(BaseHTTPRequestHandler):
                 #print(b)
                 try:
                     for c in b:
-                        #print(c)
-                        #s = s + "\\u" + "{:04x}".format(int.from_bytes(c, byteorder='big'))
                         s = s + "\\u" + "{:04x}".format(c)
-                        #s = s + "\\x" + str(c)
                 except Exception as e:
                     print(e)
                 s = s + '\"\n}\n'
