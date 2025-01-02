@@ -182,8 +182,15 @@ export class AnsiTerm {
 	Each transition is a function that is executed when
 	a character is received in that state. The function
 	may change the state and/or execute the action corresponding
-	to the received sequence.
-	
+	to the received sequence. In all states, the empty string key
+	represents the default action.
+	Non-special characters are accumulated in the "pending_text"
+	field. When a special character is received, the pending_text
+	field is flushed and the corresponding action is executed.
+	"pendig_text" is also flushed at the end of a block of characters
+	from the server. This could be used to optimize the rendering
+	by drawing a whole block of characters at once (TODO, not
+	yet implemented)
 	*/
 
 	// Flush pending (non-special) chracters and reset state machine
@@ -215,7 +222,7 @@ export class AnsiTerm {
 			0: {
 				"\x00": () => { this._init(); }, // NUL
 				"\x05": () => { this._init(); }, // ENQ
-				"\x07": () => { this._init(); }, //this.on_bell,
+				"\x07": () => { this._init(); }, //this.on_bell, // TODO
 				"\x08": () => {
 						this.flush();
 						if (this.posx == 0) {
@@ -538,6 +545,19 @@ export class AnsiTerm {
 
 	}
 
+	/*
+	Keyboard handling:
+	The conversion of key codes to sequences to sent
+	is done by looking up the key code in the following tables.
+	Some special valuei ("none", "numpad") are used to indicate that the key
+	is a modifier and should not be sent. Also, "numpad" is used to indicate
+	that the key is a numpad key and should be translated to different
+	sequences depending on the state of the NumLock key.
+	"key_translations_numlock_off" and "key_translations_numlock_on" are used
+	to translate numpad keys when NumLock is off or on, respectively.
+	*/
+
+
 	static key_translations = {
 			"Enter": "\r",
 			"Backspace": "\x7f", //"\x08",
@@ -608,7 +628,7 @@ export class AnsiTerm {
 			"End": "\x1bOF",
 	};
 
-	static key_translations_numlock_on = {
+	static key_translations_numlock_off = {
 			"NumpadDivide": "/",
 			"NumpadMultiply": "*",
 			"NumpadAdd": "+",

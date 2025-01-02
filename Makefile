@@ -1,0 +1,13 @@
+SRC_DIR = src
+DIST_DIR = dist
+JS_FILE = xwterm.js
+MIN_JS_FILE = xwterm.min.js
+
+$(DIST_DIR)/$(MIN_JS_FILE): $(SRC_DIR)/$(JS_FILE)
+	@mkdir -p $(DIST_DIR)
+	terser $(SRC_DIR)/$(JS_FILE) -o $(DIST_DIR)/$(MIN_JS_FILE)
+
+clean:
+	rm -rf $(DIST_DIR)
+
+.PHONY: clean
