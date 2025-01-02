@@ -8,6 +8,7 @@ import fcntl
 import binascii
 import struct
 import termios
+import json
 
 DEFAULT_PORT=8000
 
@@ -145,23 +146,20 @@ class HttpHandler(BaseHTTPRequestHandler):
                 self.send_header('Accept', 'application/json')
                 self.end_headers()
                 s = '{\n"text" : \"'
-                b = []
-                n = 0;
+                b = b"" 
                 while True:
                     try:
-                        c = os.read(fd, 1)
-                        n = n + 1
-                        if n > 2000:
-                            break
+                        c = os.read(fd, 10000)
                     except Exception as e:
                         #print(e)
                         break
-                    b = b + [c]
-                    #print(b)
+                    b = b + c
                 #print(b)
                 try:
                     for c in b:
-                        s = s + "\\u" + "{:04x}".format(int.from_bytes(c, byteorder='big'))
+                        #print(c)
+                        #s = s + "\\u" + "{:04x}".format(int.from_bytes(c, byteorder='big'))
+                        s = s + "\\u" + "{:04x}".format(c)
                         #s = s + "\\x" + str(c)
                 except Exception as e:
                     print(e)
