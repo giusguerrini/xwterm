@@ -93,7 +93,7 @@ full support of graphics functions (Midnight Commander, htop, vim):
 ![Vim](./doc/xwterm-screenshot-vim.png)
 
 ## Caveats
-Please remember that this project is its early stage.
+Please remember that this project is in its early stage.
 The project was born out of a specific need of mine in a controlled environment; to make it
 fully usable, a certain effort of generalization is still required.
 
