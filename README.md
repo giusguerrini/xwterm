@@ -86,11 +86,14 @@ full support of graphics functions (Midnight Commander, htop, vim):
 ## Caveats
 Please remember that this project is its early stage.
 The project was born out of a specific need of mine in a controlled environment; to make it fully usable, a certain effort of generalization is still required.
+
 Development and test have been done mainly on recent versions of Chrome and Firefox.
 Safari has been tested very superficially. No other browsers have been tested at this time.
+
 About Safari, there is at least a known problem: iOS soft keyboard doesn't appear if
 the page doesn't contain an input field. AnsiTerm's canvas is not considered an input field
 by Safari, that's why I had to add a simple hand-made soft keyboard.
+
 Internationalization, and encoding in general, is also an issue I neglected. My daily
 environment is Western Europe (Italy), where "latin1" or "Windows-1252" are sufficient.
 More sophisticated encodings are expected to be problematic.
