@@ -7,6 +7,13 @@ The goal of this project is to provide a simple, pure javascript terminal emulat
 For testing purposes, a very basic terminal server is available here.
 This project is still under development.
 
+## Setup
+The source is a single JavaScript file (**src/xwterm.js**); once downloaded (e.g.,
+by cloning the repository), it is ready to use. To produce a minified version,
+run **make** from the project's root directory. **[terser](https://terser.org/)** is
+required to do this. The minified file is **dist/xwterm.min.js**. You can also download
+the minified file directly from the [GitHub releases page](https://github.com/giusguerrini/xwterm/releases).
+
 ## Usage
 The following HTML code shows a minimal example of use. It generates a page containing
 only a terminal with default properties:
@@ -90,6 +97,7 @@ Many things to do:
   not work. Also, "Copy as rich text" and rectangular selection would be useful.
 - Add management of alternate chracter set (see "G0/G1" character set selection sequences).
 - Add history buffer (and scroll bar, of course).
+- Responsiveness.
 
 ## Enjoy!
 

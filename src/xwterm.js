@@ -25,10 +25,10 @@ const ANSITERM_VERSION = "0.1.0";
  functions that are executed when the corresponding character is
  received. The functions may change the state of the machine, write
  characters on the screen, change the attributes of the characters
- and so on. The state machine is created by the method "create_sm".
+ and so on. The state machine is created by the method "_create_sm".
  Although in theory it would be more clean to define the state machine
- as a static member of the class, I prefer to define it as a method
- of the class to make it easier to read and understand. In particular,
+ as a static member of the class, I prefer to define it as an instance
+ member to make it easier to read and understand. In particular,
  it's handy to have direct access to "this" inside the functions that
  define the state machine.
  
@@ -57,24 +57,39 @@ const ANSITERM_VERSION = "0.1.0";
  size of the characters to be displayed. The characters are drawn
  on the canvas using the "fillText" method of the canvas context.
  Some optimizations are done to avoid drawing of single characters
- during scroll operations. A copyRegion is used instead.
+ during scroll operations. A "drawImage" to move a whole rectangle
+ is used instead.
 
  The cursor is drawn as a rectangle that blinks. To optimize the
  rendering, the cursor is drawn only at the end of a block of
- characters from the server. 
+ characters from the server, so cursor is not visible during
+ rendering of a block of characters. This is a few unaesthetic,
+ but in my opinion it's worth the performance gain.
+
+ Blinking is controlled by a timer that toggles the screen state
+ every "blink_period" milliseconds. The same timer is used
+ for both the cursor and blinking characters. Blinking characters
+ are stored in a list that updates whenever a character is
+ received from the server and redraws them when the timer fires.
+
  
 ----------------------
 
 
  Coding conventions:
  - Although modern JavaScript implements private methods,
-  I prefer not to use them for the sake of compatibility.
+  for the sake of compatibility I prefer not to use them.
   In this source, private methods are prefixed by an underscore.
-  This rule does not apply to non-function members. Lowercase
+  This rule does not apply to non-function members. Plain lowercase
   identifiers are preferred for non-function members.
  - Method and members intendended to be public are camelCase.
  - Classes are PascalCase.
  - Constants are UPPERCASE.
+ NOTE: I'm not sure if this is a good idea. I may change it in
+ the future. I am not an enthusiast of rigid coding conventions
+ (and there are some that I hate, e.g, useless prefixes like
+ "m_" for members, "C" for classes...).
+ World is too complicated to be constrained by rigid rules.
 
  
  For a full description of XTerm/ANSI sequences see:
@@ -390,24 +405,19 @@ export class AnsiTerm {
 				"r": this._ti(() => {
 					this.scrollregion_l = this.getarg(0,1) - 1;
 					this.scrollregion_h = this.getarg(1,this.nlines) - 1;
-					this._init();
 				}), // DECSTBM	Set scrolling region; parameters are top and bottom row.
 				"s": this._ti(() => {
 					this.save_posx = this.posx;
 					this.save_posy = this.posy;
-					this._init();
 				}), // ?	Save cursor location.
 				"u": this._ti(() => {
 					this.setpos(this.save_posx, this.save_posy);
-					this._init();
 				}), // ?	Restore cursor location.
 				"`": this._ti(() => {
 					this.setpos(this.getarg(0, 1) - 1, this.posy);
-					this._init();
 				}), // HPA	Move cursor to indicated column in current row.
 				"t": this._ti(() => {
 					this.screen_geometry();
-					this._init();
 				}), // ?	Restore cursor location.
 				">": () => {
 					this.state = 9;
@@ -465,8 +475,7 @@ export class AnsiTerm {
 							this.printchar_in_place((x+y) % 10, x, y);
 						}
 					}
-					this._init();
-				}), // Screen alignment test - fill screen with E's.
+				}), // Screen alignment test. XTerm fills screen with E's, but numbers are more fun.
 				"\x18": () => { this._init(); }, // CAN
 				"\x1A": () => { this._init(); }, // SUB
 				"": () => { this._init(); },
@@ -536,7 +545,6 @@ export class AnsiTerm {
 				";": () => { this.addparam(); },
 				"c": this._ti(() => {
 					this.send_version();
-					this._init();
 				}), // RESET
 				"\x18": () => { this._init(); }, // CAN
 				"\x1A": () => { this._init(); }, // SUB
