@@ -1,1 +1,1 @@
-../dist/xwterm.min.js
+../src/xwterm.js

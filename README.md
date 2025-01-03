@@ -36,7 +36,7 @@ only a terminal with default properties:
 	  <script type="module">
 	    import { AnsiTerm } from "./xwterm.js";
 	    var ansi = new AnsiTerm();
-	    </script>
+	  </script>
 	</html>
 
 The only thing the programmer has to do is to create an instance of the "AnsiTerm" class.
@@ -94,7 +94,8 @@ full support of graphics functions (Midnight Commander, htop, vim):
 
 ## Caveats
 Please remember that this project is its early stage.
-The project was born out of a specific need of mine in a controlled environment; to make it fully usable, a certain effort of generalization is still required.
+The project was born out of a specific need of mine in a controlled environment; to make it
+fully usable, a certain effort of generalization is still required.
 
 Development and test have been done mainly on recent versions of Chrome and Firefox.
 Safari has been tested very superficially. No other browsers have been tested at this time.
@@ -119,7 +120,7 @@ Many things to do:
   keyboards don't have "Tilde" nor "Backquote" keys...
 - Improve clipboard management. "Copy" only selects a range marked by the mouse, "Paste" does 
   not work. Also, "Copy as rich text" and rectangular selection would be useful.
-- Add management of alternate chracter set (see "G0/G1" character set selection sequences).
+- Add management of alternate character set (see "G0/G1" character set selection sequences).
 - Add history buffer (and scroll bar, of course).
 - Responsiveness.
 
