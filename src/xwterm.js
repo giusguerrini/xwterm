@@ -79,19 +79,25 @@ const ANSITERM_VERSION = "0.1.0";
  Coding conventions:
  - Although modern JavaScript implements private methods,
   for the sake of compatibility I prefer not to use them.
-  In this source, private methods are prefixed by an underscore.
-  This rule does not apply to non-function members. Plain lowercase
-  identifiers are preferred for non-function members.
+  In this source, methods that are intended to be private
+  are prefixed by an underscore.
+  This rule does not apply to non-function members whose
+  intended scope is "private". Plain lowercase
+  identifiers are preferred for them.
  - Method and members intendended to be public are camelCase.
  - Classes are PascalCase.
  - Constants are UPPERCASE.
  NOTE: I'm not sure if this is a good idea. I may change it in
  the future. I am not an enthusiast of rigid coding conventions
  (and there are some that I hate, e.g, useless prefixes like
- "m_" for members, "C" for classes...).
- World is too complicated to be constrained by rigid rules.
+ "m_" for members, "C" for classes...). World is too complicated
+ to be constrained by rigid rules.
+ ...But I'll impose at least two rules:
+ 1) always put semi-colons at the end of statements,
+ 2) always use braces for control structures.
 
- 
+ ----------------------
+
  For a full description of XTerm/ANSI sequences see:
 	
 	https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
@@ -101,7 +107,7 @@ const ANSITERM_VERSION = "0.1.0";
 export class AnsiTerm {
 
 
-	reset()
+	_reset()
 	{
 		this.background = this.palette[0];
 		this.foreground = this.palette[7];
@@ -119,9 +125,9 @@ export class AnsiTerm {
 		this.scr_background = [ this.background, this.background ];
 		this.scr_foreground = [ this.foreground, this.foreground ];
 		this.screen = this.screens[0];
-		this.clearscreen();
+		this._clearscreen();
 		this.screen = this.screens[1];
-		this.clearscreen();
+		this._clearscreen();
 		this.posx = 0;
 		this.posy = 0;
 		this.x_lastblink = 0;
@@ -137,14 +143,14 @@ export class AnsiTerm {
 		this.grstate = {};
 		this.blink_state = false;
 
-		this.setpos(0,0);
-		this.resetattr();
+		this._setpos(0,0);
+		this._resetattr();
 		this.blink_lists = [[], []];
 		this.blink_list = this.blink_lists[0];
 		this.cursor_off = true;
 	}
 
-	selectscreen(f)
+	_selectscreen(f)
 	{
 		if (f != this.alternate_screen) {
 			let scr = f ? 1 : 0;
@@ -154,12 +160,12 @@ export class AnsiTerm {
 			this.blink_list = this.blink_lists[scr];
 			this.background = this.scr_background[scr];
 			this.foreground = this.scr_foreground[scr];
-			this.redraw();
+			this._redraw();
 		}
 		this.alternate_screen = f;
 	}
 
-	savestate()
+	_savestate()
 	{
 		this.grstate = {
 			screen: this.currscreen,
@@ -177,7 +183,7 @@ export class AnsiTerm {
 		};
 	}
 
-	restorestate()
+	_restorestate()
 	{
 		this.currscreen = this.grstate.screen;
 		this.foreground = this.grstate.foreground;
@@ -185,9 +191,9 @@ export class AnsiTerm {
 		this.blink = this.grstate.blink;
 		this.underline = this.grstate.underline;
 		this.reverse = this.grstate.reverse;
-		this.setbold(this.grstate.bold);
-		this.setitalic(this.grstate.italic);
-		this.setpos(this.grstate.posx, this.grstate.posy);
+		this._setbold(this.grstate.bold);
+		this._setitalic(this.grstate.italic);
+		this._setpos(this.grstate.posx, this.grstate.posy);
 		this.scrollregion_l = this.grstate.scrollregion_l;
 		this.scrollregion_h = this.grstate.scrollregion_h;
 	}
@@ -212,10 +218,10 @@ export class AnsiTerm {
 	// Flush pending (non-special) chracters and reset state machine
 	_init()
 	{
-		this.flush();
+		this._flush();
 		this.state = 0;
 		this.paramstr = "";
-		this.clear_timer();	
+		this._clear_timer();	
 	}
 
 	// A small helper to automate the transition to state 0
@@ -240,27 +246,27 @@ export class AnsiTerm {
 				"\x05": () => { this._init(); }, // ENQ
 				"\x07": () => { this._init(); }, //this.on_bell, // TODO
 				"\x08": () => {
-						this.flush();
+						this._flush();
 						if (this.posx == 0) {
-							this.setpos(this.ncolumns - 1, this.posy - 1);
+							this._setpos(this.ncolumns - 1, this.posy - 1);
 						}
 						else {
-							this.incpos(-1, 0);
+							this._incpos(-1, 0);
 						}
 				},
-				"\x09": () => { this.tab(); },
-				"\x0A": () => { this.newline(); },
-				"\x0B": () => { this.newline(); }, // VT, but "treated as LF", they say
-				"\x0C": () => { this.newline(); }, // FF, but "treated as LF", they say
+				"\x09": () => { this._tab(); },
+				"\x0A": () => { this._newline(); },
+				"\x0B": () => { this._newline(); }, // VT, but "treated as LF", they say
+				"\x0C": () => { this._newline(); }, // FF, but "treated as LF", they say
 				"\x0D": () => {
-						this.flush();
-						this.setpos(0, this.posy);
+						this._flush();
+						this._setpos(0, this.posy);
 				},
 				"\x0E": () => { this._init(); }, // SO
 				"\x0F": () => { this._init(); }, // SI
 				"\x7F": () => { this._init(); }, // DEL
 				"\x1B": () => { // ESC !!!
-					this.flush();
+					this._flush();
 					this.state = 1;
 				},
 				"\x18": () => { this._init(); }, // CAN
@@ -272,23 +278,23 @@ export class AnsiTerm {
 
 			// Start of sequence
 			1: {
-				"7": this._ti(() => { this.savestate(); }), // Save current state (cursor coordinates, attributes, character sets pointed at by G0, G1).
-				"8": this._ti(() => { this.restorestate(); }),
-				"c": this._ti(() => { this.reset(); }), // Full reset
-				"D": this._ti(() => { this.newline(); }), // Index (down with scroll)
+				"7": this._ti(() => { this._savestate(); }), // Save current state (cursor coordinates, attributes, character sets pointed at by G0, G1).
+				"8": this._ti(() => { this._restorestate(); }),
+				"c": this._ti(() => { this._reset(); }), // Full reset
+				"D": this._ti(() => { this._newline(); }), // Index (down with scroll)
 				"E": this._ti(() => { // Next line
-					this.setpos(0, this.posy);
-					this.newline();
+					this._setpos(0, this.posy);
+					this._newline();
 				}),
 				"H": () => { this._init(); }, // Horizontal tab set
-				"M": this._ti(() => { this.upline(); }), // Reverse Index (up with scroll)
+				"M": this._ti(() => { this._upline(); }), // Reverse Index (up with scroll)
 				"N": () => { this._init(); }, // Single shift 2
 				"O": () => { this._init(); }, // Single shift 3
 				"P": () => { // Device Control String
 					this.state = 7;
 				},
 				"X": () => { this._init(); }, // Start of string (ignored)
-				"Z": this._ti(() => { this.send_id(); }), // DEC private identification. The kernel returns the string ESC [ ? 6 c, claiming that it is a VT102
+				"Z": this._ti(() => { this._send_id(); }), // DEC private identification. The kernel returns the string ESC [ ? 6 c, claiming that it is a VT102
 				"[": () => { // CSI
 					this.state = 2;
 				},
@@ -324,77 +330,77 @@ export class AnsiTerm {
 				},
 				"@": () => { this._init(); }, // ICH	Insert the indicated # of blank characters.
 				"A": this._ti(() => {
-					this.incpos(0, -this.getarg(0, 1));
+					this._incpos(0, -this._getarg(0, 1));
 				}), // CUU	Move cursor up the indicated # of rows.
 				"B": this._ti(() => {
-					this.incpos(0, this.getarg(0, 1));
+					this._incpos(0, this._getarg(0, 1));
 				}), // CUD	Move cursor down the indicated # of rows.
 				"C": this._ti(() => {
-					this.incpos(this.getarg(0, 1), 0);
+					this._incpos(this._getarg(0, 1), 0);
 				}), // CUF	Move cursor right the indicated # of columns.
 				"D": this._ti(() => {
-					this.incpos(-this.getarg(0, 1), 0);
+					this._incpos(-this._getarg(0, 1), 0);
 				}), // CUB	Move cursor left the indicated # of columns.
 				"E": this._ti(() => {
-					this.setpos(0, this.posy + this.getarg(0, 1));
+					this._setpos(0, this.posy + this._getarg(0, 1));
 				}), // CNL	Move cursor down the indicated # of rows, to column 1.
 				"F": this._ti(() => {
-					this.setpos(0, this.posy - this.getarg(0, 1));
+					this._setpos(0, this.posy - this._getarg(0, 1));
 				}), // CPL	Move cursor up the indicated # of rows, to column 1.
 				"G": this._ti(() => {
-					this.setpos(this.getarg(0, 1) - 1, this.posy);
+					this._setpos(this._getarg(0, 1) - 1, this.posy);
 				}), // CHA	Move cursor to indicated column in current row.
 				"H": this._ti(() => {
-					this.setpos(this.getarg(1, 1) - 1, this.getarg(0, 1) - 1);
+					this._setpos(this._getarg(1, 1) - 1, this._getarg(0, 1) - 1);
 				}), // CUP	Move cursor to the indicated row, column (origin at 1,1).
 				"J": this._ti(() => {
-					this.erase_screen(this.getarg(0, 0));
+					this._erase_screen(this._getarg(0, 0));
 				}), // ED	Erase display (default: this._ti(from cursor to end of display).
 						// ESC [ 1 J: this._ti(erase from start to cursor.
 						// ESC [ 2 J: this._ti(erase whole display.
 						// ESC [ 3 J: this._ti(erase whole display including scroll-back buffer (since Linux 3.0).
 				"K": this._ti(() => {
-					this.erase_line(this.getarg(0, 0));
+					this._erase_line(this._getarg(0, 0));
 				}), // EL	Erase line (default: this._ti(from cursor to end of line).
 						// ESC [ 1 K: this._ti(erase from start of line to cursor.
 						// ESC [ 2 K: this._ti(erase whole line.
 				"L": this._ti(() => {
-					this.insert_lines(this.getarg(0, 1));
+					this._insert_lines(this._getarg(0, 1));
 				}), // IL	Insert the indicated # of blank lines.
 				"M": this._ti(() => {
-					this.delete_lines(this.getarg(0, 1));
+					this._delete_lines(this._getarg(0, 1));
 				}), // DL	Delete the indicated # of lines.
 				"P": this._ti(() => {
-					this.delete_chars(this.getarg(0, 1));
+					this._delete_chars(this._getarg(0, 1));
 				}), // DCH	Delete the indicated # of characters on current line.
 				"X": this._ti(() => {
-					this.erase_chars(this.getarg(0, 1));
+					this._erase_chars(this._getarg(0, 1));
 				}), // ECH	Erase the indicated # of characters on current line.
 				"a": this._ti(() => {
-					this.incpos(this.getarg(0, 1), 0);
+					this._incpos(this._getarg(0, 1), 0);
 				}), // HPR	Move cursor right the indicated # of columns.
-				"c": this._ti(() => { this.send_id(); }), // DA: "I am a Vt102"
+				"c": this._ti(() => { this._send_id(); }), // DA: "I am a Vt102"
 				"d": this._ti(() => {
-					this.setpos(this.posx, this.getarg(0, 1) - 1);
+					this._setpos(this.posx, this._getarg(0, 1) - 1);
 				}), // VPA	Move cursor to the indicated row, current column.
 				"e": this._ti(() => {
-					this.setpos(this.posx, this.posy + this.getarg(0, 1));
+					this._setpos(this.posx, this.posy + this._getarg(0, 1));
 				}), // VPR	Move cursor down the indicated # of rows.
 				"f": this._ti(() => {
-					this.setpos(this.getarg(0, 1) - 1, this.getarg(1, 1) - 1);
+					this._setpos(this._getarg(0, 1) - 1, this._getarg(1, 1) - 1);
 				}), // HVP	Move cursor to the indicated row, column.
 				"g": () => { this._init(); }, // TBC	Without parameter: clear tab stop at current position.
 						// ESC [ 3 g: delete all tab stops.
 				"h": () => { this._init(); }, // SM	Set Mode (see below).
 				"l": () => { this._init(); }, // RM	Reset Mode (see below).
-				"m": this._ti(() => { this.setattr(); }), // SGR	Set attributes (see below).
+				"m": this._ti(() => { this._setattr(); }), // SGR	Set attributes (see below).
 				"n": this._ti(() => {
-					let v = this.getarg(0,0);
+					let v = this._getarg(0,0);
 					if (v == 6) {
-						this.send_pos();
+						this._send_pos();
 					}
 					else if (v == 5) {
-						this.send_ok();
+						this._send_ok();
 					}
 				}), // DSR	Status report (see below).
 				"q": () => { this._init(); }, // DECLL	Set keyboard LEDs.
@@ -403,36 +409,36 @@ export class AnsiTerm {
 						// ESC [ 2 q: set Num Lock LED
 						// ESC [ 3 q: set Caps Lock LED
 				"r": this._ti(() => {
-					this.scrollregion_l = this.getarg(0,1) - 1;
-					this.scrollregion_h = this.getarg(1,this.nlines) - 1;
+					this.scrollregion_l = this._getarg(0,1) - 1;
+					this.scrollregion_h = this._getarg(1,this.nlines) - 1;
 				}), // DECSTBM	Set scrolling region; parameters are top and bottom row.
 				"s": this._ti(() => {
 					this.save_posx = this.posx;
 					this.save_posy = this.posy;
 				}), // ?	Save cursor location.
 				"u": this._ti(() => {
-					this.setpos(this.save_posx, this.save_posy);
+					this._setpos(this.save_posx, this.save_posy);
 				}), // ?	Restore cursor location.
 				"`": this._ti(() => {
-					this.setpos(this.getarg(0, 1) - 1, this.posy);
+					this._setpos(this._getarg(0, 1) - 1, this.posy);
 				}), // HPA	Move cursor to indicated column in current row.
 				"t": this._ti(() => {
-					this.screen_geometry();
+					this._screen_geometry();
 				}), // ?	Restore cursor location.
 				">": () => {
 					this.state = 9;
 				},
-				"0": () => { this.addparam(); },
-				"1": () => { this.addparam(); },
-				"2": () => { this.addparam(); },
-				"3": () => { this.addparam(); },
-				"4": () => { this.addparam(); },
-				"5": () => { this.addparam(); },
-				"6": () => { this.addparam(); },
-				"7": () => { this.addparam(); },
-				"8": () => { this.addparam(); },
-				"9": () => { this.addparam(); },
-				";": () => { this.addparam(); },
+				"0": () => { this._addparam(); },
+				"1": () => { this._addparam(); },
+				"2": () => { this._addparam(); },
+				"3": () => { this._addparam(); },
+				"4": () => { this._addparam(); },
+				"5": () => { this._addparam(); },
+				"6": () => { this._addparam(); },
+				"7": () => { this._addparam(); },
+				"8": () => { this._addparam(); },
+				"9": () => { this._addparam(); },
+				";": () => { this._addparam(); },
 				"\x18": () => { this._init(); }, // CAN
 				"\x1A": () => { this._init(); }, // SUB
 				"": () => { this._init(); },
@@ -444,17 +450,17 @@ export class AnsiTerm {
 					this.state = 13;
 				},
 				"\x07": this._ti(() => {
-					this.do_osc();
+					this._do_osc();
 				}),
 				"\x18": () => { this._init(); }, // CAN
 				"\x1A": () => { this._init(); }, // SUB
-				"": () => { this.addparam(); },
+				"": () => { this._addparam(); },
 			},
 
 			// OSC (cont.)
 			13: {
 				"\\": this._ti(() => {
-					this.do_osc();
+					this._do_osc();
 				}),
 				"": () => { this._init(); },
 			},
@@ -472,7 +478,7 @@ export class AnsiTerm {
 				"8": this._ti(() => {
 					for (let y = 0; y < this.nlines; ++y) {
 						for (let x = 0; x < this.ncolumns; ++x) {
-							this.printchar_in_place((x+y) % 10, x, y);
+							this._printchar_in_place((x+y) % 10, x, y);
 						}
 					}
 				}), // Screen alignment test. XTerm fills screen with E's, but numbers are more fun.
@@ -503,28 +509,28 @@ export class AnsiTerm {
 			7: {
 				"\x18": () => { this._init(); }, // CAN
 				"\x1A": () => { this._init(); }, // SUB
-				"": () => { this.addparam(); }, 
+				"": () => { this._addparam(); }, 
 			},
 
 			// ESC [ ?   Why? Why???
 
 			8: {
-				"0": () => { this.addparam(); },
-				"1": () => { this.addparam(); },
-				"2": () => { this.addparam(); },
-				"3": () => { this.addparam(); },
-				"4": () => { this.addparam(); },
-				"5": () => { this.addparam(); },
-				"6": () => { this.addparam(); },
-				"7": () => { this.addparam(); },
-				"8": () => { this.addparam(); },
-				"9": () => { this.addparam(); },
-				";": () => { this.addparam(); },
+				"0": () => { this._addparam(); },
+				"1": () => { this._addparam(); },
+				"2": () => { this._addparam(); },
+				"3": () => { this._addparam(); },
+				"4": () => { this._addparam(); },
+				"5": () => { this._addparam(); },
+				"6": () => { this._addparam(); },
+				"7": () => { this._addparam(); },
+				"8": () => { this._addparam(); },
+				"9": () => { this._addparam(); },
+				";": () => { this._addparam(); },
 				"l": this._ti(() => {
-					this.setfeature(this.getarg(0,0), false);
+					this._setfeature(this._getarg(0,0), false);
 				}), // RESET
 				"h": this._ti(() => {
-					this.setfeature(this.getarg(0,0), true);
+					this._setfeature(this._getarg(0,0), true);
 				}), // SET
 				"\x18": () => { this._init(); }, // CAN
 				"\x1A": () => { this._init(); }, // SUB
@@ -532,19 +538,19 @@ export class AnsiTerm {
 			},
 
 			9: {
-				"0": () => { this.addparam(); },
-				"1": () => { this.addparam(); },
-				"2": () => { this.addparam(); },
-				"3": () => { this.addparam(); },
-				"4": () => { this.addparam(); },
-				"5": () => { this.addparam(); },
-				"6": () => { this.addparam(); },
-				"7": () => { this.addparam(); },
-				"8": () => { this.addparam(); },
-				"9": () => { this.addparam(); },
-				";": () => { this.addparam(); },
+				"0": () => { this._addparam(); },
+				"1": () => { this._addparam(); },
+				"2": () => { this._addparam(); },
+				"3": () => { this._addparam(); },
+				"4": () => { this._addparam(); },
+				"5": () => { this._addparam(); },
+				"6": () => { this._addparam(); },
+				"7": () => { this._addparam(); },
+				"8": () => { this._addparam(); },
+				"9": () => { this._addparam(); },
+				";": () => { this._addparam(); },
 				"c": this._ti(() => {
-					this.send_version();
+					this._send_version();
 				}), // RESET
 				"\x18": () => { this._init(); }, // CAN
 				"\x1A": () => { this._init(); }, // SUB
@@ -804,7 +810,7 @@ export class AnsiTerm {
 				if (i < 12) {
 					e.innerText = "F" + (i+1);
 					e.addEventListener("click", (event) => {
-						this.send_key({
+						this._send_key({
 							key: e.innerText,
 							code: e.innerText,
 							composed: false,
@@ -820,7 +826,7 @@ export class AnsiTerm {
 					e.style.gridColumnEnd = 5;
 					e.innerText = "TAB"
 					e.addEventListener("click", (event) => {
-						this.send_key({
+						this._send_key({
 							key: 'Tab',
 							code: 'Tab',
 							composed: false,
@@ -836,7 +842,7 @@ export class AnsiTerm {
 					e.style.gridColumnEnd = 13;
 					e.innerText = "CTRL-L"
 					e.addEventListener("click", (event) => {
-						this.send_key({
+						this._send_key({
 							key: 'l',
 							code: 'KeyL',
 							composed: true,
@@ -852,7 +858,7 @@ export class AnsiTerm {
 					e.style.gridColumnEnd = 7;
 					e.innerText = "\x60 (Backquote)"
 					e.addEventListener("click", (event) => {
-						this.send_key({
+						this._send_key({
 							key: '\x60',
 							code: 'Backquote',
 							composed: false,
@@ -868,7 +874,7 @@ export class AnsiTerm {
 					e.style.gridColumnEnd = 9;
 					e.innerText = "\x7e (Tilde)"
 					e.addEventListener("click", (event) => {
-						this.send_key({
+						this._send_key({
 							key: '\x7e',
 							code: 'Tilde',
 							composed: false,
@@ -884,19 +890,19 @@ export class AnsiTerm {
 		}
 
 		this.canvas.addEventListener("click", (event) => {
-			this.on_mouse_click(event);
+			this._on_mouse_click(event);
 		});
 
 		this.canvas.addEventListener("mousedown", (event) => {
-			this.on_mouse_down(event);
+			this._on_mouse_down(event);
 		});
 
 		this.canvas.addEventListener("mouseup", (event) => {
-			this.on_mouse_up(event);
+			this._on_mouse_up(event);
 		});
 
 		this.canvas.addEventListener("mousemove", (event) => {
-			this.on_mouse_move(event);
+			this._on_mouse_move(event);
 		});
 
 		this.menu = document.createElement("dialog");
@@ -989,20 +995,20 @@ export class AnsiTerm {
 			this.xpalette.push("rgb(" + v + "," + v + "," + v + ")");
 		}
 
-		this.reset();
+		this._reset();
 
-		document.onkeydown = ((e) => { this.on_keydown(e); });
+		document.onkeydown = ((e) => { this._on_keydown(e); });
 
-		this.blink_timer = setTimeout( (() => { this.blink_timeout(); }), this.blink_period);
+		this.blink_timer = setTimeout( (() => { this._blink_timeout(); }), this.blink_period);
 
 		this.save_posx = this.posx;
 		this.save_posy = this.posy;
 		this.save_posx_2 = this.posx;
 		this.save_posy_2 = this.posy;
-		this.savestate();
+		this._savestate();
 
-		this.set_title(this.title_text);
-		this.set_status(false);
+		this._set_title(this.title_text);
+		this._set_status(false);
 
 		this.app_cursor_keys = false;
 
@@ -1015,36 +1021,36 @@ export class AnsiTerm {
 
 		this._create_sm();
 
-		this.timer = setTimeout( (() => { this.setsize(); }), this.immediate_refresh);
+		this.timer = setTimeout( (() => { this._setsize(); }), this.immediate_refresh);
 
 	}
 
-	flush()
+	_flush()
 	{
 		if (this.pending_text.length > 0) {
 			// TODO: optimize
 			for (let i = 0; i < this.pending_text.length; ++i) {
-							this.printchar(this.pending_text[i]);
+							this._printchar(this.pending_text[i]);
 							if (this.posx >= this.ncolumns - 1) {
-								this.setpos(0, this.posy);
-								this.nextline();
+								this._setpos(0, this.posy);
+								this._nextline();
 							}
 							else {
-								this.incpos(1, 0);
+								this._incpos(1, 0);
 							}
 			}
 			this.pending_text = "";
 		}
 	}
 
-	getargs()
+	_getargs()
 	{
 		return this.paramstr.split(";");
 	}
 
-	getarg(index, val_default)
+	_getarg(index, val_default)
 	{
-		let args = this.getargs();
+		let args = this._getargs();
 		let v;
 		if (args[index] && args[index] != "") {
 			v = Number(args[index]);
@@ -1055,12 +1061,12 @@ export class AnsiTerm {
 		return v;
 	}
 
-	addparam()
+	_addparam()
 	{
 		this.paramstr += this.ch;
 	}
 
-	clear_timer()
+	_clear_timer()
 	{
 		if (this.timeout > 0 && this.timer) {
 			clearTimeout(this.timer);
@@ -1069,17 +1075,17 @@ export class AnsiTerm {
 	}
 
 
-	reset_timer()
+	_reset_timer()
 	{
-		this.clear_timer();
+		this._clear_timer();
 		if (this.timeout > 0) {
 			this.timer = setTimeout(() => {
-				this.sm("", true);
+				this._sm("", true);
 			}, this.timeout);
 		}
 	}
 
-	sm(ch, reset)
+	_sm(ch, reset)
 	{
 		// CAN, SUB, timeout and maybe something else
 		// cause immediate abort of sequences.
@@ -1113,11 +1119,11 @@ export class AnsiTerm {
 
 		if (this.state != 0) {
 			// Fire up guar timer. Abort sequence on timeout.
-			this.reset_timer();
+			this._reset_timer();
 		}
 		else {
 			if (old_state != 0) {
-				this.clear_timer();
+				this._clear_timer();
 			}
 		}
 
@@ -1125,19 +1131,19 @@ export class AnsiTerm {
 		//console.log(this.posy);
 	}
 
-	apply(t)
+	_apply(t)
 	{
-		this.clear_timer();
+		this._clear_timer();
 
 		for (let i = 0; i < t.length; ++i) {
 			this.ch = t[i];
-			this.sm(t[i], false);
+			this._sm(t[i], false);
 		}
 
-		this.flush();
+		this._flush();
 	}
 
-	setcell(x, y, src)
+	_setcell(x, y, src)
 	{
 		let blink = this.screen[y][x].blink;
 		this.screen[y][x] = src;
@@ -1151,7 +1157,7 @@ export class AnsiTerm {
 		}
 	}
 
-	clearscreen()
+	_clearscreen()
 	{
 		let y;
 		let x;
@@ -1171,7 +1177,7 @@ export class AnsiTerm {
 		}
 	}
 
-	set_status(ok)
+	_set_status(ok)
 	{
 		if (this.status_ok != ok) {
 			if (ok) {
@@ -1188,7 +1194,7 @@ export class AnsiTerm {
 		}
 	}
 
-	set_title(t)
+	_set_title(t)
 	{
 		this.title_text = t;
 		if (this.title) {
@@ -1199,27 +1205,27 @@ export class AnsiTerm {
 		}
 	}
 
-	do_osc()
+	_do_osc()
 	{
-		let a = this.getargs();
+		let a = this._getargs();
 
 		if (a.length < 1) {
 			return;
 		}
 		
 		if (a[0][0] == "l" || a[0][0] == "L") {
-			this.set_title(this.paramstr.slice(2));
+			this._set_title(this.paramstr.slice(2));
 			return;
 		}
 
-		let a0 = this.getarg(0,0);
+		let a0 = this._getarg(0,0);
 
 		if (a0 == 0 || a0 == 2) {
 			let p = this.paramstr.indexOf(";");
 			if (p < 0) {
 				p = 0; // scommessa...
 			}
-			this.set_title(this.paramstr.slice(p + 1));
+			this._set_title(this.paramstr.slice(p + 1));
 		}
 		else if (a0 >= 10 && a0 <= 19 && a[1] == "?") {
 			// Retund RGB codes of some "notable" colors.
@@ -1235,11 +1241,11 @@ export class AnsiTerm {
 				18: 15,
 				19: 15,
 			};
-			this.send("\x1B]" + a0 + ";rgb:" + this.palette[to_palette[a0]].slice(4).replace(")", "").replace(/,/g, "/") + "\x07");
+			this._send("\x1B]" + a0 + ";rgb:" + this.palette[to_palette[a0]].slice(4).replace(")", "").replace(/,/g, "/") + "\x07");
 		}
 	}
 
-	redraw_box(x0, y0, width, height)
+	_redraw_box(x0, y0, width, height)
 	{
 		let bg = this.background;
 		let fg = this.foreground;
@@ -1257,33 +1263,33 @@ export class AnsiTerm {
 				let ch = this.screen[y][x];
 				this.background = ch.background;
 				this.foreground = ch.foreground;
-				this.setbold(ch.bold);
-				this.setitalic(ch.italic);
+				this._setbold(ch.bold);
+				this._setitalic(ch.italic);
 				this.underline = ch.underline;
 				this.blink = ch.blink;
 				this.reverse = ch.reverse;
 
-				this.printchar_in_place(ch.ch, x, y);
+				this._printchar_in_place(ch.ch, x, y);
 
 			}
 		}
 
 		this.background = bg;
 		this.foreground = fg;
-		this.setbold(bold);
-		this.setitalic(italic);
+		this._setbold(bold);
+		this._setitalic(italic);
 		this.underline = ul;
 		this.blink = blink;
 		this.reverse = reverse;
 		this.cursor_off = true;
 	}
 
-	redraw()
+	_redraw()
 	{
-		this.redraw_box(0, 0, this.ncolumns, this.nlines);
+		this._redraw_box(0, 0, this.ncolumns, this.nlines);
 	}
 
-	setfeature(a, f)
+	_setfeature(a, f)
 	{
 		if (a == 1) {
 			this.app_cursor_keys = f;
@@ -1293,8 +1299,8 @@ export class AnsiTerm {
 				this.blink_cursor = f;
 				if (this.enable_cursor) {
 					if (! f) {
-						this.unblink_cursor();
-						this.do_blink_cursor();
+						this._unblink_cursor();
+						this._do_blink_cursor();
 					}
 				}
 			}
@@ -1304,16 +1310,16 @@ export class AnsiTerm {
 				this.enable_cursor = f;
 				if (f) {
 					this.cursor_off = true;
-					this.do_blink_cursor();
+					this._do_blink_cursor();
 				}
 				else {
-					this.unblink_cursor();
+					this._unblink_cursor();
 				}
 			}
 		}
 		else if (a >= 1047 && a <= 1049) {
 			if (a == 1047 || a == 1049) {
-				this.selectscreen(f);
+				this._selectscreen(f);
 			}
 			if (a == 1048 || a == 1049) {
 				if (f) {
@@ -1323,34 +1329,34 @@ export class AnsiTerm {
 				}
 				else {
 					//this.restorestate();
-					this.setpos(this.save_posx_2, this.save_posy_2);
+					this._setpos(this.save_posx_2, this.save_posy_2);
 				}
 			}
 		}
 	}
 
-	do_blink_cursor()
+	_do_blink_cursor()
 	{
 		let unblink = (this.posx != this.x_lastblink || this.posy != this.y_lastblink)
 		if (unblink) {
-			this.unblink_cursor();
+			this._unblink_cursor();
 		}
 		if (this.blink_cursor || this.cursor_off) {
 			this.x_lastblink = this.posx;
 			this.y_lastblink = this.posy;
 			let op = this.gc.globalCompositeOperation;
 			this.gc.globalCompositeOperation = "xor";
-			this.clearcharbb(this.foreground);
+			this._clearcharbb(this.foreground);
 			this.gc.globalCompositeOperation = op;
 		}
 		this.cursor_off = false;
 	}
 
-	do_blink()
+	_do_blink()
 	{
 		// Cursor...
 		if (this.enable_cursor) {
-			this.do_blink_cursor();
+			this._do_blink_cursor();
 		}
 
 		// ..and characters
@@ -1369,42 +1375,20 @@ export class AnsiTerm {
 				if (this.blink_state) {
 					fg = bg;
 				}
-				this.drawchar(ch.ch, x * this.charwidth, (y + 1) * this.charheight - 1, fg, bg, ch.underline);
+				this._drawchar(ch.ch, x * this.charwidth, (y + 1) * this.charheight - 1, fg, bg, ch.underline);
 			}
 		});
 
-
-		/* TODO: optimize... */
-
-		/*
-		for (let y = 0; y < this.nlines; ++y) {
-			for (let x = 0; x < this.ncolumns; ++x) {
-				let ch = this.screen[y][x];
-				if (ch.blink) {
-					let fg = ch.foreground;
-					let bg = ch.background;
-					if (ch.reverse) {
-						bg = ch.foreground;
-						fg = ch.background;
-					}
-					if (this.blink_state) {
-						fg = bg;
-					}
-					this.drawchar(ch.ch, x * this.charwidth, (y + 1) * this.charheight - 1, fg, bg, ch.underline);
-				}
-			}
-		}
-		*/
 		this.blink_state = ! this.blink_state;
 	}
 
-	blink_timeout()
+	_blink_timeout()
 	{
-		this.do_blink();
-		this.blink_timer = setTimeout( (() => { this.blink_timeout(); }), this.blink_period);
+		this._do_blink();
+		this.blink_timer = setTimeout( (() => { this._blink_timeout(); }), this.blink_period);
 	}
 
-	unblink_cursor()
+	_unblink_cursor()
 	{
 		if (this.x_lastblink >= 0 && this.y_lastblink >= 0) {
 			let bg = this.background;
@@ -1412,14 +1396,14 @@ export class AnsiTerm {
 			let ch = this.screen[this.y_lastblink][this.x_lastblink];
 			this.background = ch.background;
 			this.foreground = ch.foreground;
-			this.printchar_in_place(ch.ch, this.x_lastblink, this.y_lastblink);
+			this._printchar_in_place(ch.ch, this.x_lastblink, this.y_lastblink);
 			this.background = bg;
 			this.foreground = fg;
 		}
 		this.cursor_off = true;
 	}
 
-	setpos(x, y)
+	_setpos(x, y)
 	{
 		if (x < 0) {
 			x = 0;
@@ -1439,12 +1423,12 @@ export class AnsiTerm {
 		this.pospy = (this.posy + 1) * this.charheight - 1;
 	}
 
-	incpos(dx, dy)
+	_incpos(dx, dy)
 	{
-		this.setpos(this.posx + dx, this.posy + dy);
+		this._setpos(this.posx + dx, this.posy + dy);
 	}
 
-	scroll_core(y_start, y_end, up)
+	_scroll_core(y_start, y_end, up)
 	{
 		let py = y_start * this.charheight;
 		let pheight = (y_end - y_start)  * this.charheight;
@@ -1495,13 +1479,13 @@ export class AnsiTerm {
 
 		for (let y = ymove_start; (y * ymove_step) < ymove_end; y += ymove_step) {
 			for (let x = 0; x < this.ncolumns; ++x) {
-				this.setcell(x, y, { ...this.screen[y + ymove_step][x] });
+				this._setcell(x, y, { ...this.screen[y + ymove_step][x] });
 			}
 		}
 
 		//this.dump();
 		for (let x = 0; x < this.ncolumns; ++x) {
-			this.clearcharscr(x, y_to_erase);
+			this._clearcharscr(x, y_to_erase);
 		}
 		//this.dump();
 
@@ -1510,64 +1494,64 @@ export class AnsiTerm {
 		}
 	}
 
-	scroll_from(y_start)
+	_scroll_from(y_start)
 	{
-		this.scroll_core(y_start, this.scrollregion_h, true)
+		this._scroll_core(y_start, this.scrollregion_h, true)
 	}
 
-	scroll()
+	_scroll()
 	{
-		this.scroll_from(this.scrollregion_l);
+		this._scroll_from(this.scrollregion_l);
 	}
 
-	revscroll_from(y_start)
+	_revscroll_from(y_start)
 	{
-		this.scroll_core(y_start, this.scrollregion_h, false)
+		this._scroll_core(y_start, this.scrollregion_h, false)
 	}
 
-	revscroll()
+	_revscroll()
 	{
-		this.revscroll_from(this.scrollregion_l);
+		this._revscroll_from(this.scrollregion_l);
 	}
 
-	tab()
+	_tab()
 	{
 		let l = 8 - this.posx % 8;
 		for (let i = 0; i < l ; ++i) {
 			this.pending_text += " ";
 			if (this.posx + i >= this.ncolumns - 1) {
-				this.flush();
+				this._flush();
 			}
 		}
 	}
 
-	nextline()
+	_nextline()
 	{
 		if (this.posy >= this.scrollregion_h) {
-			this.scroll();
+			this._scroll();
 		}
 		else {
-			this.setpos(this.posx, this.posy + 1);
+			this._setpos(this.posx, this.posy + 1);
 		}
 	}
 
-	newline()
+	_newline()
 	{
-		this.flush();
-		this.nextline();
+		this._flush();
+		this._nextline();
 	}
 
-	upline()
+	_upline()
 	{
 		if (this.posy <= this.scrollregion_l) {
-			this.revscroll();
+			this._revscroll();
 		}
 		else {
-			this.setpos(this.posx, this.posy - 1);
+			this._setpos(this.posx, this.posy - 1);
 		}
 	}
 
-	setfontstyle()
+	_setfontstyle()
 	{
 		let f = this.fullfont;
 		if (this.italic) {
@@ -1579,35 +1563,36 @@ export class AnsiTerm {
 		this.gc.font = f;
 	}
 
-	setitalic(f)
+	_setitalic(f)
 	{
 		if (f != this.italic) {
 			this.italic = f;
-			this.setfontstyle();
-		}
-	}
-	setbold(f)
-	{
-		if (f != this.bold) {
-			this.bold = f;
-			this.setfontstyle();
+			this._setfontstyle();
 		}
 	}
 
-	resetattr()
+	_setbold(f)
+	{
+		if (f != this.bold) {
+			this.bold = f;
+			this._setfontstyle();
+		}
+	}
+
+	_resetattr()
 	{
 		this.background = this.palette[0];
 		this.foreground = this.palette[7];
 		this.blink = false;
 		this.underline = false;
 		this.reverse = false;
-		this.setbold(false);
-		this.setitalic(false);
+		this._setbold(false);
+		this._setitalic(false);
 	}
 
-	setattr()
+	_setattr()
 	{
-		let args = this.getargs();
+		let args = this._getargs();
 
 		if (args.length < 1) {
 			args[0] = "0";
@@ -1631,7 +1616,7 @@ export class AnsiTerm {
 				this.background = this.palette[a - 100 + 8];
 			}
 			else if (a == 0) {
-				this.resetattr();
+				this._resetattr();
 			}
 			else if ((a == 38 || a == 48) && (args.length - j >= 3))  {
 				let e = Number(args[j+1]);
@@ -1663,23 +1648,23 @@ export class AnsiTerm {
 				this.background = this.palette[0];
 			}
 			else if (a == 1) {
-				this.setbold(true);
+				this._setbold(true);
 			}
 			else if (a == 22) {
-				this.setbold(false);
+				this._setbold(false);
 			}
 			else if (a == 3) {
-				this.setitalic(true);
+				this._setitalic(true);
 			}
 			else if (a == 23) {
-				this.setitalic(false);
+				this._setitalic(false);
 			}
 			else if (a == 4) {
 				this.underline = true;
 			}
 			else if (a == 5) {
 				if (this.blink_is_bold) {
-					this.setbold(true);
+					this._setbold(true);
 				}
 				else {
 					this.blink = true;
@@ -1693,7 +1678,7 @@ export class AnsiTerm {
 			}
 			else if (a == 25) {
 				if (this.blink_is_bold) {
-					this.setbold(false);
+					this._setbold(false);
 				}
 				else {
 					this.blink = false;
@@ -1705,10 +1690,10 @@ export class AnsiTerm {
 		}
 	}
 
-	screen_geometry()
+	_screen_geometry()
 	{
 		let r = "";
-		let a = this.getarg(0,0);
+		let a = this._getarg(0,0);
 		switch (a) {
 		case 11:
 			r = "\x1B[1t";
@@ -1731,99 +1716,99 @@ export class AnsiTerm {
 			break;
 		}
 		if (r != "") {
-			this.send(r);
+			this._send(r);
 		}
 		// Here what linux' "resize" command does:
 		//'\r\n\x1B[?2004l\r\x1B7\x1B[r\x1B[9999;9999H\x1B[6n'
 	}
 
-	erase_screen(a)
+	_erase_screen(a)
 	{
 		let x = this.posx;
 		let y = this.posy;
 		if (a < 2) {
-			this.erase_line(a);
+			this._erase_line(a);
 		}
 		let start = (a == 0) ? (y + 1) : 0;
 		let end = (a == 1) ? y : this.nlines;
 		// TODO: optimize
 		for (let i = start; i < end; ++i) {
 			for (let j = 0; j < this.ncolumns; ++j) {
-				this.setpos(j, i);
-				this.clearchar();
+				this._setpos(j, i);
+				this._clearchar();
 			}
 		}
-		this.setpos(x, y);
+		this._setpos(x, y);
 	}
 
-	erase(start, end)
+	_erase(start, end)
 	{
 		let x = this.posx;
 		let y = this.posy;
 		for (let i = start; i < end; ++i) {
-			this.setpos(i, this.posy);
-			this.clearchar();
+			this._setpos(i, this.posy);
+			this._clearchar();
 		}
-		this.setpos(x, y);
+		this._setpos(x, y);
 	}
 
-	erase_line(a)
+	_erase_line(a)
 	{
 		let x = this.posx;
 		let start = (a == 0) ? x : 0;
 		let end = (a == 1) ? (x + 1) : this.ncolumns;
-		this.erase(start, end);
+		this._erase(start, end);
 	}
 
-	insert_lines(n)
+	_insert_lines(n)
 	{
 		for (let i = 0; i < n; ++i) {
-			this.revscroll_from(this.posy);
+			this._revscroll_from(this.posy);
 		}
 	}
 
-	delete_lines(n)
+	_delete_lines(n)
 	{
 		for (let i = 0; i < n; ++i) {
-			this.scroll_from(this.posy);
+			this._scroll_from(this.posy);
 		}
 	}
 
-	erase_chars(n)
+	_erase_chars(n)
 	{
 		let x = this.posx;
-		this.erase(x, x + n);
+		this._erase(x, x + n);
 	}
 
-	delete_chars(n)
+	_delete_chars(n)
 	{
 		if (n + this.posx >= this.ncolumns) {
 			n = this.ncolumns - this.posx - 1;
 		}
 
 		for (let i = this.posx; i < this.ncolumns - n; ++i) {
-			this.setcell(i, this.posy, { ...this.screen[this.posy][i + n] });
+			this._setcell(i, this.posy, { ...this.screen[this.posy][i + n] });
 		}
 
-		this.redraw_box(this.posx, this.posy, this.ncolumns - this.posx - n, 1)
+		this._redraw_box(this.posx, this.posy, this.ncolumns - this.posx - n, 1)
 
-		this.erase(this.ncolumns - n, this.ncolumns);
+		this._erase(this.ncolumns - n, this.ncolumns);
 	}
 
-	clearcharbbxy(bg, x, y)
+	_clearcharbbxy(bg, x, y)
 	{
 		this.gc.fillStyle = bg;
 		this.gc.fillRect(x, y - this.charheight + 1, this.charwidth, this.charheight);
 	}
 
-	clearcharbb(bg)
+	_clearcharbb(bg)
 	{
-		this.clearcharbbxy(bg, this.pospx, this.pospy);
+		this._clearcharbbxy(bg, this.pospx, this.pospy);
 	}
 
-	clearcharscr(x,y)
+	_clearcharscr(x,y)
 	{
-		this.setcell(x, y,  {
+		this._setcell(x, y,  {
 			ch: " ",
 			background: this.background, // this.palette[0],
 			foreground: this.foreground, // this.palette[7],
@@ -1835,15 +1820,15 @@ export class AnsiTerm {
 		});
 	}
 
-	clearchar()
+	_clearchar()
 	{
-		this.clearcharscr(this.posx, this.posy);
-		this.clearcharbb(this.background /*this.palette[0] */);
+		this._clearcharscr(this.posx, this.posy);
+		this._clearcharbb(this.background /*this.palette[0] */);
 	}
 
-	drawchar(ch, px, py, fg, bg, ul)
+	_drawchar(ch, px, py, fg, bg, ul)
 	{
-		this.clearcharbbxy(bg, px, py);
+		this._clearcharbbxy(bg, px, py);
 		this.gc.fillStyle = fg;
 		this.gc.fillText(ch, px, py);
 		if (ul) {
@@ -1851,7 +1836,7 @@ export class AnsiTerm {
 		}
 	}
 
-	printchar_in_place_pix(ch, x, y, px, py)
+	_printchar_in_place_pix(ch, x, y, px, py)
 	{
 		let fg = this.foreground;
 		let bg = this.background;
@@ -1863,17 +1848,17 @@ export class AnsiTerm {
 			fg = this.selection_foreground;
 			bg = this.selection_background;
 		}
-		this.drawchar(ch, px, py, fg, bg, this.underline);
+		this._drawchar(ch, px, py, fg, bg, this.underline);
 	}
 
-	printchar_in_place(ch, x, y)
+	_printchar_in_place(ch, x, y)
 	{
-		this.printchar_in_place_pix(ch, x, y, x * this.charwidth, (y + 1) * this.charheight - 1);
+		this._printchar_in_place_pix(ch, x, y, x * this.charwidth, (y + 1) * this.charheight - 1);
 	}
 
-	printchar(ch)
+	_printchar(ch)
 	{
-		this.setcell(this.posx, this.posy, {
+		this._setcell(this.posx, this.posy, {
 			ch: ch,
 			background: this.background,
 			foreground: this.foreground,
@@ -1883,10 +1868,10 @@ export class AnsiTerm {
 			italic: this.italic,
 			underline: this.underline,
 		});
-		this.printchar_in_place_pix(ch, this.posx, this.posy, this.pospx, this.pospy);
+		this._printchar_in_place_pix(ch, this.posx, this.posy, this.pospx, this.pospy);
 	}
 
-	send_request(url)
+	_send_request(url)
 	{
 		var xhr = new XMLHttpRequest();
 
@@ -1896,19 +1881,19 @@ export class AnsiTerm {
 					var data = JSON.parse(xhr.responseText);
 					var t = data["text"];
 					t =  decodeURIComponent(escape(t));
-					this.apply(t);
+					this._apply(t);
 					if (t != "") {
 						console.log(data);
 					}
 					clearTimeout(this.timer);
-					this.timer = setTimeout( (()  => { this.update(); }), this.fast_refresh);
-					this.set_status(true);
+					this.timer = setTimeout( (()  => { this._update(); }), this.fast_refresh);
+					this._set_status(true);
 				}
 				else {
 					console.log(xhr.status);
 					clearTimeout(this.timer);
-					this.timer = setTimeout( (() => { this.update(); }), this.slow_refresh);
-					this.set_status(false);
+					this.timer = setTimeout( (() => { this._update(); }), this.slow_refresh);
+					this._set_status(false);
 				}
 			}
 		}
@@ -1917,22 +1902,22 @@ export class AnsiTerm {
 			xhr.open('GET', url, true);
 			xhr.send();
 		} catch {
-			this.set_status(false);
+			this._set_status(false);
 		}
 	}
 
-	update()
+	_update()
 	{
-		this.send_request(this.url_source);
+		this._send_request(this.url_source);
 	}
 
-	setsize()
+	_setsize()
 	{
 		let q = this.url_config.replace("?lines?", this.nlines).replace("?columns?", this.ncolumns);
-		this.send_request(q);
+		this._send_request(q);
 	}
 
-	send(t)
+	_send(t)
 	{
 		var xhr = new XMLHttpRequest();
 		xhr.onreadystatechange = () => {
@@ -1942,14 +1927,14 @@ export class AnsiTerm {
 					console.log(xhr.responseText);
 					//clearTimeout(this.timer);
 					//this.timer = setTimeout( (()  => { this.update(); }), this.fast_refresh);
-					this.update();
-					this.set_status(true);
+					this._update();
+					this._set_status(true);
 				}
 				else {
 					console.log(xhr.status);
 					clearTimeout(this.timer);
-					this.timer = setTimeout( (() => { this.update(); }), this.slow_refresh);
-					this.set_status(false);
+					this.timer = setTimeout( (() => { this._update(); }), this.slow_refresh);
+					this._set_status(false);
 				}
 			}
 		}
@@ -1958,31 +1943,31 @@ export class AnsiTerm {
 			xhr.setRequestHeader('Content-Type', 'text/plain');
 			xhr.send(t);
 		} catch {
-			this.set_status(false);
+			this._set_status(false);
 		}
 	}
 
-	send_id()
+	_send_id()
 	{
-		this.send("\x1B[?6c");
+		this._send("\x1B[?6c");
 	}
 
-	send_version()
+	_send_version()
 	{
-		this.send("\x1B[>65;6800;1c");
+		this._send("\x1B[>65;6800;1c");
 	}
 
-	send_pos()
+	_send_pos()
 	{
-		this.send("\x1B[" + (this.posy + 1) + ";" + (this.posx + 1) + "R"); // VT101 e terminale Windows
+		this._send("\x1B[" + (this.posy + 1) + ";" + (this.posx + 1) + "R"); // VT101 e terminale Windows
 	}
 
-	send_ok()
+	_send_ok()
 	{
-		this.send("\x1B[0n");
+		this._send("\x1B[0n");
 	}
 
-	eval_key(ev)
+	_eval_key(ev)
 	{
 		var key;
 		let e = {
@@ -2005,7 +1990,7 @@ export class AnsiTerm {
 		// DEBUG //
 		console.log(e);
 		if (e.key == "ContextMenu") {
-			this.dump();
+			this._dump();
 		}
 		///////////
 		if (AnsiTerm.key_translations[e.code] == "numpad") {
@@ -2045,16 +2030,16 @@ export class AnsiTerm {
 		return key;
 	}
 
-	send_key(e)
+	_send_key(e)
 	{
-		let key = this.eval_key(e);
+		let key = this._eval_key(e);
 		if (key != "") {
-			this.send(key);
+			this._send(key);
 		}
 	}
 
 	// DEBUG //
-	dump()
+	_dump()
 	{
 		let l = "";
 		for (let y = 0; y < this.nlines; ++y) {
@@ -2067,18 +2052,18 @@ export class AnsiTerm {
 	}
 	///////////
 
-	on_keydown(e)
+	_on_keydown(e)
 	{
 		e = e || window.event;
 
 		e.preventDefault();
 		e.stopPropagation();
 
-		this.send_key(e);
+		this._send_key(e);
 
 	}
 
-	redraw_selection(i1, i2, active)
+	_redraw_selection(i1, i2, active)
 	{
 		if (i1 > i2) {
 			let t = i2;
@@ -2094,20 +2079,20 @@ export class AnsiTerm {
 		if (w > ncell) {
 			w = ncell;
 		}
-		this.redraw_box(x1, y1, w, 1);
+		this._redraw_box(x1, y1, w, 1);
 		ncell -= w;
 		if (ncell > 0) {
 			let nlines = Math.floor(ncell / this.ncolumns);
-			this.redraw_box(0, y1 + 1, this.ncolumns, nlines);
+			this._redraw_box(0, y1 + 1, this.ncolumns, nlines);
 			ncell -= nlines * this.ncolumns;
 			if (ncell > 0) {
-				this.redraw_box(0, y1 + nlines + 1, ncell, 1);
+				this._redraw_box(0, y1 + nlines + 1, ncell, 1);
 			}
 		}
 		this.highlight = false;
 	}
 
-	update_selection(x, y)
+	_update_selection(x, y)
 	{
 		let sel = x + y * this.ncolumns;
 
@@ -2118,7 +2103,7 @@ export class AnsiTerm {
 		}
 
 		if (this.selection_start == -1) {
-			this.redraw_selection(sel, sel, true);
+			this._redraw_selection(sel, sel, true);
 			this.selection_start = sel;
 		}
 		else {
@@ -2128,26 +2113,26 @@ export class AnsiTerm {
 			if (i3 != i2) {
 				if (i1 < i2) {
 					if (i3 > i2) {
-						this.redraw_selection(i2 + 1, i3, true);
+						this._redraw_selection(i2 + 1, i3, true);
 					}
 					else if (i3 > i1) {
-						this.redraw_selection(i3 + 1, i2, false);
+						this._redraw_selection(i3 + 1, i2, false);
 					}
 					else {
-						this.redraw_selection(i1 + 1, i2, false);
-						this.redraw_selection(i3, i1, true);
+						this._redraw_selection(i1 + 1, i2, false);
+						this._redraw_selection(i3, i1, true);
 					}
 				}
 				else {
 					if (i3 < i2) {
-						this.redraw_selection(i3, i2 - 1, true);
+						this._redraw_selection(i3, i2 - 1, true);
 					}
 					else if (i3 <= i1) {
-						this.redraw_selection(i2, i3 - 1, false);
+						this._redraw_selection(i2, i3 - 1, false);
 					}
 					else {
-						this.redraw_selection(i2, i1 - 1, false);
-						this.redraw_selection(i1, i3, true);
+						this._redraw_selection(i2, i1 - 1, false);
+						this._redraw_selection(i1, i3, true);
 					}
 				}
 			}
@@ -2156,14 +2141,14 @@ export class AnsiTerm {
 		return sel;
 	}
 
-	clear_selection()
+	_clear_selection()
 	{
 		let rv = false;
 		if (this.selection_start != -1) {
 			if (this.selection_end == -1) {
 				this.selection_end = this.selection_last;
 			}
-			this.redraw_selection(this.selection_start, this.selection_end, false);
+			this._redraw_selection(this.selection_start, this.selection_end, false);
 			rv = true;
 		}
 		this.selection_start = -1;
@@ -2173,7 +2158,7 @@ export class AnsiTerm {
 		return rv;
 	}
 
-	selection_menu(x, y)
+	_selection_menu(x, y)
 	{
 		if (this.selection_start != -1) {
 			if (false) {
@@ -2238,27 +2223,27 @@ export class AnsiTerm {
 		//console.log(e);
 	}
 
-	on_mouse_move(e)
+	_on_mouse_move(e)
 	{
 		if (! this.selection_on) {
 			return;
 		}
 		let x = Math.floor(e.offsetX / this.charwidth);
 		let y = Math.floor(e.offsetY / this.charheight);
-		this.update_selection(x, y);
+		this._update_selection(x, y);
 	}
 
-	on_mouse_down(e)
+	_on_mouse_down(e)
 	{
 		if (e.button != 0) {
 			e.preventDefault();
 			e.stopPropagation();
 			//this.selection_menu(e.screenX, e.screenY);
 			//this.selection_menu(e.clientX, e.clientY);
-			this.selection_menu(e.pageX, e.pageY);
+			this._selection_menu(e.pageX, e.pageY);
 			return;
 		}
-		let cleared = this.clear_selection();
+		let cleared = this._clear_selection();
 		if (! cleared) {
 			this.selection_start = -1;
 			this.selection_end = -1;
@@ -2266,12 +2251,12 @@ export class AnsiTerm {
 			this.selection_on = true;
 			let x = Math.floor(e.offsetX / this.charwidth);
 			let y = Math.floor(e.offsetY / this.charheight);
-			this.update_selection(x, y);
+			this._update_selection(x, y);
 		}
 		//console.log(e);
 	}
 
-	on_mouse_up(e)
+	_on_mouse_up(e)
 	{
 		if (e.button != 0) {
 			e.preventDefault();
@@ -2282,7 +2267,7 @@ export class AnsiTerm {
 		if (false) {
 			let x = Math.floor(e.offsetX / this.charwidth);
 			let y = Math.floor(e.offsetY / this.charheight);
-			this.selection_end = this.update_selection(x, y);
+			this.selection_end = this._update_selection(x, y);
 		}
 		else {
 			this.selection_end = this.selection_last;
@@ -2290,7 +2275,7 @@ export class AnsiTerm {
 		//console.log(e);
 	}
 
-	on_mouse_click(e)
+	_on_mouse_click(e)
 	{
 		e.preventDefault();
 		e.stopPropagation();
