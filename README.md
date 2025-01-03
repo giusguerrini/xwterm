@@ -1,6 +1,15 @@
 # xwterm
 **Simple web Xterm and ANSI terminal emulator - pure JavaScript, no dependencies**   
 
+## Table of Contents
+- [Introduction](#introduction)
+- [Setup](#setup)
+- [Usage](#usage)
+- [Screenshots](#screenshots)
+- [Caveats](#caveats)
+- [TODO](#todo)
+- [Enjoy](#enjoy)
+
 ## Introduction
 The goal of this project is to provide a simple, pure javascript terminal emulator frontend
 (i.e., the client side). Connecting to a terminal service is a user's responsibility.
