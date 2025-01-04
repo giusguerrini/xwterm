@@ -90,9 +90,21 @@ const ANSITERM_VERSION = "0.1.0";
  NOTE: I'm not sure if this is a good idea. I may change it in
  the future. I am not an enthusiast of rigid coding conventions
  (and there are some that I hate, e.g, useless prefixes like
- "m_" for members, "C" for classes...). World is too complicated
- to be constrained by rigid rules.
- ...But I'll impose at least two rules:
+ "m_" for members, "C" for classes... Furthermore, I hate horrors like this:
+ 
+	for (iIndexOfTheThingsIAmLookingForButIAmNotSureIfItIsThere = 0;
+	     iIndexOfTheThingsIAmLookingForButIAmNotSureIfItIsThere < fArrayOfThingsIAmLookingFor.length;
+	     ++iIndexOfTheThingsIAmLookingForButIAmNotSureIfItIsThere) {
+
+		if (fArrayOfThingsIAmLookingFor[iIndexOfTheThingsIAmLookingForButIAmNotSureIfItIsThere]
+		 == fTheThingIAmLookingForButIAmNotSureIfItIsThere) {
+			break;
+		}
+	}
+
+  Today's screens are wide, but, please, just use a plain "i" for index. Please).
+
+ Beside my personal quirks, I'll impose at least two rules:
  1) always put semi-colons at the end of statements,
  2) always use braces for control structures.
 
