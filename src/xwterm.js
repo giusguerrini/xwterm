@@ -576,12 +576,12 @@ export class AnsiTerm {
 	Keyboard handling:
 	The conversion of key codes to sequences to sent
 	is done by looking up the key code in the following tables.
-	Some special valuei ("none", "numpad") are used to indicate that the key
+	Some special values ("none", "numpad") are used to indicate that the key
 	is a modifier and should not be sent. Also, "numpad" is used to indicate
 	that the key is a numpad key and should be translated to different
-	sequences depending on the state of the NumLock key.
+	sequences depending on the state set by an appropriate escape sequence.
 	"key_translations_numlock_off" and "key_translations_numlock_on" are used
-	to translate numpad keys when NumLock is off or on, respectively.
+	for this purpose.
 	*/
 
 
