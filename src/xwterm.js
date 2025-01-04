@@ -1,6 +1,6 @@
 
 	
-const ANSITERM_VERSION = "0.1.0";
+const ANSITERM_VERSION = "0.2.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -9,9 +9,7 @@ const ANSITERM_VERSION = "0.1.0";
  The canvas participates to a hierarchy of elements whose root
  is a "div". Other participants are a "title" element, buttons
  and a "status" element. The "status" element is used to show
- the status of the terminal, while the buttons are used to
- send function keys to the terminal. The "title" element is
- used to show the title of the terminal. The "div" element
+ the status of the terminal. The "div" element
  contains all the other elements. It may be created by the
  class or passed as a parameter to the constructor. The class
  may be used to create a terminal emulator in a web page by
@@ -60,17 +58,18 @@ const ANSITERM_VERSION = "0.1.0";
  during scroll operations. A "drawImage" to move a whole rectangle
  is used instead.
 
- The cursor is drawn as a rectangle that blinks. To optimize the
+ The cursor is drawn as a blinking rectangle. To optimize the
  rendering, the cursor is drawn only at the end of a block of
  characters from the server, so cursor is not visible during
  rendering of a block of characters. This is a few unaesthetic,
  but in my opinion it's worth the performance gain.
 
- Blinking is controlled by a timer that toggles the screen state
+ Blinking is controlled by a timer that toggles the state
  every "blink_period" milliseconds. The same timer is used
  for both the cursor and blinking characters. Blinking characters
- are stored in a list that updates whenever a character is
- received from the server and redraws them when the timer fires.
+ are stored in a list that updates whenever a character changes
+ its blinking state.
+
 
  
 ----------------------
@@ -92,11 +91,11 @@ const ANSITERM_VERSION = "0.1.0";
  (and there are some that I hate, e.g, useless prefixes like
  "m_" for members, "C" for classes... Furthermore, I hate horrors like this:
  
-	for (iIndexOfTheThingsIAmLookingForButIAmNotSureIfItIsThere = 0;
-	     iIndexOfTheThingsIAmLookingForButIAmNotSureIfItIsThere < fArrayOfThingsIAmLookingFor.length;
-	     ++iIndexOfTheThingsIAmLookingForButIAmNotSureIfItIsThere) {
+	for (iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere = 0;
+	     iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere < fArrayOfThingsIAmLookingFor.length;
+	     ++iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere) {
 
-		if (fArrayOfThingsIAmLookingFor[iIndexOfTheThingsIAmLookingForButIAmNotSureIfItIsThere]
+		if (fArrayOfThingsIAmLookingFor[iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere]
 		 == fTheThingIAmLookingForButIAmNotSureIfItIsThere) {
 			break;
 		}
@@ -116,6 +115,87 @@ const ANSITERM_VERSION = "0.1.0";
 	https://www.commandlinux.com/man-page/man4/console_codes.4.html
 */			
 
+/*
+TODO: define classes for screen, cells, graphic states, etc.
+
+class AnsiTermScreenCell {
+
+}
+
+class AnsiTermScreen {
+
+	constructor(nlines, ncolumns, fontsize, font, gc) {
+		this.nlines = nlines;
+		this.ncolumns = ncolumns;
+		this.fontsize = fontsize;
+		this.font = font;
+		this.gc = gc;
+		this._reset();
+	}
+
+	_clearscreen()
+	{
+		for (let y = 0; y < this.nlines; ++y) {
+			for (let x = 0; x < this.ncolumns; ++x) {
+				this.screen[y][x] = {
+					ch: " ",
+					fg: this.foreground,
+					bg: this.background,
+					bold: false,
+					italic: false,
+					underline: false,
+					reverse: false,
+					blink: false,
+					selected: false,
+				};
+			}
+		}
+	}
+
+	_erase_screen(mode)
+	{
+		if (mode == 0) {
+			for (let y = this.posy; y < this.nlines; ++y) {
+				for (let x = 0; x < this.ncolumns; ++x) {
+					this.screen[y][x] = {
+						ch: " ",
+						fg: this.foreground,
+						bg: this.background,
+						bold: false,
+						italic: false,
+						underline: false,
+						reverse: false,
+						blink: false,
+						selected: false,
+					};
+				}
+			}
+		}
+		else if (mode == 1) {
+			for (let y = 0; y < this.posy; ++y) {
+				for (let x = 0; x < this.ncolumns; ++x) {
+					this.screen[y][x] = {
+						ch: " ",
+						fg: this.foreground,
+						bg: this.background,
+						bold: false,
+						italic: false,
+						underline: false,
+						reverse: false,
+						blink: false,
+						selected: false,
+					};
+				}
+			}
+		}
+		else if (mode == 2) {
+			this._clearscreen();
+		}
+	}
+
+}
+	*/
+
 export class AnsiTerm {
 
 
@@ -129,8 +209,7 @@ export class AnsiTerm {
 		this.gc.fillStyle = this.foreground;
 
 		this.screens = [[],[]];
-		let i;
-		for (i = 0; i < this.nlines; ++i) {
+		for (let i = 0; i < this.nlines; ++i) {
 			this.screens[0][i] = [];
 			this.screens[1][i] = [];
 		}
@@ -673,7 +752,7 @@ export class AnsiTerm {
 			"NumpadDecimal": "numpad",
 	};
 
-	static key_translations_numlock_off = {
+	static key_translations_numlock_on = {
 			"NumpadDivide": "/",
 			"NumpadMultiply": "*",
 			"NumpadAdd": "+",
@@ -1235,12 +1314,12 @@ export class AnsiTerm {
 		if (a0 == 0 || a0 == 2) {
 			let p = this.paramstr.indexOf(";");
 			if (p < 0) {
-				p = 0; // scommessa...
+				p = 0;
 			}
 			this._set_title(this.paramstr.slice(p + 1));
 		}
 		else if (a0 >= 10 && a0 <= 19 && a[1] == "?") {
-			// Retund RGB codes of some "notable" colors.
+			// Retuturn RGB codes of some "notable" colors.
 			let to_palette = {
 				10: 7,
 				11: 0,
@@ -1611,93 +1690,114 @@ export class AnsiTerm {
 		}
 
 		for (let j = 0; j < args.length; ++j) {
-			// Non so che roba sia questo % che tovo in certi casi
 			let a = args[j];
+			// I don't know what the hell is this % that vim sometimes generates. It looks like a bug,
+			// (probably in terminfo) because it's not documented in the xterm sequences.
 			a = a.replace(/%/,"");
 			a = Number(args[j]);
-			if (a >= 30 && a <= 37) {
-				this.foreground = this.palette[a - 30];
-			}
-			else if (a >= 90 && a <= 97) {
-				this.foreground = this.palette[a - 90 + 8];
-			}
-			else if (a >= 40 && a <= 47) {
-				this.background = this.palette[a - 40];
-			}
-			else if (a >= 100 && a <= 107) {
-				this.background = this.palette[a - 100 + 8];
-			}
-			else if (a == 0) {
+
+			switch (a) {
+
+			case 0:
 				this._resetattr();
-			}
-			else if ((a == 38 || a == 48) && (args.length - j >= 3))  {
-				let e = Number(args[j+1]);
-				if ((e == 2) && (args.length - j >= 6)) {
-					let c = "rgb(" + Number(args[j+3]) + "," + Number(args[j+4]) + "," + Number(args[j+5]) + ")";
-					if (a == 38) {
-						this.foreground = c;
+				break;
+			case 30: case 31: case 32: case 33: case 34: case 35: case 36: case 37:	
+				this.foreground = this.palette[a - 30];
+				break;
+			case 90: case 91: case 92: case 93: case 94: case 95: case 96: case 97:	
+				this.foreground = this.palette[a - 90 + 8];
+				break;
+			case 40: case 41: case 42: case 43: case 44: case 45: case 46: case 47:	
+				this.background = this.palette[a - 40];
+				break;
+			case 100: case 101: case 102: case 103: case 1010: case 105: case 106: case 107:	
+				this.background = this.palette[a - 100 + 8];
+				break;
+			case 38:
+			case 48:
+				if (args.length - j >= 3)  {
+					let e = Number(args[j+1]);
+					if ((e == 2) && (args.length - j >= 6)) {
+						let c = "rgb(" + Number(args[j+3]) + "," + Number(args[j+4]) + "," + Number(args[j+5]) + ")";
+						if (a == 38) {
+							this.foreground = c;
+						}
+						else {
+							this.background = c;
+						}
+						j += 5;
 					}
-					else {
-						this.background = c;
+					else if (e == 5) {
+						let c = Number(args[j + 2]);
+						if (a == 38) {
+							this.foreground = this.xpalette[c];
+						}
+						else {
+							this.background = this.xpalette[c];
+						}
+						j += 2;
 					}
-					j += 5;
 				}
-				else if (e == 5) {
-					let c = Number(args[j + 2]);
-					if (a == 38) {
-						this.foreground = this.xpalette[c];
-					}
-					else {
-						this.background = this.xpalette[c];
-					}
-					j += 2;
-				}
-			}
-			else if (a == 39) {
+			case 39:
 				this.foreground = this.palette[7];
-			}
-			else if (a == 49) {
+				break;
+			case 49:
 				this.background = this.palette[0];
-			}
-			else if (a == 1) {
+				break;
+			case 1:
 				this._setbold(true);
-			}
-			else if (a == 22) {
+				break;
+			case 2:
+				// TODO: Faint, decreased intensity, ECMA-48 2nd.
+				break;
+			case 8:
+				// TODO: Invisile, i.e., hidden, ECMA-48 2nd, VT300.
+			case 28: // Visible
+				break;
+			case 9:
+				// TODO: Crossed-out characters, ECMA-48 3rd.
+			case 29: // Not crossed-out characters
+				break;
+			case 22:
 				this._setbold(false);
-			}
-			else if (a == 3) {
+				break;
+			case 3:
 				this._setitalic(true);
-			}
-			else if (a == 23) {
+				break;
+			case 23:
 				this._setitalic(false);
-			}
-			else if (a == 4) {
+				break;
+			case 4:
 				this.underline = true;
-			}
-			else if (a == 5) {
+				break;
+			case 24:
+				this.underline = false;
+				break;
+			case 5:
 				if (this.blink_is_bold) {
 					this._setbold(true);
 				}
 				else {
 					this.blink = true;
 				}
-			}
-			else if (a == 7) {
-				this.reverse = true;
-			}
-			else if (a == 24) {
-				this.underline = false;
-			}
-			else if (a == 25) {
+				break;
+			case 25:
 				if (this.blink_is_bold) {
 					this._setbold(false);
 				}
 				else {
 					this.blink = false;
 				}
-			}
-			else if (a == 27) {
+				break;
+			case 7:
+				this.reverse = true;
+				break;
+			case 27:
 				this.reverse = false;
+				break;
+
+			default:
+				break;
 			}
 		}
 	}
@@ -1730,7 +1830,7 @@ export class AnsiTerm {
 		if (r != "") {
 			this._send(r);
 		}
-		// Here what linux' "resize" command does:
+		// But here's what linux' "resize" command does:
 		//'\r\n\x1B[?2004l\r\x1B7\x1B[r\x1B[9999;9999H\x1B[6n'
 	}
 
@@ -1971,7 +2071,7 @@ export class AnsiTerm {
 
 	_send_pos()
 	{
-		this._send("\x1B[" + (this.posy + 1) + ";" + (this.posx + 1) + "R"); // VT101 e terminale Windows
+		this._send("\x1B[" + (this.posy + 1) + ";" + (this.posx + 1) + "R"); // VT101 and Windows console
 	}
 
 	_send_ok()
@@ -2008,8 +2108,7 @@ export class AnsiTerm {
 		if (AnsiTerm.key_translations[e.code] == "numpad") {
 			if (key.length != 1) {
 				key = "";
-				e.key = AnsiTerm.key_translations_numlock_on[e.code];
-				e.code = e.key;
+				e.key = AnsiTerm.key_translations_numlock_off[e.code];
 			}
 			e.code = e.key;	
 		}
