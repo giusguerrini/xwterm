@@ -115,6 +115,63 @@ const ANSITERM_VERSION = "0.2.0";
 	https://www.commandlinux.com/man-page/man4/console_codes.4.html
 */			
 
+// DEFAULTS
+
+const ANSITERM_DEFAULTS = {
+	// Basic characteristics:
+
+	nLines:  25, // Number of lines
+	nColumns:  80, // Number of columns
+
+	fontSize:  15, // Font size in pixels. It determines the size of the canvas.
+
+	font:  "Courier New", // Font name. A monospaced font is required (or at least suggested).
+
+	statusFont:  "Arial bold", // Font for the status line and the title.
+	
+	// Custom layout control:
+
+	divId:  "", // Id of the div element that contains the terminal. If empty, a new div is created.
+	canvasId:  "", // Id of the canvas element. If empty, a new canvas is created.
+	titlesId:  "", // Id of the title element. If empty, a new title is created.
+	//statusId:  "", // TODO: Id of the status element. If empty, a new status is created.
+	//keyboardId:  "", // TODO: Id of the keyboard element. If empty, a new keyboard is created.
+	//buttonsId:  "", // TODO: Id of the button container element. If empty, a new container is created.
+
+	// Protocol parameters:
+
+	//url:  window.location.href, // URL of the server. This usually is the same as the URL of the page.
+
+	source:  "/?console", // GET request to receive characters from the server.
+	config:  "/?size=?lines?x?columns?", // GET request to set the size of the terminal.
+	dest:  "/", // POST request to send characters to the server.
+	timeout:  0, //10000; // Timeout for all request. 0 means no timeout. If timeout is reached, the ESC sequence is aborted.
+
+	immediateRefresh:  70, // Time in milliseconds to send an update request after sending an event.
+	fastRefresh:  500, // Time in milliseconds to send the next update request after receiving a response.
+	slowRefresh:  2000, // Time in milliseconds to send the next update request after a protocol failure.
+
+	// Colors and appearance:
+
+	foreground:  "rgb(192,192,192)", // Default foreground color.
+	background:  "rgb(0,0,0)", // Default background color.
+	statusForegroundOk:  "rgb(0,32,0)", // Status line foreground color when status is OK.
+	statusBackgroundOk:  "rgb(160,192,160)", // Status line background color when status is OK.
+	statusForegroundKo:  "rgb(255,255,0)", // Status line foreground color when status is not OK.
+	statusBackgroundKo:  "rgb(192,64,64)", // Status line background color when status is not OK.
+	titleBackground:  "rgb(192,192,192)", // Title background color.
+	titleForeground:  "rgb(0,0,128)", // Title foreground color.
+	//keyboardBackground:  this.title_background, // Keyboard background color. Usually the same as the title.
+	//keyboardForeground:  this.title_foreground, // Keyboard foreground color. Usually the same as the title.
+	selectionBackground:  "rgb(0,0,0)", // Selection background color.
+	selectionForeground:  "rgb(255,192,192)", // Selection foreground color.
+
+	blinkIsBold:  true, // If true, blinking characters are drawn bold.
+	blinkPeriod:  500, // Blink period in milliseconds for both cursor an blinking characters.
+
+	titleText:  "ANSI Terminal", // Initial title text.
+};
+
 /*
 TODO: define classes for screen, cells, graphic states, etc.
 
@@ -548,7 +605,7 @@ export class AnsiTerm {
 				"": () => { this._addparam(); },
 			},
 
-			// OSC (cont.)
+			// OSC ... ST
 			13: {
 				"\\": this._ti(() => {
 					this._do_osc();
@@ -770,68 +827,71 @@ export class AnsiTerm {
 			"NumpadDecimal": ".",
 	};
 
-	constructor(params)
+
+	// Inizialize the palette
+	// TODO: make it configurable (at least basic colors). A te the moment,
+	// Onli "background" and "foreground" are configurable. BAckground is
+	// this.palette[0] and foreground is this.palette[7]. Their RGB components
+	// can be changed by configuration.
+
+	_create_palette()
 	{
-		if (! params) {
-			params = "";
+		//////////////////////////////
+		// (Almost) standard base palette.
+		// Apply configured background and foreground.
+		// TODO: make it fully configurable.
+		this.palette = [ this.background,    "rgb(192,0,0)",   "rgb(0,192,0)",   "rgb(160,160,0)",
+		                 "rgb(65,65,192)",  "rgb(160,0,160)", "rgb(0,128,160)", this.foreground,
+		                 "rgb(65,65,65)", "rgb(255,0,0)",   "rgb(0,255,0)",   "rgb(255,255,0)",
+		                 "rgb(65,65,255)",  "rgb(255,0,255)", "rgb(0,128,255)", "rgb(255,255,255)" ];
+
+	
+		//////////////////////////////
+		// xterm-256 palette
+		this.xpalette = [];
+
+		// Standard 16 colors: 8 base colors + 8 bright colors. Color's
+		// RGB components are encoded in 3 levels: 0, 128 (for base), 255 (for bright).
+		// Iteration index's bits are used to select the components.
+		for (let i = 0; i < 16; ++i) {
+			let on = (i & 0x08) ? 255 : 128;
+			let r = (i & 0x01) ? on : 0;
+			let g = (i & 0x02) ? on : 0;
+			let b = (i & 0x04) ? on : 0;
+			this.xpalette.push("rgb(" + r + "," + g + "," + b + ")");
 		}
-		if (typeof params == 'string') {
-			params = { divId: params };
+		this.xpalette[7] = "rgb(192,192,192)"; // Base color 7 doesn't fit the above pattern.
+
+		// 216 colors (16...231: 6x6x6 RGB combinations.
+		// Iteration index (-16) is decomposed in 3 base-6 ciphers. Each cipher
+		// is a level index in "v", which is a vector
+		// of levels for each component.
+		let v = [ 0, 95, 135, 175, 215, 255 ];
+		for (let i = 16; i < 232; ++i) {
+			let x = (i - 16);
+			let rm = x % 6;
+			let b = v[rm];
+			x  = Math.floor(x / 6);
+			rm = x % 6;
+			let g = v[rm];
+			x  = Math.floor(x / 6);
+			rm = x % 6;
+			let r = v[rm];
+			this.xpalette.push("rgb(" + r + "," + g + "," + b + ")");
 		}
-		this.nlines = params["nLines"] || 25;
-		this.ncolumns = params["nColumns"] || 80;
-		this.fontsize = params["fontSize"] || 15;
-		this.font = params["font"] || "Courier New";
-		this.status_font = params["statusFont"] || "Arial bold";
-		this.divid = params["divId"] || "";
-		this.canvasid = params["canvasId"] || "";
-		this.titleid = params["titlesId"] || "";
-		this.url = params["url"] || window.location.href;
-		this.source = params["source"] || "/?console";
-		this.config = params["config"] || "/?size=?lines?x?columns?";
-		this.dest = params["dest"] || "/";
-		this.immediate_refresh = params["immediateRefresh"] || 70;
-		this.fast_refresh = params["fastRefresh"] || 500;
-		this.slow_refresh = params["slowRefresh"] || 2000;
-		this.foreground = params["foreground"] || "rgb(192,192,192)";
-		this.background = params["background"] || "rgb(0,0,0)";
-		this.status_foreground_ok = params["statusForegroundOk"] || "rgb(0,32,0)";
-		this.status_background_ok = params["statusBackgroundOk"] || "rgb(160,192,160)";
-		this.status_foreground_ko = params["statusForegroundKo"] || "rgb(255,255,0)";
-		this.status_background_ko = params["statusBackgroundKo"] || "rgb(192,64,64)";
-		this.title_background = params["titleBackground"] || "rgb(192,192,192)";
-		this.title_foreground = params["titleForeground"] || "rgb(0,0,128)";
-		this.keyboard_background = params["keyboardBackground"] || this.title_background;
-		this.keyboard_foreground = params["keyboardForeground"] || this.title_foreground;
-		this.selection_foreground = params["selectionBackground"] || "rgb(0,0,0)";
-		this.selection_background = params["selectionForeground"] || "rgb(255,192,192)";
-		this.blink_is_bold = params["blinkIsBold"] || true;
-		this.timeout = params["timeout"] || 0; //10000;
-		this.title_text = params["titleText"] || "ANSI Terminal";
 
-		this.underline = false;
-		this.blink = false;
-		this.reverse = false;
-		this.highlight = false;
-		this.blink_cursor = true;
-		this.blink_period = 500;
-		this.enable_cursor = true;
-		this.force_blink_cursor = true;
+		// Grayscale (232...255: 24 levels of gray)
+		for (let i = 232; i < 256; ++i) {
+			let v = (i - 232) * 10 + 8;
+			this.xpalette.push("rgb(" + v + "," + v + "," + v + ")");
+		}
+	}
 
-		this.status_ok = false;
-
-		this.bold = false;
-		this.italic = false;
-
-		this.url_source = this.source;
-		//this.url_source = this.url + this.source;
-		this.url_dest = this.dest;
-		this.url_config = this.config;
-		//this.url_dest = this.url + this.dest;
-		this.fullfont = this.fontsize.toString() + "px " + this.font;
-		this.status_fullfont = this.fontsize.toString() + "px " + this.status_font;
-
-
+	//
+	// Layout generator.
+	//
+	_layout()
+	{
 		this.div = null;
 		this.canvas = null;
 		this.title = null;
@@ -980,21 +1040,7 @@ export class AnsiTerm {
 			}
 		}
 
-		this.canvas.addEventListener("click", (event) => {
-			this._on_mouse_click(event);
-		});
-
-		this.canvas.addEventListener("mousedown", (event) => {
-			this._on_mouse_down(event);
-		});
-
-		this.canvas.addEventListener("mouseup", (event) => {
-			this._on_mouse_up(event);
-		});
-
-		this.canvas.addEventListener("mousemove", (event) => {
-			this._on_mouse_move(event);
-		});
+		// TODO / WIP: Copy/Paste popup menu
 
 		this.menu = document.createElement("dialog");
 		this.menu.open = false;
@@ -1021,11 +1067,125 @@ export class AnsiTerm {
 		this.menu_ul_li4 = document.createElement("li");
 		this.menu_ul_li4.innerText = "Quit";
 		this.menu_ul.appendChild(this.menu_ul_li4);
+	}
+
+	// Table to convert public configuration keys to internal members.
+	// (Yes, I am too lazy to rename all the public keys to match the internal ones).
+	static config_to_members = {
+		nLines: "nlines",
+		nColumns: "ncolumns",
+		fontSize: "fontsize",
+		font: "font",
+		statusFont: "status_font",
+		divId: "divid",
+		canvasId: "canvasid",
+		titlesId: "titleid",
+		url: "url",
+		source: "source",
+		config: "config",
+		dest: "dest",
+		immediateRefresh: "immediate_refresh",
+		fastRefresh: "fast_refresh",
+		slowRefresh: "slow_refresh",
+		foreground: "foreground",
+		background: "background",
+		statusForegroundOk: "status_foreground_ok",
+		statusBackgroundOk: "status_background_ok",
+		statusForegroundKo: "status_foreground_ko",
+		statusBackgroundKo: "status_background_ko",
+		titleBackground: "title_background",
+		titleForeground: "title_foreground",
+		keyboardBackground: "keyboard_background",
+		keyboardForeground: "keyboard_foreground",
+		selectionBackground: "selection_foreground",
+		selectionForeground: "selection_background",
+		blinkIsBold: "blink_is_bold",
+		blinkPeriod: "blink_period",
+		timeout: "timeout",
+		titleText: "title_text",
+	};
+
+
+	constructor(params)
+	{
+
+		// Contructor's parameters and their defaut values:
+
+		// Some handy conventions:
+		// no parameters: apply defaults, create a new terminal in a new div.
+		// string parameter: apply defaults, create a new terminal in the div with the given id.
+		if (! params) {
+			params = "";
+		}
+		if (typeof params == 'string') {
+			params = { divId: params };
+		}
+
+		// Apply defaults, overwrite with actual parameters
+		this.configuration = { ...ANSITERM_DEFAULTS, ...params };
+
+		// Convert public configuration keys to internal members.
+		for (let key in this.configuration) {
+			if (AnsiTerm.config_to_members[key]) {
+				this[AnsiTerm.config_to_members[key]] = this.configuration[key];
+			}
+		}
+
+		// Fix some defaults that can't be set in the defaults table.
+		this.url = this.url || window.location.href;
+		this.keyboard_background = this.keyboard_background || this.title_background;
+		this.keyboard_foreground = this.keyboard_foreground || this.title_foreground;
+
+		// Initialize state variables.
+		this.underline = false;
+		this.blink = false;
+		this.reverse = false;
+		this.highlight = false;
+		this.blink_cursor = true;
+		this.blink_period = 500;
+		this.enable_cursor = true;
+		this.force_blink_cursor = true;
+
+		this.status_ok = false;
+
+		this.bold = false;
+		this.italic = false;
 
 		this.selection_on = false;
 		this.selection_start = -1;
 		this.selection_end = -1;
 		this.selection_last = -1;
+
+
+		this.url_source = this.source;
+		//this.url_source = this.url + this.source;
+		this.url_dest = this.dest;
+		this.url_config = this.config;
+		//this.url_dest = this.url + this.dest;
+		this.fullfont = this.fontsize.toString() + "px " + this.font;
+		this.status_fullfont = this.fontsize.toString() + "px " + this.status_font;
+
+
+		// Create elements and layout.
+		this._layout();
+		
+		// Set up canvas' sensitivity to mouse events.
+		this.canvas.addEventListener("click", (event) => {
+			this._on_mouse_click(event);
+		});
+
+		this.canvas.addEventListener("mousedown", (event) => {
+			this._on_mouse_down(event);
+		});
+
+		this.canvas.addEventListener("mouseup", (event) => {
+			this._on_mouse_up(event);
+		});
+
+		this.canvas.addEventListener("mousemove", (event) => {
+			this._on_mouse_move(event);
+		});
+
 
 		this.gc = this.canvas.getContext("2d");
 		this.gc.font = this.fullfont;
@@ -1050,41 +1210,8 @@ export class AnsiTerm {
 		this.gc.font = this.fullfont;
 		this.gc.textBaseline = "bottom";
 
-		this.palette = [ "rgb(0,0,0)",    "rgb(192,0,0)",   "rgb(0,192,0)",   "rgb(160,160,0)",
-		                 "rgb(65,65,192)",  "rgb(160,0,160)", "rgb(0,128,160)", "rgb(192,192,192)",
-		                 "rgb(65,65,65)", "rgb(255,0,0)",   "rgb(0,255,0)",   "rgb(255,255,0)",
-		                 "rgb(65,65,255)",  "rgb(255,0,255)", "rgb(0,128,255)", "rgb(255,255,255)" ];
+		this._create_palette();
 
-		this.palette[0] = this.background;
-		this.palette[7] = this.foreground;
-
-		this.xpalette = [];
-
-		for (let i = 0; i < 16; ++i) {
-			let on = (i & 0x08) ? 255 : 128;
-			let r = (i & 0x01) ? on : 0;
-			let g = (i & 0x02) ? on : 0;
-			let b = (i & 0x04) ? on : 0;
-			this.xpalette.push("rgb(" + r + "," + g + "," + b + ")");
-		}
-		this.xpalette[7] = "rgb(192,192,192)";
-		for (let i = 16; i < 232; ++i) {
-			let v = [ 0, 95, 135, 175, 215, 255 ];
-			let x = (i - 16);
-			let rm = x % 6;
-			let b = v[rm];
-			x  = Math.floor(x / 6);
-			rm = x % 6;
-			let g = v[rm];
-			x  = Math.floor(x / 6);
-			rm = x % 6;
-			let r = v[rm];
-			this.xpalette.push("rgb(" + r + "," + g + "," + b + ")");
-		}
-		for (let i = 232; i < 256; ++i) {
-			let v = (i - 232) * 10 + 8;
-			this.xpalette.push("rgb(" + v + "," + v + "," + v + ")");
-		}
 
 		this._reset();
 
