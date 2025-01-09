@@ -1,6 +1,6 @@
 
 	
-const ANSITERM_VERSION = "0.2.0";
+const ANSITERM_VERSION = "0.3.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -1190,9 +1190,26 @@ export class AnsiTerm {
 		this.gc = this.canvas.getContext("2d");
 		this.gc.font = this.fullfont;
 		this.gc.textBaseline = "bottom";
-		this.chmeasure = this.gc.measureText('X');
-		this.charwidth = this.chmeasure.actualBoundingBoxLeft + this.chmeasure.actualBoundingBoxRight;
-		this.charheight = this.chmeasure.fontBoundingBoxAscent + this.chmeasure.fontBoundingBoxDescent;
+
+		// An ugly trick to alculate character width and height.
+		this.charwidth = 0;
+		this.charheight = 0;
+		//[..."Xmg_TGOWMQ[]{}|"].forEach(e => {
+		//[..."\u2500|"].forEach(e => {
+		[..."X|"].forEach(e => {
+				let cm = this.gc.measureText(e);
+				// Sometimes the measures are not integers, so we
+				// round them to the nearest integer.
+				let w = Math.floor(cm.actualBoundingBoxLeft + cm.actualBoundingBoxRight + 0.5);
+				let h = Math.floor(cm.fontBoundingBoxAscent + cm.fontBoundingBoxDescent + 0.5);
+				if (w > this.charwidth) {
+					this.charwidth = w;
+				}
+				if (h > this.charheight) {
+					this.charheight = h;
+				}
+		});
+
 		this.underline_height = Math.floor(this.charheight / 10); // TODO: make parametric
 		this.underline_off = Math.floor(this.charheight / 10); // TODO: make parametric
 		if (this.underline_off < 1) {

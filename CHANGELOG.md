@@ -1,7 +1,8 @@
 # Changelog
 
-## [Unreleased]
+## [0.3.0] - 2025-01-09
 - Code cleanup.
+- Fixed character size calculation. The result is now rounded, which resolves a display issue on Firefox.
 
 ## [0.2.0] - 2025-01-04
 - Fixed numeric keypad handling.
