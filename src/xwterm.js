@@ -830,7 +830,7 @@ export class AnsiTerm {
 
 	// Inizialize the palette
 	// TODO: make it configurable (at least basic colors). A te the moment,
-	// Onli "background" and "foreground" are configurable. BAckground is
+	// only "background" and "foreground" are configurable. Background is
 	// this.palette[0] and foreground is this.palette[7]. Their RGB components
 	// can be changed by configuration.
 
@@ -905,6 +905,11 @@ export class AnsiTerm {
 		else {
 			if (this.divid == "") {
 				this.div = document.createElement("div");
+				this.div.style.width = "max-content";
+				this.div.style.position = "absolute";
+				this.div.style.top = "50%";
+				this.div.style.left = "50%";
+				this.div.style.transform = "translate(-50%,-50%)";
 				document.body.appendChild(this.div);
 			}
 			else {
@@ -919,9 +924,16 @@ export class AnsiTerm {
 			this.title.style.color = this.title_foreground;
 			this.title.style.font = this.status_fullfont;
 			this.div.appendChild(this.title);
+			this.divc = document.createElement("div");
+			this.divc.style.display = "grid";
+			this.divc.style.gridTemplateColumns = "auto";
+			// TODO: Work in progress. Scrollbars are not yet working.
+			//this.divc.style.overflowX = "hidden";
+			//this.divc.style.overflowY = "scroll";
 			this.canvas = document.createElement("canvas");
 			this.canvas.tabIndex = 0;
-			this.div.appendChild(this.canvas);
+			this.divc.appendChild(this.canvas);
+			this.div.appendChild(this.divc);
 			this.status_div_container = document.createElement("div");
 			this.status_div_container.style.font = this.status_fullfont;
 			this.status_div_container.style.border = "1px solid black";
@@ -1217,10 +1229,12 @@ export class AnsiTerm {
 		}
 		this.width = this.charwidth * this.ncolumns;
 		this.height = this.charheight * this.nlines;
+		//this.gc.canvas.width = this.width;
+		//this.gc.canvas.height = this.height;
 		this.gc.canvas.width = this.width;
 		this.gc.canvas.height = this.height;
-		this.div.style.width = this.width + "px";
-		this.div.style.height = this.height + "px";
+		this.divc.style.width = this.width + "px";
+		this.divc.style.height = this.height + "px";
 		//this.status_div.style.padding = (this.charheight / 2) + "px";
 		//this.gc.canvas.height += Math.trunc((this.charheight + 1) / 2);
 		// We must repeat this after a size change:
