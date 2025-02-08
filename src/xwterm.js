@@ -924,16 +924,9 @@ export class AnsiTerm {
 			this.title.style.color = this.title_foreground;
 			this.title.style.font = this.status_fullfont;
 			this.div.appendChild(this.title);
-			this.divc = document.createElement("div");
-			this.divc.style.display = "grid";
-			this.divc.style.gridTemplateColumns = "auto";
-			// TODO: Work in progress. Scrollbars are not yet working.
-			//this.divc.style.overflowX = "hidden";
-			//this.divc.style.overflowY = "scroll";
 			this.canvas = document.createElement("canvas");
 			this.canvas.tabIndex = 0;
-			this.divc.appendChild(this.canvas);
-			this.div.appendChild(this.divc);
+			this.div.appendChild(this.canvas);
 			this.status_div_container = document.createElement("div");
 			this.status_div_container.style.font = this.status_fullfont;
 			this.status_div_container.style.border = "1px solid black";
@@ -1233,10 +1226,6 @@ export class AnsiTerm {
 		//this.gc.canvas.height = this.height;
 		this.gc.canvas.width = this.width;
 		this.gc.canvas.height = this.height;
-		this.divc.style.width = this.width + "px";
-		this.divc.style.height = this.height + "px";
-		//this.status_div.style.padding = (this.charheight / 2) + "px";
-		//this.gc.canvas.height += Math.trunc((this.charheight + 1) / 2);
 		// We must repeat this after a size change:
 		this.gc.font = this.fullfont;
 		this.gc.textBaseline = "bottom";
