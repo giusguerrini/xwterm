@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generic ScrollBar Example</title>
+    <style>
+        .generic-scrollbar {
+            border: 1px solid #000;
+        }
+        #scrollable-canvas {
+            background-color: gray;
+            border: 10px solid black;
+        }
+    </style>
+</head>
+<body>
+    <div id="scrollbar-container">
+        <canvas id="scrollable-canvas" width="400" height="600"></canvas>
+    </div>
+    <script type="module">
+        import { GenericScrollBarAdder } from './scrollbar.js';
+
+        document.addEventListener("DOMContentLoaded", () => {
+            new GenericScrollBarAdder("scrollable-canvas");
+        });
+    </script>
+</body>
+</html>
