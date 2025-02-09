@@ -16,8 +16,8 @@ const GENERICSCROLLBAR_DEFAULTS = {
 
 const GENERICSCROLLBARADDER_DEFAULTS = {
 	barConfiguration: COMMON_GENERICSCROLLBAR_DEFAULTS,
-	vertical: "on", // "on", "off", "ondemand"
-	horizontal: "off", // "on", "off", "ondemand"
+	vertical: "on", // "on", "off", "dynamic"
+	horizontal: "off", // "on", "off", "dynamic"
 };
 
 export class GenericScrollBar {
@@ -25,7 +25,7 @@ export class GenericScrollBar {
 	_layout()
 	{
 		this.div = null;
-		this.canvas = null;
+		this.div_int = null;
 		this.button_minus = null;
 		this.button_plus = null;
 
@@ -39,12 +39,16 @@ export class GenericScrollBar {
 		if (this.vertical) {
 			this.div.style.gridTemplateColumns = "auto";
 			this.div.style.gridTemplateRows = "auto auto auto";
+			this.div.style.borderLeftWidth = "2px";
+			this.div.style.borderLeftStyle = "solid";
 			this.width = this.size;
 			this.height = this.controlled_element.clientHeight;
 		}
 		else {
 			this.div.style.gridTemplateColumns = "auto auto auto";
 			this.div.style.gridTemplateRows = "auto";
+			this.div.style.borderTopWidth = "2px";
+			this.div.style.borderTopStyle = "solid";
 			this.width = this.controlled_element.clientWidth;
 			this.height = this.size
 		}
@@ -56,11 +60,22 @@ export class GenericScrollBar {
 		});
 		this.div.appendChild(this.button_minus);
 
-		this.canvas = document.createElement("canvas");
-		this.canvas.addEventListener("mousedown", this._onCanvasMouseDown.bind(this));
-		this.canvas.addEventListener("mouseup", this._onCanvasMouseUp.bind(this));
-		this.canvas.addEventListener("mousemove", this._onCanvasMouseMove.bind(this));
-		this.div.appendChild(this.canvas);
+		//this.canvas = document.createElement("canvas");
+		this.div_int = document.createElement("div");
+		this.div_int.style.position = "relative";
+		this.button_int = document.createElement("button");
+		this.button_int.innerText = " ";
+		this.button_int.style.position = "absolute";
+		this.button_int.style.top = "0";
+		this.button_int.style.left = "0";
+		this.button_int.style.width = "100%";
+		this.button_int.style.height = "10%";
+		this.div_int.appendChild(this.button_int);
+		this.div_int.addEventListener("click", this._onDivIntClick.bind(this));
+		this.button_int.addEventListener("mousedown", this._onButtonIntMouseDown.bind(this));
+		this.button_int.addEventListener("mouseup", this._onButtonIntMouseUp.bind(this));
+		this.button_int.addEventListener("mousemove", this._onButtonIntMouseMove.bind(this));
+		this.div.appendChild(this.div_int);
 
 		this.button_plus = document.createElement("button");
 		this.button_plus.innerText = "+";
@@ -72,30 +87,45 @@ export class GenericScrollBar {
 		if (this.vertical) {
 			this.button_minus.style.width = this.size + "px";
 			this.button_minus.style.height = this.button_size + "px";
-			this.canvas.style.width = this.size + "px";
-			this.canvas.style.height = (this.controlled_element.clientHeight - 2*this.button_size) + "px";
+			this.div_int.style.width = this.size + "px";
+			this.div_int.style.height = (this.controlled_element.clientHeight - 2*this.button_size) + "px";
 			this.button_plus.style.width = this.size + "px";
 			this.button_plus.style.height = this.button_size + "px";
 		} else {
 			this.button_minus.style.width = this.button_size + "px";
 			this.button_minus.style.height = this.size + "px";
-			this.canvas.style.width = (this.controlled_element.clientWidth - 2*this.button_size) + "px";
-			this.canvas.style.height = this.size + "px";
+			this.div_int.style.width = (this.controlled_element.clientWidth - 2*this.button_size) + "px";
+			this.div_int.style.height = this.size + "px";
 			this.button_plus.style.width = this.button_size + "px";
 			this.button_plus.style.height = this.size + "px";
 		}
+		this.mouse_down = false;
+		this.mouse_down_pos = 0;
 	}
 
-	_onCanvasMouseDown(event) {
-		console.log("Canvas mouse down", event);
+	_onDivIntClick(event) {
+		console.log("DivInt mouse down", event);
 	}
 
-	_onCanvasMouseUp(event) {
-		console.log("Canvas mouse up", event);
+	_onButtonIntMouseDown(event) {
+		console.log("ButtonInt mouse down", event);
+		this.mouse_down = true;
+		this.mouse_down_pos = event.clientY;
 	}
 
-	_onCanvasMouseMove(event) {
-		console.log("Canvas mouse move", event);
+	_onButtonIntMouseUp(event) {
+		console.log("ButtonInt mouse up", event);
+		this.mouse_down = false;
+	}
+
+	_onButtonIntMouseMove(event) {
+		console.log("ButtonInt mouse move", event);
+		if (this.mouse_down) {
+			let y = this.button_int.getBoundingClientRect().top - this.div_int.getBoundingClientRect().top + event.clientY - this.mouse_down_pos;
+			console.log("ButtonInt mouse move", event.clientY, this.mouse_down_pos, y);
+			this.button_int.style.top = y + "px";
+			this.mouse_down_pos = event.clientY;
+		}
 	}
 
 	_onButtonMinusClick() {
@@ -163,7 +193,12 @@ export class GenericScrollBarAdder {
 		this.div.style.margin = style.margin;
 		this.controlled_element.style.border = "none";
 		this.controlled_element.style.margin = "0";
-		this.div.style.gridTemplateColumns = "auto auto";
+		if (this.vertical != "on") {
+			this.div.style.gridTemplateColumns = "auto";
+		}
+		else {
+			this.div.style.gridTemplateColumns = "auto auto";
+		}
 		this.width = this.controlled_element.clientWidth;
 		this.height = this.controlled_element.clientHeight;
 
@@ -171,10 +206,14 @@ export class GenericScrollBarAdder {
 			this.controlled_element.parentNode.replaceChild(this.div, this.controlled_element);
 			this.div.appendChild(this.controlled_element);
 		}
-		this.horizontal_scrollbar = new GenericScrollBar(this.controlled_element, { ...this.bar_configuration, vertical: true });
-		this.div.appendChild(this.horizontal_scrollbar.div);
-		this.vertical_scrollbar = new GenericScrollBar(this.controlled_element,  { ...this.bar_configuration, vertical: false });
-		this.div.appendChild(this.vertical_scrollbar.div);
+		if (this.vertical == "on") {
+			this.vertical_scrollbar = new GenericScrollBar(this.controlled_element, { ...this.bar_configuration, vertical: true });
+			this.div.appendChild(this.vertical_scrollbar.div);
+		}
+		if (this.horizontal == "on") {
+			this.horizontal_scrollbar = new GenericScrollBar(this.controlled_element,  { ...this.bar_configuration, vertical: false });
+			this.div.appendChild(this.horizontal_scrollbar.div);
+		}
 	}
 
 	_onButtonMinusClick() {
