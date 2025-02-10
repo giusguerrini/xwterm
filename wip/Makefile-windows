@@ -1,0 +1,27 @@
+
+dest/scrollbar.js: src/scrollbar.js package.json babel.config.js webpack.config.js dest src/example-scroll.js
+	npx webpack
+
+src/scrollbar.js: ../src/scrollbar.js src
+	copy ..\src\scrollbar.js src\scrollbar.js
+
+src/example-scroll.js: example-scroll.js src
+	cp example-scroll.js src\example-scroll.js
+
+src:
+	mkdir src
+
+dest:
+	mkdir dest
+
+package.json:
+	npm init -y
+	npm install --save-dev @babel/core @babel/cli @babel/preset-env
+	npm install --save-dev @babel/plugin-transform-modules-commonjs
+	npm install --save-dev webpack webpack-cli
+	npm install --save-dev babel-loader
+	npm install --save-dev core-js@3 
+	
+clean:
+	del packahe.json
+	del package-lock.json
