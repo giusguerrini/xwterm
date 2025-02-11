@@ -212,6 +212,19 @@ class GenericScrollBarAdder {
 		let style = window.getComputedStyle(this.controlled_element);
 		this.div.style.border = style.border;
 		this.div.style.margin = style.margin;
+		let key1 = [ "", "Top", "Bottom", "Left", "Right" ];
+		let key2 = [ "Color", "LeftRadius", "RightRadius", "Style", "Width",
+			     "Collapse", "Image", "ImageOutset", "ImageRepeat", "ImageSlice",
+			     "ImageSource", "ImageWidth" ];
+		for (let i = 0; i < key1.length; ++i) {
+			for (let j = 0; j < key2.length; ++j) {
+				let prop = "border" + key1[i] + key2[j];
+				try {
+					this.div.style[prop] = style[prop];
+				} catch {
+				}
+			}
+		}
 		this.controlled_element.style.border = "none";
 		this.controlled_element.style.margin = "0";
 		if (this.vertical != "on") {
