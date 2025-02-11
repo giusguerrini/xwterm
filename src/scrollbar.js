@@ -203,7 +203,12 @@ export class GenericScrollBarAdder {
 		this.div = document.createElement("div");
 		this.div.style.width = "max-content";
 		this.div.classList.add("generic-scrollbar");
-		this.div.style.display = "grid";
+		if (isIE11()) {
+			this.div.style.display = "-ms-grid";
+		}
+		else {
+			this.div.style.display = "grid";
+		}
 		let style = window.getComputedStyle(this.controlled_element);
 		this.div.style.border = style.border;
 		this.div.style.margin = style.margin;
@@ -233,6 +238,9 @@ export class GenericScrollBarAdder {
 		if (this.horizontal == "on") {
 			this.horizontal_scrollbar = new GenericScrollBar(this.controlled_element,  { ...this.bar_configuration, vertical: false });
 			this.div.appendChild(this.horizontal_scrollbar.div);
+			if (isIE11()) {
+				this.horizontal_scrollbar.div.style.setProperty("-ms-grid-column", "1");
+			}
 		}
 	}
 
