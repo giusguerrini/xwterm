@@ -1,8 +1,10 @@
 
 
-import { GenericScrollBarAdder } from './scrollbar.js';
+//import { GenericScrollBarAdder } from './scrollbar.js';
 
-document.addEventListener("DOMContentLoaded", () => {
-           new GenericScrollBarAdder("scrollable-canvas");
-});
+/*
+ * document.addEventListener("DOMContentLoaded", () => {
+ *          new GenericScrollBarAdder("scrollable-canvas");
+ * });
+ */
 

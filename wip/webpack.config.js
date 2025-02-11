@@ -2,7 +2,9 @@ const path = require('path');
 
 module.exports = {
   mode: 'development',
-  entry: './src/example-scroll.js',
+  entry: [
+           './src/index.js',
+         ],
   output: {
     filename: 'scrollbar.js',
     path: path.resolve(__dirname, 'dest'),
@@ -20,10 +22,8 @@ module.exports = {
     ],
   },
   plugins: [
-    // Qui puoi aggiungere altri plugin di Webpack se necessari
   ],
   resolve: {
-    // Qui puoi configurare come Webpack risolve i moduli
-    extensions: ['.js'], // Estensioni dei file da considerare
+    extensions: ['.js'],
   },
 };

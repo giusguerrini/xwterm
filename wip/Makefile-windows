@@ -1,12 +1,15 @@
 
-dest/scrollbar.js: src/scrollbar.js package.json babel.config.js webpack.config.js dest src/example-scroll.js
+dest/scrollbar.js: src/scrollbar.js package.json babel.config.js webpack.config.js dest src/example-scroll.js src/index.js
 	npx webpack
 
 src/scrollbar.js: ../src/scrollbar.js src
-	copy ..\src\scrollbar.js src\scrollbar.js
+	copy /y ..\src\scrollbar.js src\scrollbar.js
 
 src/example-scroll.js: example-scroll.js src
-	copy example-scroll.js src\example-scroll.js
+	copy /y example-scroll.js src\example-scroll.js
+
+src/index.js: index.js src
+	copy /y index.js src\index.js
 
 src:
 	mkdir src

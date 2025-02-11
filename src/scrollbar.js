@@ -193,7 +193,7 @@ class GenericScrollBar {
 	}
 };
 
-export class GenericScrollBarAdder {
+class GenericScrollBarAdder {
 
 	_layout()
 	{
@@ -291,4 +291,5 @@ export class GenericScrollBarAdder {
 	}
 };
 
+window.GenericScrollBarAdder = GenericScrollBarAdder;
 

@@ -1,6 +1,5 @@
 
-dest/scrollbar.js: src/scrollbar.js package.json babel.config.js webpack.config.js dest src/example-scroll.js
-	#npx babel src --out-dir dest
+dest/scrollbar.js: src/scrollbar.js package.json babel.config.js webpack.config.js dest src/example-scroll.js src/index.js
 	npx webpack
 
 src/scrollbar.js: ../src/scrollbar.js src
@@ -8,6 +7,9 @@ src/scrollbar.js: ../src/scrollbar.js src
 
 src/example-scroll.js: example-scroll.js src
 	cp example-scroll.js src/example-scroll.js
+
+src/index.js: index.js src
+	cp index.js src/index.js
 
 src:
 	mkdir src
@@ -24,4 +26,4 @@ package.json:
 	npm install --save-dev core-js@3 
 	
 clean:
-	rm -rf src dest packahe.json package-lock.json node_modules
+	rm -rf src dest package.json package-lock.json node_modules
