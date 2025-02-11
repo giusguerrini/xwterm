@@ -6,7 +6,7 @@ src/scrollbar.js: ../src/scrollbar.js src
 	copy ..\src\scrollbar.js src\scrollbar.js
 
 src/example-scroll.js: example-scroll.js src
-	cp example-scroll.js src\example-scroll.js
+	copy example-scroll.js src\example-scroll.js
 
 src:
 	mkdir src
@@ -23,5 +23,8 @@ package.json:
 	npm install --save-dev core-js@3 
 	
 clean:
-	del packahe.json
-	del package-lock.json
+	-del /f /q package.json
+	-del /f /q package-lock.json
+	-rmdir /s /q src
+	-rmdir /s /q dest
+	-rmdir /s /q node_modules

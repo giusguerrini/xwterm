@@ -6,3 +6,8 @@
 **/node_modules/*
 **/node_modules/*
 
+
+/wip/dest/*
+/wip/package-lock.json
+/wip/package.json
+/wip/src/*
