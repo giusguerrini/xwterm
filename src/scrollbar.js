@@ -38,7 +38,7 @@ class GenericScrollBar {
 		this.div.classList.add("generic-scrollbar");
 		if (isIE11()) {
 			this.div.style.display = "-ms-grid";
-			this.div.style.width = (this.size + 2) + "px";
+			this.div.style.width = (Number(this.size) + 2) + "px";
 		}
 		else {
 			this.div.style.display = "grid";
@@ -51,7 +51,7 @@ class GenericScrollBar {
 			this.div.style.gridTemplateColumns = "auto";
 			this.div.style.gridTemplateRows = "auto auto auto";
 			if (isIE11()) {
-				this.div.style.setProperty("-ms-grid-columns", (this.size + 2) + "px");
+				this.div.style.setProperty("-ms-grid-columns", (Number(this.size) + 2) + "px");
 			}
 			this.div.style.borderLeftWidth = "2px";
 			this.div.style.borderLeftStyle = "solid";
@@ -62,7 +62,7 @@ class GenericScrollBar {
 			this.div.style.gridTemplateColumns = "auto auto auto";
 			this.div.style.gridTemplateRows = "auto";
 			if (isIE11()) {
-				this.div.style.setProperty("-ms-grid-columns", this.button_size + "px 1fr " + this.button_size + "px");
+				this.div.style.setProperty("-ms-grid-columns", this.button_size + "px 1fr " + Number(this.button_size) + "px");
 			}
 			this.div.style.borderTopWidth = "2px";
 			this.div.style.borderTopStyle = "solid";
@@ -90,8 +90,8 @@ class GenericScrollBar {
 		this.div_int.appendChild(this.button_int);
 		this.div_int.addEventListener("click", this._onDivIntClick.bind(this));
 		this.button_int.addEventListener("mousedown", this._onButtonIntMouseDown.bind(this));
-		this.button_int.addEventListener("mouseup", this._onButtonIntMouseUp.bind(this));
-		this.button_int.addEventListener("mousemove", this._onButtonIntMouseMove.bind(this));
+		//this.button_int.addEventListener("mouseup", this._onButtonIntMouseUp.bind(this));
+		//this.button_int.addEventListener("mousemove", this._onButtonIntMouseMove.bind(this));
 		this.div.appendChild(this.div_int);
 
 		this.button_plus = document.createElement("button");
@@ -101,20 +101,22 @@ class GenericScrollBar {
 		});
 		this.div.appendChild(this.button_plus);
 
+		let sz = Number(this.size);
+		let bsz = Number(this.button_size);
 		if (this.vertical) {
-			this.button_minus.style.width = this.size + "px";
-			this.button_minus.style.height = this.button_size + "px";
-			this.div_int.style.width = this.size + "px";
-			this.div_int.style.height = (this.controlled_element.clientHeight - 2*this.button_size) + "px";
-			this.button_plus.style.width = this.size + "px";
-			this.button_plus.style.height = this.button_size + "px";
+			this.button_minus.style.width = sz + "px";
+			this.button_minus.style.height = bsz + "px";
+			this.div_int.style.width = sz + "px";
+			this.div_int.style.height = (this.controlled_element.clientHeight - 2*bsz) + "px";
+			this.button_plus.style.width = sz + "px";
+			this.button_plus.style.height = bsz + "px";
 		} else {
-			this.button_minus.style.width = this.button_size + "px";
-			this.button_minus.style.height = this.size + "px";
-			this.div_int.style.width = (this.controlled_element.clientWidth - 2*this.button_size) + "px";
-			this.div_int.style.height = this.size + "px";
-			this.button_plus.style.width = this.button_size + "px";
-			this.button_plus.style.height = this.size + "px";
+			this.button_minus.style.width = bsz + "px";
+			this.button_minus.style.height = sz + "px";
+			this.div_int.style.width = (this.controlled_element.clientWidth - 2*bsz) + "px";
+			this.div_int.style.height = sz + "px";
+			this.button_plus.style.width = bsz + "px";
+			this.button_plus.style.height = sz + "px";
 		}
 		this.mouse_down = false;
 		this.mouse_down_pos = 0;
@@ -128,18 +130,22 @@ class GenericScrollBar {
 		console.log("ButtonInt mouse down", event);
 		this.mouse_down = true;
 		this.mouse_down_pos = event.clientY;
+		document.addEventListener("mouseup", this._onButtonIntMouseUp.bind(this));
+		document.addEventListener("mousemove", this._onButtonIntMouseMove.bind(this));
 	}
 
 	_onButtonIntMouseUp(event) {
 		console.log("ButtonInt mouse up", event);
 		this.mouse_down = false;
+		document.removeEventListener("mouseup", this._onButtonIntMouseUp.bind(this));
+		document.removeEventListener("mousemove", this._onButtonIntMouseMove.bind(this));
 	}
 
 	_onButtonIntMouseMove(event) {
-		console.log("ButtonInt mouse move", event);
+		//console.log("ButtonInt mouse move", event);
 		if (this.mouse_down) {
 			let y = this.button_int.getBoundingClientRect().top - this.div_int.getBoundingClientRect().top + event.clientY - this.mouse_down_pos;
-			console.log("ButtonInt mouse move", event.clientY, this.mouse_down_pos, y);
+			//console.log("ButtonInt mouse move", event.clientY, this.mouse_down_pos, y);
 			this.button_int.style.top = y + "px";
 			this.mouse_down_pos = event.clientY;
 		}
@@ -204,7 +210,7 @@ class GenericScrollBarAdder {
 		this.div = document.createElement("div");
 		this.div.classList.add("generic-scrollbar");
 		if (isIE11()) {
-			this.div.style.width = (this.controlled_element.clientWidth + this.bar_configuration.size + 2) + "px";
+			this.div.style.width = Numbert(this.controlled_element.clientWidth + Number(this.bar_configuration.size) + 2) + "px";
 			this.div.style.display = "-ms-grid";
 		}
 		else {
