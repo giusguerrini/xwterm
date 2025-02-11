@@ -35,13 +35,14 @@ class GenericScrollBar {
 		this.button_plus = null;
 
 		this.div = document.createElement("div");
-		this.div.style.width = "max-content";
 		this.div.classList.add("generic-scrollbar");
 		if (isIE11()) {
 			this.div.style.display = "-ms-grid";
+			this.div.style.width = (this.size + 2) + "px";
 		}
 		else {
 			this.div.style.display = "grid";
+			this.div.style.width = "max-content";
 		}
 		let style = window.getComputedStyle(this.controlled_element);
 		this.div.style.border = "none";
