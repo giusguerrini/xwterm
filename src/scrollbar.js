@@ -202,12 +202,13 @@ class GenericScrollBarAdder {
 		this.controlled_element = document.getElementById(this.controlled_element_id);
 
 		this.div = document.createElement("div");
-		this.div.style.width = "max-content";
 		this.div.classList.add("generic-scrollbar");
 		if (isIE11()) {
+			this.div.style.width = (this.controlled_element.clientWidth + this.bar_configuration.size + 2) + "px";
 			this.div.style.display = "-ms-grid";
 		}
 		else {
+			this.div.style.width = "max-content";
 			this.div.style.display = "grid";
 		}
 		let style = window.getComputedStyle(this.controlled_element);
