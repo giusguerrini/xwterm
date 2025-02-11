@@ -210,7 +210,7 @@ class GenericScrollBarAdder {
 		this.div = document.createElement("div");
 		this.div.classList.add("generic-scrollbar");
 		if (isIE11()) {
-			this.div.style.width = Numbert(this.controlled_element.clientWidth + Number(this.bar_configuration.size) + 2) + "px";
+			this.div.style.width = Number(this.controlled_element.clientWidth + Number(this.bar_configuration.size) + 2) + "px";
 			this.div.style.display = "-ms-grid";
 		}
 		else {
