@@ -171,7 +171,8 @@ class GenericScrollBar {
 		//console.log("ButtonInt mouse move", event);
 		if (this.mouse_down) {
 			if (this.vertical) {
-				let y = this.button_int.getBoundingClientRect().top - this.div_int.getBoundingClientRect().top + event.clientY - this.mouse_down_pos;
+				let yd = this.button_int.getBoundingClientRect().top - this.div_int.getBoundingClientRect().top - this.mouse_down_pos;
+				let y = yd + event.clientY;
 				if (y < 0) {
 					y = 0;
 				}
@@ -179,10 +180,11 @@ class GenericScrollBar {
 					y = this.div_int.clientHeight - this.button_int.clientHeight;
 				}
 				this.button_int.style.top = y + "px";
-				this.mouse_down_pos = event.clientY;
+				this.mouse_down_pos = y - yd;
 			}
 			else {
-				let x = this.button_int.getBoundingClientRect().left - this.div_int.getBoundingClientRect().left + event.clientX - this.mouse_down_pos;
+				let xd = this.button_int.getBoundingClientRect().left - this.div_int.getBoundingClientRect().left - this.mouse_down_pos;
+				let x = xd + event.clientX;
 				if (x < 0) {
 					x = 0;
 				}
@@ -190,7 +192,7 @@ class GenericScrollBar {
 					x = this.div_int.clientWidth - this.button_int.clientWidth;
 				}
 				this.button_int.style.left = x + "px";
-				this.mouse_down_pos = event.clientX;
+				this.mouse_down_pos = x - xd;
 			}
 		}
 	}
