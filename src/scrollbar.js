@@ -255,7 +255,13 @@ class GenericScrollBarAdder {
 		this.div = document.createElement("div");
 		this.div.classList.add("generic-scrollbar");
 		if (isIE11()) {
-			this.div.style.width = Number(this.controlled_element.clientWidth + Number(this.bar_configuration.size) + 2) + "px";
+			let bsz = this.bar_configuration.size + this.bar_configuration.separatorSize; 
+			this.div.style.width = this.controlled_element.clientWidth
+				+ ((this.vertical == "on") ? bsz : 0)
+			    + "px";
+			this.div.style.height = this.controlled_element.clientHeight
+				+ ((this.horizontal == "on") ? bsz : 0)
+			    + "px";
 			this.div.style.display = "-ms-grid";
 		}
 		else {
@@ -357,6 +363,18 @@ class GenericScrollBarAdder {
 				this[GenericScrollBarAdder.config_to_members[key]] = this.configuration[key];
 			}
 		}
+		
+		this.bar_configuration.size = Number(this.bar_configuration.size);
+		this.bar_configuration.buttonSize = Number(this.bar_configuration.buttonSize);
+		this.bar_configuration.separatorSize = Number(this.bar_configuration.separatorSize);
+		if (this.vertical == true) {
+			this.vertical = "on";
+		}
+		if (this.horizontal == true) {
+			this.horizontal = "on";
+		}
+		this.vertical = this.vertical.toLowerCase();
+		this.horizontal = this.horizontal.toLowerCase();
 
 		this._layout();
 	}
