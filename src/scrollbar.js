@@ -6,8 +6,9 @@ function isIE11()
 }
 
 const COMMON_GENERICSCROLLBAR_DEFAULTS = {
-	size: "30", // Pixels
-	buttonSize: "20", // Pixels
+	size: 30, // Pixels
+	buttonSize: 20, // Pixels
+	separatorSize: 3, // Pixels
 
 	// Colors and appearance:
 	foreground:  "rgb(192,192,192)",
@@ -34,50 +35,39 @@ class GenericScrollBar {
 		this.button_minus = null;
 		this.button_plus = null;
 
-		this.div = document.createElement("div");
-		this.div.classList.add("generic-scrollbar");
-		if (isIE11()) {
-			this.div.style.display = "-ms-grid";
-			this.div.style.width = (Number(this.size) + 2) + "px";
-		}
-		else {
-			this.div.style.display = "grid";
-			this.div.style.width = "max-content";
-		}
+		let sz = Number(this.size);
+		let bsz = Number(this.button_size);
+		let ssz = Number(this.separator_size);
 		let style = window.getComputedStyle(this.controlled_element);
-		this.div.style.border = "none";
-		this.div.style.margin = "0";
+
 		if (this.vertical) {
-			this.div.style.gridTemplateColumns = "auto";
-			this.div.style.gridTemplateRows = "auto auto auto";
-			if (isIE11()) {
-				this.div.style.setProperty("-ms-grid-columns", (Number(this.size) + 2) + "px");
-			}
-			this.div.style.borderLeftWidth = "2px";
-			this.div.style.borderLeftStyle = "solid";
-			this.width = this.size;
+			this.width = sz;
 			this.height = this.controlled_element.clientHeight;
 		}
 		else {
-			this.div.style.gridTemplateColumns = "auto auto auto";
-			this.div.style.gridTemplateRows = "auto";
-			if (isIE11()) {
-				this.div.style.setProperty("-ms-grid-columns", this.button_size + "px 1fr " + Number(this.button_size) + "px");
-			}
-			this.div.style.borderTopWidth = "2px";
-			this.div.style.borderTopStyle = "solid";
-			this.width = this.controlled_element.clientWidth;
-			this.height = this.size
+			this.height = sz;
+			this.width = this.controlled_element.clientWidtg;
+		}
+
+		this.div = document.createElement("div");
+		this.div.classList.add("generic-scrollbar");
+		this.div.style.border = "none";
+		this.div.style.margin = "0";
+		this.div.style.width = this.width + "px";
+		this.div.style.height = this.height + "px";
+
+		if (isIE11()) {
+			this.div.style.display = "-ms-grid";
+		}
+		else {
+			this.div.style.display = "grid";
 		}
 
 		this.button_minus = document.createElement("button");
 		this.button_minus.innerText = "-";
-		this.button_minus.addEventListener("click", () => {
-			this._onButtonMinusClick();
-		});
+		this.button_minus.addEventListener("click", this._onButtonMinusClick.bind(this));
 		this.div.appendChild(this.button_minus);
 
-		//this.canvas = document.createElement("canvas");
 		this.div_int = document.createElement("div");
 		this.div_int.style.position = "relative";
 		this.button_int = document.createElement("button");
@@ -85,39 +75,70 @@ class GenericScrollBar {
 		this.button_int.style.position = "absolute";
 		this.button_int.style.top = "0";
 		this.button_int.style.left = "0";
-		this.button_int.style.width = "100%";
-		this.button_int.style.height = "10%";
 		this.div_int.appendChild(this.button_int);
 		this.div_int.addEventListener("click", this._onDivIntClick.bind(this));
 		this.button_int.addEventListener("mousedown", this._onButtonIntMouseDown.bind(this));
-		//this.button_int.addEventListener("mouseup", this._onButtonIntMouseUp.bind(this));
-		//this.button_int.addEventListener("mousemove", this._onButtonIntMouseMove.bind(this));
-		this.div.appendChild(this.div_int);
 
 		this.button_plus = document.createElement("button");
 		this.button_plus.innerText = "+";
-		this.button_plus.addEventListener("click", () => {
-			this._onButtonPlusClick();
-		});
-		this.div.appendChild(this.button_plus);
+		this.button_plus.addEventListener("click", this._onButtonPlusClick.bind(this));
 
-		let sz = Number(this.size);
-		let bsz = Number(this.button_size);
 		if (this.vertical) {
+			if (isIE11()) {
+				this.div.style.setProperty("-ms-grid-columns", sz + "px");
+				this.div.style.setProperty("-ms-grid-rowas", bsz + "px 1fr " + bsz + "px");
+				this.button_minus.style.setProperty("-ms-grid-row", "1");
+				this.button_minus.style.setProperty("-ms-grid-column", "1");
+				this.div_int.style.setProperty("-ms-grid-row", "2");
+				this.div_int.style.setProperty("-ms-grid-column", "1");
+				this.button_plus.style.setProperty("-ms-grid-row", "3");
+				this.button_plus.style.setProperty("-ms-grid-column", "1");
+			}
+			else {
+				this.div.style.gridTemplateColumns = "auto";
+				this.div.style.gridTemplateRows = "auto auto auto";
+			}
+			this.div.style.borderLeftWidth = ssz + "px";
+			this.div.style.borderLeftStyle = "solid";
 			this.button_minus.style.width = sz + "px";
 			this.button_minus.style.height = bsz + "px";
+			this.button_int.style.width = "100%";
+			this.button_int.style.height = "10%";	
 			this.div_int.style.width = sz + "px";
 			this.div_int.style.height = (this.controlled_element.clientHeight - 2*bsz) + "px";
 			this.button_plus.style.width = sz + "px";
 			this.button_plus.style.height = bsz + "px";
 		} else {
+			if (isIE11()) {
+				this.div.style.setProperty("-ms-grid-columns", bsz + "px 1fr " + bsz + "px");
+				this.div.style.setProperty("-ms-grid-rows", sz + "px");
+				this.button_minus.style.setProperty("-ms-grid-row", "1");
+				this.button_minus.style.setProperty("-ms-grid-column", "1");
+				this.div_int.style.setProperty("-ms-grid-row", "1");
+				this.div_int.style.setProperty("-ms-grid-column", "2");
+				this.button_plus.style.setProperty("-ms-grid-row", "1");
+				this.button_plus.style.setProperty("-ms-grid-column", "3");
+			}
+			else {
+				this.div.style.gridTemplateColumns = "auto auto auto";
+				this.div.style.gridTemplateRows = "auto";
+			}
+			this.div.style.borderTopWidth = ssz + "px";
+			this.div.style.borderTopStyle = "solid";
 			this.button_minus.style.width = bsz + "px";
 			this.button_minus.style.height = sz + "px";
+			this.button_int.style.width = "10%";
+			this.button_int.style.height = "100%";
 			this.div_int.style.width = (this.controlled_element.clientWidth - 2*bsz) + "px";
 			this.div_int.style.height = sz + "px";
 			this.button_plus.style.width = bsz + "px";
 			this.button_plus.style.height = sz + "px";
 		}
+
+		this.div.appendChild(this.button_minus);
+		this.div.appendChild(this.div_int);
+		this.div.appendChild(this.button_plus);
+
 		this.mouse_down = false;
 		this.mouse_down_pos = 0;
 	}
@@ -129,25 +150,48 @@ class GenericScrollBar {
 	_onButtonIntMouseDown(event) {
 		console.log("ButtonInt mouse down", event);
 		this.mouse_down = true;
-		this.mouse_down_pos = event.clientY;
-		document.addEventListener("mouseup", this._onButtonIntMouseUp.bind(this));
-		document.addEventListener("mousemove", this._onButtonIntMouseMove.bind(this));
+		if (this.vertical) {
+			this.mouse_down_pos = event.clientY;
+		}
+		else {
+			this.mouse_down_pos = event.clientX;
+		}
+		document.addEventListener("mouseup", this._onDocumentMouseUp.bind(this));
+		document.addEventListener("mousemove", this._onDocumentMouseMove.bind(this));
 	}
 
-	_onButtonIntMouseUp(event) {
+	_onDocumentMouseUp(event) {
 		console.log("ButtonInt mouse up", event);
 		this.mouse_down = false;
-		document.removeEventListener("mouseup", this._onButtonIntMouseUp.bind(this));
-		document.removeEventListener("mousemove", this._onButtonIntMouseMove.bind(this));
+		document.removeEventListener("mouseup", this._onDocumentMouseUp.bind(this));
+		document.removeEventListener("mousemove", this._onDocumentMouseMove.bind(this));
 	}
 
-	_onButtonIntMouseMove(event) {
+	_onDocumentMouseMove(event) {
 		//console.log("ButtonInt mouse move", event);
 		if (this.mouse_down) {
-			let y = this.button_int.getBoundingClientRect().top - this.div_int.getBoundingClientRect().top + event.clientY - this.mouse_down_pos;
-			//console.log("ButtonInt mouse move", event.clientY, this.mouse_down_pos, y);
-			this.button_int.style.top = y + "px";
-			this.mouse_down_pos = event.clientY;
+			if (this.vertical) {
+				let y = this.button_int.getBoundingClientRect().top - this.div_int.getBoundingClientRect().top + event.clientY - this.mouse_down_pos;
+				if (y < 0) {
+					y = 0;
+				}
+				else if (y > this.div_int.clientHeight - this.button_int.clientHeight) {
+					y = this.div_int.clientHeight - this.button_int.clientHeight;
+				}
+				this.button_int.style.top = y + "px";
+				this.mouse_down_pos = event.clientY;
+			}
+			else {
+				let x = this.button_int.getBoundingClientRect().left - this.div_int.getBoundingClientRect().left + event.clientX - this.mouse_down_pos;
+				if (x < 0) {
+					x = 0;
+				}
+				else if (x > this.div_int.clientWidth - this.button_int.clientWidth) {
+					x = this.div_int.clientWidth - this.button_int.clientWidth;
+				}
+				this.button_int.style.left = x + "px";
+				this.mouse_down_pos = event.clientX;
+			}
 		}
 	}
 
@@ -168,6 +212,7 @@ class GenericScrollBar {
 		foreground: "foreground",
 		size: "size",
 		buttonSize: "button_size",
+		separatorSize: "separator_size",
 		vertical: "vertical",
 	};
 
@@ -248,11 +293,15 @@ class GenericScrollBarAdder {
 			this.controlled_element.parentNode.replaceChild(this.div, this.controlled_element);
 			this.div.appendChild(this.controlled_element);
 		}
+		if (isIE11()) {
+			this.controlled_element.style.setProperty("-ms-grid-column", "1");
+			this.controlled_element.style.setProperty("-ms-grid-row", "1");
+		}
 		if (this.vertical == "on") {
 			this.vertical_scrollbar = new GenericScrollBar(this.controlled_element, { ...this.bar_configuration, vertical: true });
 			this.div.appendChild(this.vertical_scrollbar.div);
 			if (isIE11()) {
-				this.controlled_element.style.setProperty("-ms-grid-column", "1");
+				this.vertical_scrollbar.div.style.setProperty("-ms-grid-row", "1");
 				this.vertical_scrollbar.div.style.setProperty("-ms-grid-column", "2");
 			}
 		}
@@ -260,6 +309,7 @@ class GenericScrollBarAdder {
 			this.horizontal_scrollbar = new GenericScrollBar(this.controlled_element,  { ...this.bar_configuration, vertical: false });
 			this.div.appendChild(this.horizontal_scrollbar.div);
 			if (isIE11()) {
+				this.horizontal_scrollbar.div.style.setProperty("-ms-grid-row", "2");
 				this.horizontal_scrollbar.div.style.setProperty("-ms-grid-column", "1");
 			}
 		}
