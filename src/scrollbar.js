@@ -143,12 +143,22 @@ class GenericScrollBar {
 		this.mouse_down_pos = 0;
 	}
 
-	_onDivIntClick(event) {
-		console.log("DivInt mouse down", event);
+
+    _newValue(v)
+	{
+		if (v != this.curr_value) {
+			console.log("Scroll value = " + v);
+        	this.on_new_position.forEach(callback => callback(v));
+			this.curr_value = v;
+		}
+	}
+	
+	_onDivIntClick(event)
+	{
 	}
 
-	_onButtonIntMouseDown(event) {
-		console.log("ButtonInt mouse down", event);
+	_onButtonIntMouseDown(event)
+	{
 		this.mouse_down = true;
 		if (this.vertical) {
 			this.mouse_down_pos = event.clientY;
@@ -160,49 +170,77 @@ class GenericScrollBar {
 		document.addEventListener("mousemove", this._onDocumentMouseMove.bind(this));
 	}
 
-	_onDocumentMouseUp(event) {
-		console.log("ButtonInt mouse up", event);
+	_onDocumentMouseUp(event) 
+	{
 		this.mouse_down = false;
 		document.removeEventListener("mouseup", this._onDocumentMouseUp.bind(this));
 		document.removeEventListener("mousemove", this._onDocumentMouseMove.bind(this));
 	}
 
-	_onDocumentMouseMove(event) {
-		//console.log("ButtonInt mouse move", event);
+	_onDocumentMouseMove(event)
+	{
 		if (this.mouse_down) {
+			/*
+			// A shorter but unreadable version of the same algorythm...
+			
+			const m = this.vertical ? { coord: "clientY", side: "top",  clprop: "clientHeight" }
+			                        : { coord: "clientX", side: "left", clprop: "clientWidth" };
+			let d = (this.button_int.getBoundingClientRect())[m.side]
+				  - (this.div_int.getBoundingClientRect())[m.side]
+				  - this.mouse_down_pos;
+			let c = d + event[m.coord];
+			if (c < 0) {
+				c = 0;
+			}
+			else if (c > this.div_int[m.clprop] - this.button_int[m.clprop]) {
+				c = this.div_int[m.clprop] - this.button_int[m.clprop];
+			}
+			this.button_int.style[m.side] = c + "px";
+			this.mouse_down_pos = c - d;
+			*/
+			let v = 0;
+			let d = 0;
+			let m = 0;
 			if (this.vertical) {
-				let y = this.button_int.getBoundingClientRect().top - this.div_int.getBoundingClientRect().top + event.clientY - this.mouse_down_pos;
-				if (y < 0) {
-					y = 0;
+				d = this.button_int.getBoundingClientRect().top
+			      - this.div_int.getBoundingClientRect().top
+			      - this.mouse_down_pos;
+				v = d + event.clientY;
+				m = this.div_int.clientHeight - this.button_int.clientHeight;
+				if (v < 0) {
+					v = 0;
 				}
-				else if (y > this.div_int.clientHeight - this.button_int.clientHeight) {
-					y = this.div_int.clientHeight - this.button_int.clientHeight;
+				else if (v > m) {
+					v = m;
 				}
-				this.button_int.style.top = y + "px";
-				this.mouse_down_pos = event.clientY;
+				this.button_int.style.top = v + "px";
 			}
 			else {
-				let x = this.button_int.getBoundingClientRect().left - this.div_int.getBoundingClientRect().left + event.clientX - this.mouse_down_pos;
-				if (x < 0) {
-					x = 0;
+				d = this.button_int.getBoundingClientRect().left
+				  - this.div_int.getBoundingClientRect().left
+				  - this.mouse_down_pos;
+				v = d + event.clientX;
+				m = this.div_int.clientWidth - this.button_int.clientWidth;
+				if (v < 0) {
+					v = 0;
 				}
-				else if (x > this.div_int.clientWidth - this.button_int.clientWidth) {
-					x = this.div_int.clientWidth - this.button_int.clientWidth;
+				else if (v > m) {
+					v = m;
 				}
-				this.button_int.style.left = x + "px";
-				this.mouse_down_pos = event.clientX;
+				this.button_int.style.left = v + "px";
 			}
+			this.mouse_down_pos = v - d;
+			let val = (m <= 0) ? 0 : (v / m);
+			this._newValue(this.min_value + val * (this.max_value - this.min_value));
 		}
 	}
 
-	_onButtonMinusClick() {
-		// Gestore per il click del bottone minus
-		console.log("Button minus clicked");
+	_onButtonMinusClick()
+	{
 	}
 
-	_onButtonPlusClick() {
-		// Gestore per il click del bottone plus
-		console.log("Button plus clicked");
+	_onButtonPlusClick()
+	{
 	}
 
 	// Table to convert public configuration keys to internal members.
@@ -241,7 +279,62 @@ class GenericScrollBar {
 			}
 		}
 
+		this.on_new_position = [];
+		this.min_value = 0;
+		this.curr_value = 0;
+		this.max_value = 0;
+
 		this._layout();
+	}
+
+	setMinValue(minValue)
+	{
+		this.min_value = minValue;
+		if (this.curr_value < this.min_value) {
+			this.curr_value = this.min_value;
+		}
+		if (this.max_value < this.min_value) {
+			this.max_value = this.min_value;
+		}
+	}
+	setMaxValue(maxValue)
+	{
+		this.max_value = maxValue;
+		if (this.curr_value > this.max_value) {
+			this.curr_value = this.max_value;
+		}
+		if (this.min_value > this.max_value) {
+			this.min_value = this.max_value;
+		}
+	}
+	setValue(currValue)
+	{
+		this.curr_value = (currValue < this.min_value)
+		                ? this.min_value
+						: ((currValue > this.max_value) ? this.max_value : currValue);
+	}
+
+	getMinValue()
+	{
+		return this.min_value;
+	}
+	getMaxValue()
+	{
+		return this.max_value;
+	}
+	getCurrValue()
+	{
+		return this.curr_value;
+	}
+
+	registerOnChange(callback)
+	{
+		this.on_new_position.push(callback);
+	}
+
+	cancelOnChange(callback)
+	{
+		this.on_new_position = this.on_new_position.filter((cb) => cb != callback);
 	}
 };
 
@@ -315,29 +408,31 @@ class GenericScrollBarAdder {
 			this.controlled_element.style.setProperty("-ms-grid-row", "1");
 		}
 		if (this.vertical) {
-			this.vertical_scrollbar = new GenericScrollBar(this.controlled_element, { ...this.bar_configuration, vertical: true });
-			this.div.appendChild(this.vertical_scrollbar.div);
+			this.verticalScrollbar = new GenericScrollBar(this.controlled_element, { ...this.bar_configuration, vertical: true });
+			this.div.appendChild(this.verticalScrollbar.div);
 			if (isIE11()) {
-				this.vertical_scrollbar.div.style.setProperty("-ms-grid-row", "1");
-				this.vertical_scrollbar.div.style.setProperty("-ms-grid-column", "2");
+				this.verticalScrollbar.div.style.setProperty("-ms-grid-row", "1");
+				this.verticalScrollbar.div.style.setProperty("-ms-grid-column", "2");
 			}
 		}
 		if (this.horizontal) {
-			this.horizontal_scrollbar = new GenericScrollBar(this.controlled_element,  { ...this.bar_configuration, vertical: false });
-			this.div.appendChild(this.horizontal_scrollbar.div);
+			this.horizontalScrollbar = new GenericScrollBar(this.controlled_element,  { ...this.bar_configuration, vertical: false });
+			this.div.appendChild(this.horizontalScrollbar.div);
 			if (isIE11()) {
-				this.horizontal_scrollbar.div.style.setProperty("-ms-grid-row", "2");
-				this.horizontal_scrollbar.div.style.setProperty("-ms-grid-column", "1");
+				this.horizontalScrollbar.div.style.setProperty("-ms-grid-row", "2");
+				this.horizontalScrollbar.div.style.setProperty("-ms-grid-column", "1");
 			}
 		}
 	}
 
-	_onButtonMinusClick() {
+	_onButtonMinusClick()
+	{
 		// Gestore per il click del bottone minus
 		console.log("Button minus clicked");
 	}
 
-	_onButtonPlusClick() {
+	_onButtonPlusClick()
+	{
 		// Gestore per il click del bottone plus
 		console.log("Button plus clicked");
 	}
@@ -393,6 +488,7 @@ class GenericScrollBarAdder {
 
 		this._layout();
 	}
+
 };
 
 window.GenericScrollBarAdder = GenericScrollBarAdder;

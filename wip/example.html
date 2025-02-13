@@ -18,12 +18,28 @@
     <div id="scrollbar-container">
         <canvas id="scrollable-canvas" width="400" height="300"></canvas>
     </div>
+    <div id="horizontal"></div>
+    <div>----</div>
+    <div id="vertical"></div>
     <script src="./dest/scrollbar.js"></script>
     <script>
 
-document.addEventListener("DOMContentLoaded", function () {
-           new GenericScrollBarAdder("scrollable-canvas", { vertical: "on", horizontal: "on" });
-});
+document.addEventListener("DOMContentLoaded",
+    function () {
+        let sb = new GenericScrollBarAdder("scrollable-canvas", { vertical: true, horizontal: true });
+        sb.horizontalScrollbar.setMinValue(100);
+        sb.horizontalScrollbar.setMaxValue(500);
+        sb.horizontalScrollbar.setValue(200);
+        sb.horizontalScrollbar.registerOnChange(function (value) {
+            console.log("Horizontal value: " + value);
+        });
+        sb.verticalScrollbar.setMinValue(100);
+        sb.verticalScrollbar.setMaxValue(500);
+        sb.verticalScrollbar.setValue(200);
+        sb.verticalScrollbar.registerOnChange(function (value) {
+            console.log("Vertical value: " + value);
+        });
+    });
 
     </script>
 </body>

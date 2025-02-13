@@ -21,24 +21,6 @@ SET_SIZE_PARAM="size" # e.g. size=25x80
 DEFAULT_URL="/example.html"
 
 
-#[master, slave ] pty.openpty()
-[pid, fd ] = pty.fork()
-
-if pid == 0:
-    os.execv("/bin/bash", ["bash"])
-
-flag = fcntl.fcntl(fd, fcntl.F_GETFD)
-fcntl.fcntl(fd, fcntl.F_SETFL, flag | os.O_NONBLOCK)
-
-def set_size(fd, li, co):
-    s = struct.pack('HHHH', li, co, 0, 0)
-    fcntl.ioctl(fd, termios.TIOCSWINSZ, s)
-
-set_size(fd, DEFAULT_NLINES, DEFAULT_NCOLUMNS)
-
-os.write(fd, bytes("\n", "UTF-8"))
-
-
 from http.server import HTTPServer
 from http.server import BaseHTTPRequestHandler
 
@@ -58,11 +40,7 @@ class HttpHandler(BaseHTTPRequestHandler):
         length = int(self.headers.get('content-length'))
         field_data = self.rfile.read(length)
         fields = field_data.decode("UTF-8")
-        try:
-            d = field_data
-            os.write(fd, d)
-        except Exception as e:
-            print(e)
+ 
         self.send_response(200, "OK")
         self.end_headers()
 
@@ -94,7 +72,6 @@ class HttpHandler(BaseHTTPRequestHandler):
                     if len(sz) >= 2:
                         li = int(sz[0])
                         co = int(sz[1])
-                        set_size(fd, li, co)
                 except Exception as e:
                     print(e)
 
@@ -105,23 +82,8 @@ class HttpHandler(BaseHTTPRequestHandler):
                 self.send_header('Content-type', 'application/json')
                 self.send_header('Accept', 'application/json')
                 self.end_headers()
-                s = '{\n"text" : \"'
-                b = b"" 
-                while True:
-                    try:
-                        c = os.read(fd, 10000)
-                    except Exception as e:
-                        #print(e)
-                        break
-                    b = b + c
-                #print(b)
-                try:
-                    for c in b:
-                        s = s + "\\u" + "{:04x}".format(c)
-                except Exception as e:
-                    print(e)
-                s = s + '\"\n}\n'
-                self.wfile.write(bytes(s, "UTF-8"))
+
+                self.wfile.write(bytes("\n", "UTF-8"))
 
         if get_file:
             try:
