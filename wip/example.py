@@ -2,12 +2,9 @@
 
 import http.server
 import socketserver
-import pty
 import os
-import fcntl
 import binascii
 import struct
-import termios
 import json
 
 DEFAULT_PORT=8000
