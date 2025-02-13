@@ -22,8 +22,8 @@ const GENERICSCROLLBAR_DEFAULTS = {
 
 const GENERICSCROLLBARADDER_DEFAULTS = {
 	barConfiguration: COMMON_GENERICSCROLLBAR_DEFAULTS,
-	vertical: "on", // "on", "off", "dynamic"
-	horizontal: "off", // "on", "off", "dynamic"
+	vertical: true, // TODO: "dynamic"
+	horizontal: false, // TODO: "dynamic"
 };
 
 class GenericScrollBar {
@@ -257,10 +257,10 @@ class GenericScrollBarAdder {
 		if (isIE11()) {
 			let bsz = this.bar_configuration.size + this.bar_configuration.separatorSize; 
 			this.div.style.width = this.controlled_element.clientWidth
-				+ ((this.vertical == "on") ? bsz : 0)
+				+ (this.vertical ? bsz : 0)
 			    + "px";
 			this.div.style.height = this.controlled_element.clientHeight
-				+ ((this.horizontal == "on") ? bsz : 0)
+				+ (this.horizontal ? bsz : 0)
 			    + "px";
 			this.div.style.display = "-ms-grid";
 		}
@@ -271,6 +271,7 @@ class GenericScrollBarAdder {
 		let style = window.getComputedStyle(this.controlled_element);
 		this.div.style.border = style.border;
 		this.div.style.margin = style.margin;
+		this.div.style.padding = style.padding;	
 		let key1 = [ "", "Top", "Bottom", "Left", "Right" ];
 		let key2 = [ "Color", "LeftRadius", "RightRadius", "Style", "Width",
 			     "Collapse", "Image", "ImageOutset", "ImageRepeat", "ImageSlice",
@@ -284,13 +285,23 @@ class GenericScrollBarAdder {
 				}
 			}
 		}
+		let key3 = [ "Top", "Bottom", "Left", "Right",
+			         "Block", "BlockStart", "BlockEnd",
+					 "Inline", "InlineStart", "InlineEnd" ];
+		for (let i = 0; i < key1.length; ++i) {
+			let prop = "padding" + key3[i];
+			try {
+				this.div.style[prop] = style[prop];
+			} catch {
+			}
+		}
 		this.controlled_element.style.border = "none";
 		this.controlled_element.style.margin = "0";
-		if (this.vertical != "on") {
-			this.div.style.gridTemplateColumns = "auto";
+		if (this.vertical) {
+			this.div.style.gridTemplateColumns = "auto auto";
 		}
 		else {
-			this.div.style.gridTemplateColumns = "auto auto";
+			this.div.style.gridTemplateColumns = "auto";
 		}
 		this.width = this.controlled_element.clientWidth;
 		this.height = this.controlled_element.clientHeight;
@@ -303,7 +314,7 @@ class GenericScrollBarAdder {
 			this.controlled_element.style.setProperty("-ms-grid-column", "1");
 			this.controlled_element.style.setProperty("-ms-grid-row", "1");
 		}
-		if (this.vertical == "on") {
+		if (this.vertical) {
 			this.vertical_scrollbar = new GenericScrollBar(this.controlled_element, { ...this.bar_configuration, vertical: true });
 			this.div.appendChild(this.vertical_scrollbar.div);
 			if (isIE11()) {
@@ -311,7 +322,7 @@ class GenericScrollBarAdder {
 				this.vertical_scrollbar.div.style.setProperty("-ms-grid-column", "2");
 			}
 		}
-		if (this.horizontal == "on") {
+		if (this.horizontal) {
 			this.horizontal_scrollbar = new GenericScrollBar(this.controlled_element,  { ...this.bar_configuration, vertical: false });
 			this.div.appendChild(this.horizontal_scrollbar.div);
 			if (isIE11()) {
@@ -367,14 +378,18 @@ class GenericScrollBarAdder {
 		this.bar_configuration.size = Number(this.bar_configuration.size);
 		this.bar_configuration.buttonSize = Number(this.bar_configuration.buttonSize);
 		this.bar_configuration.separatorSize = Number(this.bar_configuration.separatorSize);
-		if (this.vertical == true) {
-			this.vertical = "on";
+		if (this.vertical == "on") {
+			this.vertical = true;
 		}
-		if (this.horizontal == true) {
-			this.horizontal = "on";
+		if (this.horizontal == "on") {
+			this.horizontal = true;
 		}
-		this.vertical = this.vertical.toLowerCase();
-		this.horizontal = this.horizontal.toLowerCase();
+		if (this.vertical == "off") {
+			this.vertical = false;
+		}
+		if (this.horizontal == "off") {
+			this.horizontal = false;
+		}
 
 		this._layout();
 	}
