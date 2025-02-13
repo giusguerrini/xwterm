@@ -410,13 +410,11 @@ class GenericScrollBarAdder {
 
 	_onButtonMinusClick()
 	{
-		// Gestore per il click del bottone minus
 		console.log("Button minus clicked");
 	}
 
 	_onButtonPlusClick()
 	{
-		// Gestore per il click del bottone plus
 		console.log("Button plus clicked");
 	}
 
