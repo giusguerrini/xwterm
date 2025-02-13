@@ -9,6 +9,7 @@ const COMMON_GENERICSCROLLBAR_DEFAULTS = {
 	size: 30, // Pixels
 	buttonSize: 20, // Pixels
 	separatorSize: 3, // Pixels
+	buttonBorderSize: 2, // Pixels
 
 	// Colors and appearance:
 	foreground:  "rgb(192,192,192)",
@@ -27,6 +28,38 @@ const GENERICSCROLLBARADDER_DEFAULTS = {
 };
 
 class GenericScrollBar {
+ 			
+	vertical_mutable_properties = {
+		motion_coord: "clientY",
+		min_coord_side: "top",
+		motion_limit: "clientHeight",
+		motion_size: "height",
+		fixed_size: "width",
+		ms_grid_single: "-ms-grid-columns",
+		ms_grid_multi: "-ms-grid-rows",
+		ms_grid_single_pos: "-ms-grid-column",
+		ms_grid_multi_pos: "-ms-grid-row",
+		grid_single: "gridTemplateColumns",
+		grid_multi: "gridTemplateRows",
+		separator_width: "borderLeftWidth",
+		separator_style: "borderLeftStyle",
+	};
+
+	horizontal_mutable_properties =  {
+		motion_coord: "clientX",
+		min_coord_side: "left",
+		motion_limit: "clientWidth",
+		motion_size: "width",
+		fixed_size: "height",
+		ms_grid_single: "-ms-grid-rows",
+		ms_grid_multi: "-ms-grid-columns",
+		ms_grid_single_pos: "-ms-grid-row",
+		ms_grid_multi_pos: "-ms-grid-column",
+		grid_single: "gridTemplateRows",
+		grid_multi: "gridTemplateColumns",
+		separator_width: "borderTopWidth",
+		separator_style: "borderTopStyle",
+	};
 
 	_layout()
 	{
@@ -40,14 +73,8 @@ class GenericScrollBar {
 		let ssz = Number(this.separator_size);
 		let style = window.getComputedStyle(this.controlled_element);
 
-		if (this.vertical) {
-			this.width = sz;
-			this.height = this.controlled_element.clientHeight;
-		}
-		else {
-			this.height = sz;
-			this.width = this.controlled_element.clientWidtg;
-		}
+		this[this.mutable_properties.fixed_size] = sz;
+		this[this.mutable_properties.motion_size] = this.controlled_element[this.mutable_properties.motion_limit];
 
 		this.div = document.createElement("div");
 		this.div.classList.add("generic-scrollbar");
@@ -65,75 +92,57 @@ class GenericScrollBar {
 
 		this.button_minus = document.createElement("button");
 		this.button_minus.innerText = "-";
+		this.button_minus.style.margin = "0px";
+		this.button_minus.style.borderWidth = this.button_border_size + "px";
+		this.button_minus.style.borderStyle = "solid";
 		this.button_minus.addEventListener("click", this._onButtonMinusClick.bind(this));
-		this.div.appendChild(this.button_minus);
 
 		this.div_int = document.createElement("div");
 		this.div_int.style.position = "relative";
 		this.button_int = document.createElement("button");
-		this.button_int.innerText = " ";
 		this.button_int.style.position = "absolute";
 		this.button_int.style.top = "0";
 		this.button_int.style.left = "0";
+		this.button_int.style.margin = "0px";
+		this.button_int.style.borderWidth = this.button_border_size + "px";
+		this.button_int.style.borderStyle = "solid";
 		this.div_int.appendChild(this.button_int);
 		this.div_int.addEventListener("click", this._onDivIntClick.bind(this));
 		this.button_int.addEventListener("mousedown", this._onButtonIntMouseDown.bind(this));
 
 		this.button_plus = document.createElement("button");
 		this.button_plus.innerText = "+";
+		this.button_plus.style.margin = "0px";
+		this.button_plus.style.borderWidth = this.button_border_size + "px";
+		this.button_plus.style.borderStyle = "solid";
 		this.button_plus.addEventListener("click", this._onButtonPlusClick.bind(this));
 
-		if (this.vertical) {
-			if (isIE11()) {
-				this.div.style.setProperty("-ms-grid-columns", sz + "px");
-				this.div.style.setProperty("-ms-grid-rowas", bsz + "px 1fr " + bsz + "px");
-				this.button_minus.style.setProperty("-ms-grid-row", "1");
-				this.button_minus.style.setProperty("-ms-grid-column", "1");
-				this.div_int.style.setProperty("-ms-grid-row", "2");
-				this.div_int.style.setProperty("-ms-grid-column", "1");
-				this.button_plus.style.setProperty("-ms-grid-row", "3");
-				this.button_plus.style.setProperty("-ms-grid-column", "1");
-			}
-			else {
-				this.div.style.gridTemplateColumns = "auto";
-				this.div.style.gridTemplateRows = "auto auto auto";
-			}
-			this.div.style.borderLeftWidth = ssz + "px";
-			this.div.style.borderLeftStyle = "solid";
-			this.button_minus.style.width = sz + "px";
-			this.button_minus.style.height = bsz + "px";
-			this.button_int.style.width = "100%";
-			this.button_int.style.height = "10%";	
-			this.div_int.style.width = sz + "px";
-			this.div_int.style.height = (this.controlled_element.clientHeight - 2*bsz) + "px";
-			this.button_plus.style.width = sz + "px";
-			this.button_plus.style.height = bsz + "px";
-		} else {
-			if (isIE11()) {
-				this.div.style.setProperty("-ms-grid-columns", bsz + "px 1fr " + bsz + "px");
-				this.div.style.setProperty("-ms-grid-rows", sz + "px");
-				this.button_minus.style.setProperty("-ms-grid-row", "1");
-				this.button_minus.style.setProperty("-ms-grid-column", "1");
-				this.div_int.style.setProperty("-ms-grid-row", "1");
-				this.div_int.style.setProperty("-ms-grid-column", "2");
-				this.button_plus.style.setProperty("-ms-grid-row", "1");
-				this.button_plus.style.setProperty("-ms-grid-column", "3");
-			}
-			else {
-				this.div.style.gridTemplateColumns = "auto auto auto";
-				this.div.style.gridTemplateRows = "auto";
-			}
-			this.div.style.borderTopWidth = ssz + "px";
-			this.div.style.borderTopStyle = "solid";
-			this.button_minus.style.width = bsz + "px";
-			this.button_minus.style.height = sz + "px";
-			this.button_int.style.width = "10%";
-			this.button_int.style.height = "100%";
-			this.div_int.style.width = (this.controlled_element.clientWidth - 2*bsz) + "px";
-			this.div_int.style.height = sz + "px";
-			this.button_plus.style.width = bsz + "px";
-			this.button_plus.style.height = sz + "px";
+		const m = this.mutable_properties;
+
+		if (isIE11()) {
+			this.div.style.setProperty(m.ms_grid_single, sz + "px");
+			this.div.style.setProperty(m.ms_grid_multi, bsz + "px 1fr " + bsz + "px");
+			this.button_minus.style.setProperty(m.ms_grid_multi_pos, "1");
+			this.button_minus.style.setProperty(m.ms_grid_single_pos, "1");
+			this.div_int.style.setProperty(m.ms_grid_multi_pos, "2");
+			this.div_int.style.setProperty(m.ms_grid_single_pos, "1");
+			this.button_plus.style.setProperty(m.ms_grid_multi_pos, "3");
+			this.button_plus.style.setProperty(m.ms_grid_single_pos, "1");
 		}
+		else {
+			this.div.style[m.grid_single] = "auto";
+			this.div.style[m.grid_multi] = "auto auto auto";
+		}
+		this.div.style[m.separator_width] = ssz + "px";
+		this.div.style[m.separator_style] = "solid";
+		this.button_minus.style[m.fixed_size] = sz + "px";
+		this.button_minus.style[m.motion_size] = bsz + "px";
+		this.button_int.style[m.fixed_size] = "100%";
+		this.button_int.style[m.motion_size] = "10%";	
+		this.div_int.style[m.fixed_size] = sz + "px";
+		this.div_int.style[m.motion_size] = (this.controlled_element[m.motion_limit] - 2*bsz) + "px";
+		this.button_plus.style[m.fixed_size] = sz + "px";
+		this.button_plus.style[m.motion_size] = bsz + "px";
 
 		this.div.appendChild(this.button_minus);
 		this.div.appendChild(this.div_int);
@@ -147,7 +156,7 @@ class GenericScrollBar {
     _newValue(v)
 	{
 		if (v != this.curr_value) {
-			console.log("Scroll value = " + v);
+			//console.log("Scroll value = " + v);
         	this.on_new_position.forEach(callback => callback(v));
 			this.curr_value = v;
 		}
@@ -180,57 +189,22 @@ class GenericScrollBar {
 	_onDocumentMouseMove(event)
 	{
 		if (this.mouse_down) {
-			/*
-			// A shorter but unreadable version of the same algorythm...
-			
-			const m = this.vertical ? { coord: "clientY", side: "top",  clprop: "clientHeight" }
-			                        : { coord: "clientX", side: "left", clprop: "clientWidth" };
-			let d = (this.button_int.getBoundingClientRect())[m.side]
-				  - (this.div_int.getBoundingClientRect())[m.side]
+			const m = this.mutable_properties;
+
+			let d = (this.button_int.getBoundingClientRect())[m.min_coord_side]
+				  - (this.div_int.getBoundingClientRect())[m.min_coord_side]
 				  - this.mouse_down_pos;
-			let c = d + event[m.coord];
+			let c = d + event[m.motion_coord];
+			let limit = this.div_int[m.motion_limit] - this.button_int[m.motion_limit] - 2*this.button_border_size;
 			if (c < 0) {
 				c = 0;
 			}
-			else if (c > this.div_int[m.clprop] - this.button_int[m.clprop]) {
-				c = this.div_int[m.clprop] - this.button_int[m.clprop];
+			else if (c > limit) {
+				c = limit;
 			}
-			this.button_int.style[m.side] = c + "px";
+			this.button_int.style[m.min_coord_side] = c + "px";
 			this.mouse_down_pos = c - d;
-			*/
-			let v = 0;
-			let d = 0;
-			let m = 0;
-			if (this.vertical) {
-				d = this.button_int.getBoundingClientRect().top
-			      - this.div_int.getBoundingClientRect().top
-			      - this.mouse_down_pos;
-				v = d + event.clientY;
-				m = this.div_int.clientHeight - this.button_int.clientHeight;
-				if (v < 0) {
-					v = 0;
-				}
-				else if (v > m) {
-					v = m;
-				}
-				this.button_int.style.top = v + "px";
-			}
-			else {
-				d = this.button_int.getBoundingClientRect().left
-				  - this.div_int.getBoundingClientRect().left
-				  - this.mouse_down_pos;
-				v = d + event.clientX;
-				m = this.div_int.clientWidth - this.button_int.clientWidth;
-				if (v < 0) {
-					v = 0;
-				}
-				else if (v > m) {
-					v = m;
-				}
-				this.button_int.style.left = v + "px";
-			}
-			this.mouse_down_pos = v - d;
-			let val = (m <= 0) ? 0 : (v / m);
+			let val = (limit <= 0) ? 0 : (c / limit);
 			this._newValue(this.min_value + val * (this.max_value - this.min_value));
 		}
 	}
@@ -251,6 +225,7 @@ class GenericScrollBar {
 		size: "size",
 		buttonSize: "button_size",
 		separatorSize: "separator_size",
+		buttonBorderSize: "button_border_size",
 		vertical: "vertical",
 	};
 
@@ -279,12 +254,20 @@ class GenericScrollBar {
 			}
 		}
 
+		this.mutable_properties = this.vertical
+	                            ? this.vertical_mutable_properties
+		                        : this.horizontal_mutable_properties;
 		this.on_new_position = [];
 		this.min_value = 0;
 		this.curr_value = 0;
 		this.max_value = 0;
 
 		this._layout();
+	}
+
+	_updatePos()
+	{
+
 	}
 
 	setMinValue(minValue)
