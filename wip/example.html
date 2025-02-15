@@ -18,9 +18,9 @@
     <div id="scrollbar-container">
         <canvas id="scrollable-canvas" width="400" height="300"></canvas>
     </div>
-    <div id="horizontal"></div>
+    <div id="horizontal">?</div>
     <div> ---- </div>
-    <div id="vertical"></div>
+    <div id="vertical">?</div>
     <script src="./dest/scrollbar.js"></script>
     <script>
 
@@ -33,18 +33,18 @@ document.addEventListener("DOMContentLoaded",
         sb.horizontalScrollbar.setMaxValue(500);
         sb.horizontalScrollbar.setValue(200);
         sb.horizontalScrollbar.registerOnChange(function (value)
-	{
-	    hdiv.textContent = "Horizontal value: " + value;
-            //console.log("Horizontal value: " + value);
-        });
+	        {
+	            hdiv.textContent = "Horizontal value: " + value;
+                //console.log("Horizontal value: " + value);
+            });
         sb.verticalScrollbar.setMinValue(100);
         sb.verticalScrollbar.setMaxValue(500);
         sb.verticalScrollbar.setValue(200);
         sb.verticalScrollbar.registerOnChange(function (value)
-	{
-	    vdiv.textContent = "Vertical value: " + value;
-            //console.log("Vertical value: " + value);
-        });
+	        {
+	            vdiv.textContent = "Vertical value: " + value;
+                //console.log("Vertical value: " + value);
+            });
     });
 
     </script>

@@ -12,8 +12,10 @@ const COMMON_GENERICSCROLLBAR_DEFAULTS = {
 	buttonBorderSize: 2, // Pixels
 
 	// Colors and appearance:
-	foreground:  "rgb(192,192,192)",
-	background:  "rgb(0,0,0)",
+	background:  "rgb(224,224,224)",
+	foreground:  "rgb(0,0,0)",
+	buttonBackground: "rgb(240,240,240)",
+	buttonBackgroundHover: "rgb(224,224,224)",
 };
 
 const GENERICSCROLLBAR_DEFAULTS = {
@@ -29,7 +31,7 @@ const GENERICSCROLLBARADDER_DEFAULTS = {
 
 class GenericScrollBar {
  			
-	vertical_mutable_properties = {
+	static vertical_mutable_properties = {
 		motion_coord: "clientY",
 		min_coord_side: "top",
 		motion_limit: "clientHeight",
@@ -45,7 +47,7 @@ class GenericScrollBar {
 		separator_style: "borderLeftStyle",
 	};
 
-	horizontal_mutable_properties =  {
+	static horizontal_mutable_properties =  {
 		motion_coord: "clientX",
 		min_coord_side: "left",
 		motion_limit: "clientWidth",
@@ -61,6 +63,80 @@ class GenericScrollBar {
 		separator_style: "borderTopStyle",
 	};
 
+	static _colorNameToRGB_canvas = null;
+
+	static _colorNameToRGB(colorName)
+	{
+		if (! GenericScrollBar._colorNameToRGB_canvas) {
+    		GenericScrollBar._colorNameToRGB_canvas = document.createElement("canvas");
+			GenericScrollBar._colorNameToRGB_canvas.width = 1;
+			GenericScrollBar._colorNameToRGB_canvas.height = 1;
+			GenericScrollBar._colorNameToRGB_canvas.willReadFrequently = true;
+		}
+
+		let context = GenericScrollBar._colorNameToRGB_canvas.getContext("2d");
+
+		context.fillStyle = colorName;
+		context.fillRect(0, 0, 1, 1);
+
+		var imageData = context.getImageData(0, 0, 1, 1).data;
+
+		return {
+			r: imageData[0],
+			g: imageData[1],
+			b: imageData[2]
+		};
+	}
+
+	_create_button()
+	{
+		let button = document.createElement("button");
+		button.style.margin = "0px";
+		if (true) {
+		button.style.borderWidth = this.button_border_size + "px";
+		button.style.borderRadius = (2*this.button_border_size) + "px";
+		button.style.borderStyle = "outset";
+		button.style.borderColor = this.foreground;
+		button.style.backgroundColor = this.button_background;
+		button.style.foregroundColor = this.foreground;
+		var down = false;
+		var hover = false;
+		button.addEventListener("mousedown",
+			(event) => {
+				down = true;
+				button.style.borderStyle = "inset";
+				button.style.backgroundColor = this.button_background;
+			}
+		);
+		button.addEventListener("mouseup",
+			(event) => {
+				down = false;
+				button.style.borderStyle = "outset";
+				button.style.backgroundColor = this.button_background_hover;
+			}
+		);
+		button.addEventListener("mouseenter",
+			(event) => {
+				hover = true;
+				if (! down) {
+					button.style.backgroundColor = this.button_background_hover;
+				}
+			}
+		);
+		button.addEventListener("mouseleave",
+			(event) => {
+				hover = false;
+				if (! down) {
+					button.style.backgroundColor = this.button_background;
+				}
+			}
+		);
+
+		}
+
+		return button;
+	}
+	
 	_layout()
 	{
 		this.div = null;
@@ -90,31 +166,23 @@ class GenericScrollBar {
 			this.div.style.display = "grid";
 		}
 
-		this.button_minus = document.createElement("button");
+		this.button_minus = this._create_button();
 		this.button_minus.innerText = "-";
-		this.button_minus.style.margin = "0px";
-		this.button_minus.style.borderWidth = this.button_border_size + "px";
-		this.button_minus.style.borderStyle = "solid";
 		this.button_minus.addEventListener("click", this._onButtonMinusClick.bind(this));
 
 		this.div_int = document.createElement("div");
 		this.div_int.style.position = "relative";
-		this.button_int = document.createElement("button");
+		this.div_int.style.backgroundColor = this.background;
+		this.button_int = this._create_button();
 		this.button_int.style.position = "absolute";
 		this.button_int.style.top = "0";
 		this.button_int.style.left = "0";
-		this.button_int.style.margin = "0px";
-		this.button_int.style.borderWidth = this.button_border_size + "px";
-		this.button_int.style.borderStyle = "solid";
 		this.div_int.appendChild(this.button_int);
 		this.div_int.addEventListener("click", this._onDivIntClick.bind(this));
 		this.button_int.addEventListener("mousedown", this._onButtonIntMouseDown.bind(this));
 
-		this.button_plus = document.createElement("button");
+		this.button_plus = this._create_button();
 		this.button_plus.innerText = "+";
-		this.button_plus.style.margin = "0px";
-		this.button_plus.style.borderWidth = this.button_border_size + "px";
-		this.button_plus.style.borderStyle = "solid";
 		this.button_plus.addEventListener("click", this._onButtonPlusClick.bind(this));
 
 		const m = this.mutable_properties;
@@ -226,6 +294,8 @@ class GenericScrollBar {
 		buttonSize: "button_size",
 		separatorSize: "separator_size",
 		buttonBorderSize: "button_border_size",
+		buttonBackground: "button_background",
+		buttonBackgroundHover: "button_background_hover",
 		vertical: "vertical",
 	};
 
@@ -254,9 +324,16 @@ class GenericScrollBar {
 			}
 		}
 
+		if (false) {
+		let f = GenericScrollBar._colorNameToRGB(this.foreground);
+		let b = GenericScrollBar._colorNameToRGB(this.background);
+		this.button_background = "rgb(" + Math.floor((5*b.r + f.r) / 6) + "," + Math.floor((5*b.g + f.g) / 6) + "," + Math.floor((6*b.b + f.b) / 6) + ")";
+		this.button_background_hover = "rgb(" + Math.floor((4*b.r + 2*f.r) / 6) + "," + Math.floor((4*b.g + 2*f.g) / 6) + "," + Math.floor((4*b.b + 2*f.b) / 6) + ")";
+		}
+
 		this.mutable_properties = this.vertical
-	                            ? this.vertical_mutable_properties
-		                        : this.horizontal_mutable_properties;
+	                            ? GenericScrollBar.vertical_mutable_properties
+		                        : GenericScrollBar.horizontal_mutable_properties;
 		this.on_new_position = [];
 		this.min_value = 0;
 		this.curr_value = 0;
