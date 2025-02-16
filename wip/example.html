@@ -21,32 +21,56 @@
     <div id="horizontal">?</div>
     <div> ---- </div>
     <div id="vertical">?</div>
+    <button id="increase-horizontal">Increase Horizontal</button>
+    <button id="decrease-horizontal">Decrease Horizontal</button>
+    <button id="increase-vertical">Increase Vertical</button>
+    <button id="decrease-vertical">Decrease Vertical</button>
+
     <script src="./dest/scrollbar.js"></script>
+
     <script>
 
-document.addEventListener("DOMContentLoaded",
-    function () {
-        var sb = new GenericScrollBarAdder("scrollable-canvas", { vertical: true, horizontal: true });
-	var hdiv =  document.getElementById("horizontal");
-	var vdiv =  document.getElementById("vertical");
-        sb.horizontalScrollbar.setMinValue(100);
-        sb.horizontalScrollbar.setMaxValue(500);
-        sb.horizontalScrollbar.setValue(200);
-        sb.horizontalScrollbar.registerOnChange(function (value)
-	        {
-	            hdiv.textContent = "Horizontal value: " + value;
-                //console.log("Horizontal value: " + value);
+        document.addEventListener("DOMContentLoaded",
+            function () {
+                var sb = new GenericScrollBarAdder("scrollable-canvas", { vertical: true, horizontal: true });
+            var hdiv =  document.getElementById("horizontal");
+            var vdiv =  document.getElementById("vertical");
+                sb.horizontalScrollbar.setVisibleRangeSize(200);
+                sb.horizontalScrollbar.setMinValue(100);
+                sb.horizontalScrollbar.setMaxValue(500);
+                sb.horizontalScrollbar.setValue(200);
+                sb.horizontalScrollbar.registerOnChange(function (value)
+                    {
+                        hdiv.textContent = "Horizontal value: " + value.value;
+                        //console.log("Horizontal value: " + value);
+                    });
+                sb.verticalScrollbar.setVisibleRangeSize(200);
+                sb.verticalScrollbar.setMinValue(100);
+                sb.verticalScrollbar.setMaxValue(500);
+                sb.verticalScrollbar.setValue(200);
+                sb.verticalScrollbar.registerOnChange(function (value)
+                    {
+                        vdiv.textContent = "Vertical value: " + value.value;
+                        //console.log("Vertical value: " + value);
+                    });
+        
+                document.getElementById("increase-horizontal").addEventListener("click", function() {
+                    sb.horizontalScrollbar.setMaxValue(sb.horizontalScrollbar.getMaxValue() + 100);
+                });
+        
+                document.getElementById("decrease-horizontal").addEventListener("click", function() {
+                    sb.horizontalScrollbar.setMaxValue(sb.horizontalScrollbar.getMaxValue() - 100);
+                });
+        
+                document.getElementById("increase-vertical").addEventListener("click", function() {
+                    sb.verticalScrollbar.setMaxValue(sb.verticalScrollbar.getMaxValue() + 100);
+                });
+        
+                document.getElementById("decrease-vertical").addEventListener("click", function() {
+                    sb.verticalScrollbar.setMaxValue(sb.verticalScrollbar.getMaxValue() - 100);
+                });
             });
-        sb.verticalScrollbar.setMinValue(100);
-        sb.verticalScrollbar.setMaxValue(500);
-        sb.verticalScrollbar.setValue(200);
-        sb.verticalScrollbar.registerOnChange(function (value)
-	        {
-	            vdiv.textContent = "Vertical value: " + value;
-                //console.log("Vertical value: " + value);
-            });
-    });
-
-    </script>
-</body>
+        
+            </script>
+        </body>
 </html>

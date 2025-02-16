@@ -206,7 +206,7 @@ class GenericScrollBar {
 		this.button_minus.style[m.fixed_size] = sz + "px";
 		this.button_minus.style[m.motion_size] = bsz + "px";
 		this.button_int.style[m.fixed_size] = "100%";
-		this.button_int.style[m.motion_size] = "10%";	
+		this.button_int.style[m.motion_size] = "100%";	
 		this.div_int.style[m.fixed_size] = sz + "px";
 		this.div_int.style[m.motion_size] = (this.controlled_element[m.motion_limit] - 2*bsz) + "px";
 		this.button_plus.style[m.fixed_size] = sz + "px";
@@ -220,16 +220,6 @@ class GenericScrollBar {
 		this.mouse_down_pos = 0;
 	}
 
-
-    _newValue(v)
-	{
-		if (v != this.curr_value) {
-			//console.log("Scroll value = " + v);
-        	this.on_new_position.forEach(callback => callback(v));
-			this.curr_value = v;
-		}
-	}
-	
 	_onDivIntClick(event)
 	{
 	}
@@ -273,16 +263,36 @@ class GenericScrollBar {
 			this.button_int.style[m.min_coord_side] = c + "px";
 			this.mouse_down_pos = c - d;
 			let val = (limit <= 0) ? 0 : (c / limit);
-			this._newValue(this.min_value + val * (this.max_value - this.min_value));
+			this.setValue(this.min_value + val * (this.max_value - this.min_value));
+			this._signalNewValue();
 		}
+	}
+
+	_signalNewValue()
+	{
+		let rv = {
+			value: this.curr_value,
+			minValue: this.min_value,
+			maxValue: this.max_value,
+			visibleRangeSize: this.visible_range_size,
+		};
+		this.on_new_position.forEach(callback => callback(rv));
 	}
 
 	_onButtonMinusClick()
 	{
+		if (this.visible_range_size > 0) {
+			this.setValue(this.curr_value - this.visible_range_size);
+			this._signalNewValue();
+		}
 	}
 
 	_onButtonPlusClick()
 	{
+		if (this.visible_range_size > 0) {
+			this.setValue(this.curr_value + this.visible_range_size);
+			this._signalNewValue();
+		}
 	}
 
 	// Table to convert public configuration keys to internal members.
@@ -338,40 +348,73 @@ class GenericScrollBar {
 		this.min_value = 0;
 		this.curr_value = 0;
 		this.max_value = 0;
+		this.visible_range_size = 0;
 
 		this._layout();
 	}
 
 	_updatePos()
 	{
+		let range = this.max_value - this.min_value;
+		if (this.visible_range_size != 0 && range != 0) {
+			const m = this.mutable_properties;
 
+			let r = this.div_int.getBoundingClientRect();
+			let v = this.visible_range_size / range;
+			if (v > 1) {
+				v = 1;
+			}
+			let l = Math.floor(r[m.motion_size] * v + 0.5);
+			let p = Math.floor((r[m.motion_size] - l) * ((this.curr_value - this.min_value) / range) + 0.5);
+			this.button_int.style[m.min_coord_side] =  p + "px"
+			this.button_int.style[m.motion_size] = l + "px";
+		}
 	}
 
 	setMinValue(minValue)
 	{
-		this.min_value = minValue;
-		if (this.curr_value < this.min_value) {
-			this.curr_value = this.min_value;
-		}
-		if (this.max_value < this.min_value) {
-			this.max_value = this.min_value;
+		if (this.min_value != minValue) {
+			this.min_value = minValue;
+			if (this.curr_value < this.min_value) {
+				this.curr_value = this.min_value;
+			}
+			if (this.max_value < this.min_value) {
+				this.max_value = this.min_value;
+			}
+			this._updatePos();
 		}
 	}
+
 	setMaxValue(maxValue)
 	{
-		this.max_value = maxValue;
-		if (this.curr_value > this.max_value) {
-			this.curr_value = this.max_value;
-		}
-		if (this.min_value > this.max_value) {
-			this.min_value = this.max_value;
+		if (this.max_value != maxValue) {
+			this.max_value = maxValue;
+			if (this.curr_value > this.max_value) {
+				this.curr_value = this.max_value;
+			}
+			if (this.min_value > this.max_value) {
+				this.min_value = this.max_value;
+			}
+			this._updatePos();
 		}
 	}
+
 	setValue(currValue)
 	{
-		this.curr_value = (currValue < this.min_value)
-		                ? this.min_value
-						: ((currValue > this.max_value) ? this.max_value : currValue);
+		if (currValue != this.curr_value) {
+			this.curr_value = (currValue < this.min_value)
+							? this.min_value
+							: ((currValue > this.max_value) ? this.max_value : currValue);
+			this._updatePos();
+		}
+	}
+
+	setVisibleRangeSize(v)
+	{
+		if (this.visible_range_size != v) {
+			this.visible_range_size = v;
+			this._updatePos();
+		}
 	}
 
 	getMinValue()
@@ -385,6 +428,10 @@ class GenericScrollBar {
 	getCurrValue()
 	{
 		return this.curr_value;
+	}
+	getVisibleRangeSize()
+	{
+		return this.visible_range_size;
 	}
 
 	registerOnChange(callback)
