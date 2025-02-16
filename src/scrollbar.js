@@ -79,7 +79,7 @@ class GenericScrollBar {
 		context.fillStyle = colorName;
 		context.fillRect(0, 0, 1, 1);
 
-		var imageData = context.getImageData(0, 0, 1, 1).data;
+		let imageData = context.getImageData(0, 0, 1, 1).data;
 
 		return {
 			r: imageData[0],
@@ -99,8 +99,8 @@ class GenericScrollBar {
 		button.style.borderColor = this.foreground;
 		button.style.backgroundColor = this.button_background;
 		button.style.foregroundColor = this.foreground;
-		var down = false;
-		var hover = false;
+		let down = false;
+		let hover = false;
 		button.addEventListener("mousedown",
 			(event) => {
 				down = true;
@@ -112,7 +112,12 @@ class GenericScrollBar {
 			(event) => {
 				down = false;
 				button.style.borderStyle = "outset";
-				button.style.backgroundColor = this.button_background_hover;
+				if (hover) {
+					button.style.backgroundColor = this.button_background_hover;
+				}
+				else {
+					button.style.backgroundColor = this.button_background;
+				}
 			}
 		);
 		button.addEventListener("mouseenter",

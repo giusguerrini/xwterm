@@ -2132,13 +2132,13 @@ export class AnsiTerm {
 
 	_send_request(url)
 	{
-		var xhr = new XMLHttpRequest();
+		let xhr = new XMLHttpRequest();
 
 		xhr.onreadystatechange = () => {
 			if (xhr.readyState === XMLHttpRequest.DONE) {
 				if (xhr.status >= 200 && xhr.status < 400) {
-					var data = JSON.parse(xhr.responseText);
-					var t = data["text"];
+					let data = JSON.parse(xhr.responseText);
+					let t = data["text"];
 					t =  decodeURIComponent(escape(t));
 					this._apply(t);
 					if (t != "") {
@@ -2178,7 +2178,7 @@ export class AnsiTerm {
 
 	_send(t)
 	{
-		var xhr = new XMLHttpRequest();
+		let xhr = new XMLHttpRequest();
 		xhr.onreadystatechange = () => {
 			if (xhr.readyState === XMLHttpRequest.DONE) {
 				clearTimeout(this.timer);
@@ -2228,7 +2228,7 @@ export class AnsiTerm {
 
 	_eval_key(ev)
 	{
-		var key;
+		let key;
 		let e = {
 			key: ev.key,
 			code: ev.code,
