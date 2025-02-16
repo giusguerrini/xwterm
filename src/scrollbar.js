@@ -222,6 +222,26 @@ class GenericScrollBar {
 
 	_onDivIntClick(event)
 	{
+		const buttonIntRect = this.button_int.getBoundingClientRect();
+		if (event.clientX >= buttonIntRect.left &&
+			event.clientX <= buttonIntRect.right &&
+			event.clientY >= buttonIntRect.top &&
+			event.clientY <= buttonIntRect.bottom) {
+			return;
+		}
+
+		const m = this.mutable_properties;
+		let clickPosition = event[m.motion_coord] - this.div_int.getBoundingClientRect()[m.min_coord_side];
+		let limit = this.div_int[m.motion_limit] - this.button_int[m.motion_limit] - 2 * this.button_border_size;
+		if (clickPosition < 0) {
+			clickPosition = 0;
+		} else if (clickPosition > limit) {
+			clickPosition = limit;
+		}
+		this.button_int.style[m.min_coord_side] = clickPosition + "px";
+		let val = (limit <= 0) ? 0 : (clickPosition / limit);
+		this.setValue(this.min_value + val * (this.max_value - this.min_value));
+		this._signalNewValue();
 	}
 
 	_onButtonIntMouseDown(event)
