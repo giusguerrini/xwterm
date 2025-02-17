@@ -521,6 +521,12 @@ export class AnsiTerm {
 				"P": this._ti(() => {
 					this._delete_chars(this._getarg(0, 1));
 				}), // DCH	Delete the indicated # of characters on current line.
+				"S": this._ti(() => {
+					this._scroll_multi(this._getarg(0, 1));
+				}), // ECH	Erase the indicated # of characters on current line.
+				"T": this._ti(() => {
+					this._scroll_multi(-this._getarg(0, 1));
+				}), // ECH	Erase the indicated # of characters on current line.
 				"X": this._ti(() => {
 					this._erase_chars(this._getarg(0, 1));
 				}), // ECH	Erase the indicated # of characters on current line.
@@ -626,7 +632,9 @@ export class AnsiTerm {
 				"8": this._ti(() => {
 					for (let y = 0; y < this.nlines; ++y) {
 						for (let x = 0; x < this.ncolumns; ++x) {
-							this._printchar_in_place((x+y) % 10, x, y);
+							let ch = (x+y) % 10;
+							this.screen[y][x].ch = ch;
+							this._printchar_in_place(ch, x, y);
 						}
 					}
 				}), // Screen alignment test. XTerm fills screen with E's, but numbers are more fun.
@@ -1666,10 +1674,25 @@ export class AnsiTerm {
 		this._setpos(this.posx + dx, this.posy + dy);
 	}
 
-	_scroll_core(y_start, y_end, up)
+	_scroll_core(y_start, y_end, jump)
 	{
+		if (jump == 0) {
+			return;
+		}
+		let ajump = jump;
+		let up = true;
+		if (ajump < 0) {
+			up = false;
+			ajump = -ajump;
+		}
+		let yd = (y_end - y_start);
+		if (ajump > yd) {
+			ajump = yd;
+			jump = up ? yd : -yd;
+		}
+		let jumppx = ajump * this.charheight;
 		let py = y_start * this.charheight;
-		let pheight = (y_end - y_start)  * this.charheight;
+		let pheight = (yd - ajump + 1) * this.charheight;
 		let py_src;
 		let py_dest;
 		let py_clr;
@@ -1677,22 +1700,23 @@ export class AnsiTerm {
 		let ymove_end;
 		let y_to_erase;
 		let ymove_step;
+		let ajmp1 = ajump - 1;
 
 		if (up) {
-			py_src = py + this.charheight;
+			py_src = py + jumppx;
 			py_dest = py;
-			py_clr = y_end * this.charheight;
+			py_clr = (y_end - ajmp1) * this.charheight;
 			ymove_start = y_start;
-			ymove_end = y_end;
+			ymove_end = y_end - ajmp1;
 			y_to_erase = y_end;
 			ymove_step = 1;
 		}
 		else {
 			py_src = py;
-			py_dest = py + this.charheight;
+			py_dest = py + jumppx;
 			py_clr = py;
 			ymove_start = y_end;
-			ymove_end = -y_start;
+			ymove_end = -(y_start + ajmp1);
 			y_to_erase = y_start;
 			ymove_step = -1;
 		}
@@ -1712,29 +1736,36 @@ export class AnsiTerm {
 		}
 
 		this.gc.fillStyle = this.background;
-		this.gc.fillRect(0, py_clr, this.gc.canvas.width, this.charheight);
+		this.gc.fillRect(0, py_clr, this.gc.canvas.width, jumppx);
 		this.gc.fillStyle = this.foreground;
 
 		for (let y = ymove_start; (y * ymove_step) < ymove_end; y += ymove_step) {
 			for (let x = 0; x < this.ncolumns; ++x) {
-				this._setcell(x, y, { ...this.screen[y + ymove_step][x] });
+				this._setcell(x, y, { ...this.screen[y + jump][x] });
 			}
 		}
 
 		//this.dump();
-		for (let x = 0; x < this.ncolumns; ++x) {
-			this._clearcharscr(x, y_to_erase);
+		for (let y = y_to_erase; (y * ymove_step) >= ymove_end; y -= ymove_step) {
+			for (let x = 0; x < this.ncolumns; ++x) {
+				this._clearcharscr(x, y);
+			}
 		}
 		//this.dump();
 
 		if (this.y_lastblink >= y_start && this.y_lastblink <= y_end) {
-			this.y_lastblink -= ymove_step;
+			this.y_lastblink -= jump;
 		}
 	}
 
 	_scroll_from(y_start)
 	{
-		this._scroll_core(y_start, this.scrollregion_h, true)
+		this._scroll_core(y_start, this.scrollregion_h, 1)
+	}
+
+	_scroll_multi(n)
+	{
+		this._scroll_core(this.scrollregion_l, this.scrollregion_h, n)
 	}
 
 	_scroll()
@@ -1744,7 +1775,7 @@ export class AnsiTerm {
 
 	_revscroll_from(y_start)
 	{
-		this._scroll_core(y_start, this.scrollregion_h, false)
+		this._scroll_core(y_start, this.scrollregion_h, -1)
 	}
 
 	_revscroll()
@@ -2139,7 +2170,7 @@ export class AnsiTerm {
 				if (xhr.status >= 200 && xhr.status < 400) {
 					let data = JSON.parse(xhr.responseText);
 					let t = data["text"];
-					//t =  decodeURIComponent(escape(t));
+					t =  decodeURIComponent(escape(t));
 					this._apply(t);
 					if (t != "") {
 						console.log(data);
