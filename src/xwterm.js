@@ -2139,7 +2139,7 @@ export class AnsiTerm {
 				if (xhr.status >= 200 && xhr.status < 400) {
 					let data = JSON.parse(xhr.responseText);
 					let t = data["text"];
-					t =  decodeURIComponent(escape(t));
+					//t =  decodeURIComponent(escape(t));
 					this._apply(t);
 					if (t != "") {
 						console.log(data);
