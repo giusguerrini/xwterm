@@ -1,6 +1,6 @@
 
 	
-const ANSITERM_VERSION = "0.3.0";
+const ANSITERM_VERSION = "0.4.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -939,7 +939,7 @@ export class AnsiTerm {
 			this.status_div_container.style.font = this.status_fullfont;
 			this.status_div_container.style.border = "1px solid black";
 			this.status_div_container.style.display = "grid";
-			this.status_div_container.style.gridTemplateColumns = "auto fit-content(10%) fit-content(10%) fit-content(10%)";
+			this.status_div_container.style.gridTemplateColumns = "auto fit-content(20%) fit-content(20%) fit-content(20%)";
 			this.div.appendChild(this.status_div_container);
 			this.status_div = document.createElement("div");
 			this.status_div.style.font = this.status_fullfont;
@@ -967,94 +967,64 @@ export class AnsiTerm {
 			this.keyboard_div.style.gridTemplateColumns = "auto auto auto auto auto auto auto auto auto auto auto auto";
 			this.keyboard_div.style.border = "2px solid black";
 			this.div.appendChild(this.keyboard_div);
-			for (let i = 0; i < 16; ++i) {
+
+			let button_properties = [];
+
+			for (let i = 0; i < 12; ++i) {
+				let t = "F" + (i+1);
+				let p = {
+					text: t,
+					key: { key: t, code: t, composed: false, ctrlKey: false, altKey: false, metaKey: false, },
+				};
+				button_properties.push(p);
+			}
+			button_properties.push({
+						text: "TAB",
+						key: { key: 'Tab', code: 'Tab', composed: false, ctrlKey: false, altKey: false, metaKey: false, },
+					});
+			button_properties.push({
+						text: "CTRL-L",
+						key: { key: 'l', code: 'KeyL', composed: false, ctrlKey: false, altKey: false, metaKey: false, },
+					});
+			button_properties.push({
+						text: "\x60 (Backquote)",
+						key: { key: "\x60", code: 'Backquote', composed: false, ctrlKey: false, altKey: false, metaKey: false, },
+					});
+			button_properties.push({
+						text: "\x7e (Tilde)",
+						key: { key: "\x7e", code: 'Tilde', composed: false, ctrlKey: false, altKey: false, metaKey: false, },
+					});
+			
+			for (let i = 0; i < button_properties.length; ++i) {
 				let e = document.createElement("button");
 				e.style.backgroundColor = this.keyboard_background;
 				e.style.color = this.keyboard_foreground;
-				if (i < 12) {
-					e.innerText = "F" + (i+1);
-					e.addEventListener("click", (event) => {
-						this._send_key({
-							key: e.innerText,
-							code: e.innerText,
-							composed: false,
-							ctrlKey: false,
-							altKey: false,
-							metaKey: false,
-						});
+				e.innerText = button_properties[i].text;
+				e.addEventListener("click", (event) => {
+						this._send_key(button_properties[i].key);
 						this.canvas.focus();
 					});
-				}
-				else if (i == 12) {
-					e.style.gridColumnStart = 1;
-					e.style.gridColumnEnd = 5;
-					e.innerText = "TAB"
-					e.addEventListener("click", (event) => {
-						this._send_key({
-							key: 'Tab',
-							code: 'Tab',
-							composed: false,
-							ctrlKey: false,
-							altKey: false,
-							metaKey: false,
-						});
-						this.canvas.focus();
-					});
-				}
-				else if (i == 15) {
-					e.style.gridColumnStart = 9;
-					e.style.gridColumnEnd = 13;
-					e.innerText = "CTRL-L"
-					e.addEventListener("click", (event) => {
-						this._send_key({
-							key: 'l',
-							code: 'KeyL',
-							composed: true,
-							ctrlKey: true,
-							altKey: false,
-							metaKey: false,
-						});
-						this.canvas.focus();
-					});
-				}
-				else if (i == 13) {
-					e.style.gridColumnStart = 5;
-					e.style.gridColumnEnd = 7;
-					e.innerText = "\x60 (Backquote)"
-					e.addEventListener("click", (event) => {
-						this._send_key({
-							key: '\x60',
-							code: 'Backquote',
-							composed: false,
-							ctrlKey: false,
-							altKey: false,
-							metaKey: false,
-						});
-						this.canvas.focus();
-					});
-				}
-				else if (i == 14) {
-					e.style.gridColumnStart = 7;
-					e.style.gridColumnEnd = 9;
-					e.innerText = "\x7e (Tilde)"
-					e.addEventListener("click", (event) => {
-						this._send_key({
-							key: '\x7e',
-							code: 'Tilde',
-							composed: false,
-							ctrlKey: false,
-							altKey: false,
-							metaKey: false,
-						});
-						this.canvas.focus();
-					});
+				if (i >= 12) {
+					e.style.gridColumnStart = (i - 12) * 3 + 1;
+					e.style.gridColumnEnd = (i - 12) * 3 + 4;
 				}
 				this.keyboard_div.appendChild(e);
 			}
+
+			this.copy_button.addEventListener("click",
+				(event) => {
+					this._write_to_clipboard();
+				});
+
+			this.paste_button.addEventListener("click",
+				(event) => {
+					this._read_from_clipboard();
+				});
 		}
 
-		// TODO / WIP: Copy/Paste popup menu
 
+		if (false) {
+		// TODO / WIP: Copy/Paste popup menu
 		this.menu = document.createElement("dialog");
 		this.menu.open = false;
 		this.menu.style.position = "absolute";
@@ -1080,6 +1050,7 @@ export class AnsiTerm {
 		this.menu_ul_li4 = document.createElement("li");
 		this.menu_ul_li4.innerText = "Quit";
 		this.menu_ul.appendChild(this.menu_ul_li4);
+		}
 	}
 
 	// Table to convert public configuration keys to internal members.
@@ -2447,6 +2418,56 @@ export class AnsiTerm {
 		return rv;
 	}
 
+	_read_from_clipboard()
+	{
+		navigator.clipboard.readText().then((text) => {
+			text.split('').forEach(char => {
+				this._send(char);
+			});
+		}).catch((error) => {
+			console.error('Error reading from clipboard:', error);
+		});
+		
+	}
+
+	_write_to_clipboard()
+	{
+		let t = "";
+		try {
+			let xi = this.selection_start % this.ncolumns;
+			let yi = Math.floor(this.selection_start / this.ncolumns);
+			for (let i = this.selection_start; i <= this.selection_end; ++i) {
+				t += this.screen[yi][xi].ch;
+				++xi;
+				if (xi >= this.ncolumns) {
+					t = t.replace(/ +$/,"\n");
+					xi = 0;
+					++yi;
+				}
+			}
+			t = t.replace(/ +$/,"\n");
+		} catch {
+			return;
+		}
+		try {
+			navigator.clipboard.writeText(t);
+		} catch {						
+			const textArea = document.createElement("textarea");
+			textArea.value = t;
+			textArea.style.position = "fixed";
+			document.body.appendChild(textArea);
+			textArea.focus();
+			textArea.select();
+			try {
+					document.execCommand('copy', false, t);
+			} catch (err) {
+					console.error('Error writing to clipboard:', err);
+			} finally {
+					document.body.removeChild(textArea);
+			}
+		}
+	}
+
 	_selection_menu(x, y)
 	{
 		if (this.selection_start != -1) {
@@ -2457,55 +2478,7 @@ export class AnsiTerm {
 				this.menu.show();
 			}
 			else {
-				if (true) {
-					let t = "";
-					let xi = this.selection_start % this.ncolumns;
-					let yi = Math.floor(this.selection_start / this.ncolumns);
-					for (let i = this.selection_start; i <= this.selection_end; ++i) {
-						t += this.screen[yi][xi].ch;
-						++xi;
-						if (xi >= this.ncolumns) {
-							t = t.replace(/ +$/,"\n");
-							xi = 0;
-							++yi;
-						}
-					}
-					t = t.replace(/ +$/,"\n");
-					if (false) {
-						try {
-							navigator.clipboard.writeText(t);
-						} catch {
-						}
-					}
-					else {
-						
-						if (true) {
-							const textArea = document.createElement("textarea");
-							textArea.value = t;
-							textArea.style.position = "fixed";
-							document.body.appendChild(textArea);
-							textArea.focus();
-							textArea.select();
-							try {
-							      document.execCommand('copy', false, t);
-							      console.log('Testo copiato nella clipboard!');
-							} catch (err) {
-							      console.error('Errore durante la copia:', err);
-							} finally {
-							      document.body.removeChild(textArea);
-							}
-						}
-						else {
-							try {
-							      document.execCommand('copy', false, t);
-							      console.log('Testo copiato nella clipboard!');
-							} catch (err) {
-							      console.error('Errore durante la copia:', err);
-							}
-						}
-					}
-						
-				}
+				this._write_to_clipboard();
 			}
 		}
 

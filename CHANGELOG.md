@@ -1,4 +1,9 @@
 # Changelog
+## [0.4.0] - 2025-02-23
+- Completed support for partial scroll sequences.
+- Code cleanup.
+- Added copy/paste.
+- Fixed minor bugs.
 
 ## [0.3.0] - 2025-01-09
 - Code cleanup.
