@@ -939,8 +939,20 @@ export class AnsiTerm {
 			this.status_div_container.style.font = this.status_fullfont;
 			this.status_div_container.style.border = "1px solid black";
 			this.status_div_container.style.display = "grid";
-			this.status_div_container.style.gridTemplateColumns = "auto fit-content(20%) fit-content(20%) fit-content(20%)";
+			this.status_div_container.style.gridTemplateColumns = "fit-content(10%) fit-content(30%) auto fit-content(20%) fit-content(20%) fit-content(20%)";
 			this.div.appendChild(this.status_div_container);
+			this.lock_button = document.createElement("button");
+			this.lock_button.style.backgroundColor = this.keyboard_background;
+			this.lock_button.style.color = this.keyboard_foreground;
+			this.lock_button.innerText = "Lock";
+			this.status_div_container.appendChild(this.lock_button);
+			this.lock_div = document.createElement("div");
+			this.lock_div.style.font = this.status_fullfont;
+			this.lock_div.style.backgroundColor = this.status_background_ok;
+			this.lock_div.style.color = this.status_foreground_ok;
+			this.lock_div.style.border = "1px solid black";
+			this.lock_div.innerText = "Unlocked";
+			this.status_div_container.appendChild(this.lock_div);
 			this.status_div = document.createElement("div");
 			this.status_div.style.font = this.status_fullfont;
 			this.status_div.style.border = "1px solid black";
@@ -1014,12 +1026,22 @@ export class AnsiTerm {
 			this.copy_button.addEventListener("click",
 				(event) => {
 					this._write_to_clipboard();
+					this._clear_selection();
+					this.canvas.focus();
 				});
 
 			this.paste_button.addEventListener("click",
 				(event) => {
 					this._read_from_clipboard();
+					this.canvas.focus();
 				});
+
+			this.lock_button.addEventListener("click",
+				(event) => {
+					this._toggle_lock();
+					this.canvas.focus();
+				});
+	
 		}
 
 
@@ -1136,10 +1158,14 @@ export class AnsiTerm {
 		this.italic = false;
 
 		this.selection_on = false;
+		this.selection_active = false;
 		this.selection_start = -1;
 		this.selection_end = -1;
 		this.selection_last = -1;
+		
+		this.incoming_text = "";
 
+		this.output_locked_by_user = false;
 
 		this.url_source = this.source;
 		//this.url_source = this.url + this.source;
@@ -1394,21 +1420,44 @@ export class AnsiTerm {
 		}
 	}
 
+	_update_status_element(el, ok, text_ok, text_ko)
+	{
+		if (ok) {
+			el.style.color = this.status_foreground_ok;
+			el.style.backgroundColor = this.status_background_ok;
+			el.innerText = text_ok;
+		}
+		else {
+			el.style.color = this.status_foreground_ko;
+			el.style.backgroundColor = this.status_background_ko;
+			el.innerText = text_ko;
+		}
+	}
+
 	_set_status(ok)
 	{
 		if (this.status_ok != ok) {
-			if (ok) {
-				this.status_div.style.color = this.status_foreground_ok;
-				this.status_div.style.backgroundColor = this.status_background_ok;
-				this.status_div.innerText = "Connected"
-			}
-			else {
-				this.status_div.style.color = this.status_foreground_ko;
-				this.status_div.style.backgroundColor = this.status_background_ko;
-				this.status_div.innerText = "Disconnected"
-			}
+			this._update_status_element(this.status_div, ok, "Connected", "Disconnected")
 			this.status_ok = ok;
 		}
+	}
+
+	_update_lock_state()
+	{
+		let unlocked = !(this.output_locked_by_user || this.selection_active);
+		//console.log(unlocked);
+		if (unlocked) {
+			this._apply(this.incoming_text);
+			this.incoming_text = "";
+		}
+		this._update_status_element(this.lock_div, unlocked, "Unlocked", "Locked - " + this.incoming_text.length + " bytes pending")
+	}
+
+	_toggle_lock()
+	{
+		this.output_locked_by_user = ! this.output_locked_by_user;
+		this.lock_button.innerText = this.output_locked_by_user ? "Unlock" : "Lock";
+		this._update_lock_state();
 	}
 
 	_set_title(t)
@@ -1471,6 +1520,19 @@ export class AnsiTerm {
 		let italic = this.italic;
 		let reverse = this.reverse;
 		let blink = this.blink;
+
+		if (x0 < 0) {
+			x0 = 0;
+		}
+		if (x0 + width >= this.ncolumns) {
+			x0 = this.ncolumns - width;
+		}
+		if (y0 < 0) {
+			y0 = 0;
+		}
+		if (y0 + height >= this.nrows) {
+			y0 = this.nrows - height;
+		}
 
 		//console.log("redraw",x0, y0, width, height);
 
@@ -2142,7 +2204,13 @@ export class AnsiTerm {
 					let data = JSON.parse(xhr.responseText);
 					let t = data["text"];
 					t =  decodeURIComponent(escape(t));
-					this._apply(t);
+					if (this.output_locked_by_user || this.selection_active) {
+						this.incoming_text += t;
+						this._update_lock_state();
+					}
+					else {
+						this._apply(t);
+					}
 					if (t != "") {
 						console.log(data);
 					}
@@ -2415,15 +2483,15 @@ export class AnsiTerm {
 		this.selection_end = -1;
 		this.selection_last = -1;
 		this.selection_on = false;
+		this.selection_active = false;
+		this._update_lock_state();
 		return rv;
 	}
 
 	_read_from_clipboard()
 	{
 		navigator.clipboard.readText().then((text) => {
-			text.split('').forEach(char => {
-				this._send(char);
-			});
+			this._send(text);
 		}).catch((error) => {
 			console.error('Error reading from clipboard:', error);
 		});
@@ -2511,9 +2579,11 @@ export class AnsiTerm {
 			this.selection_end = -1;
 			this.selection_last = -1;
 			this.selection_on = true;
+			this.selection_active = true;
 			let x = Math.floor(e.offsetX / this.charwidth);
 			let y = Math.floor(e.offsetY / this.charheight);
 			this._update_selection(x, y);
+			this._update_lock_state();
 		}
 		//console.log(e);
 	}
