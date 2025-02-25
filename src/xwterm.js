@@ -1,6 +1,6 @@
 
 	
-const ANSITERM_VERSION = "0.4.0";
+const ANSITERM_VERSION = "0.6.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -1521,6 +1521,18 @@ export class AnsiTerm {
 		let reverse = this.reverse;
 		let blink = this.blink;
 
+		if (width < 0) {
+			width = 0;
+		}
+		else if (width > this.ncolumns) {
+			width = this.ncolumns;
+		}
+		if (height < 0) {
+			height = 0;
+		}
+		else if (height > this.nrows) {
+			height = this.nrows;
+		}
 		if (x0 < 0) {
 			x0 = 0;
 		}

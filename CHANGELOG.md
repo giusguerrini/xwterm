@@ -1,4 +1,13 @@
 # Changelog
+## [0.6.0] - 2025-02-26
+- Fixed index overflow during selection.
+- Fixed typos in documentation.
+
+## [0.5.0] - 2025-02-25
+- Added button to freeze screen state and text field to show current freeze state.
+- Freeze also occours during slection.
+- Fixed index overflow during selection.
+
 ## [0.4.0] - 2025-02-23
 - Completed support for partial scroll sequences.
 - Code cleanup.
