@@ -1,6 +1,6 @@
 
 	
-const ANSITERM_VERSION = "0.6.0";
+const ANSITERM_VERSION = "0.7.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -939,7 +939,8 @@ export class AnsiTerm {
 			this.status_div_container.style.font = this.status_fullfont;
 			this.status_div_container.style.border = "1px solid black";
 			this.status_div_container.style.display = "grid";
-			this.status_div_container.style.gridTemplateColumns = "fit-content(10%) fit-content(30%) auto fit-content(20%) fit-content(20%) fit-content(20%)";
+			this.status_div_container.style.gridTemplateColumns
+			 = "fit-content(10%) fit-content(30%) auto fit-content(10%) fit-content(10%) fit-content(10%) fit-content(10%)";
 			this.div.appendChild(this.status_div_container);
 			this.lock_button = document.createElement("button");
 			this.lock_button.style.backgroundColor = this.keyboard_background;
@@ -969,6 +970,11 @@ export class AnsiTerm {
 			this.copy_button.style.color = this.keyboard_foreground;
 			this.copy_button.innerText = "Copy";
 			this.status_div_container.appendChild(this.copy_button);
+			this.copy_as_button = document.createElement("button");
+			this.copy_as_button.style.backgroundColor = this.keyboard_background;
+			this.copy_as_button.style.color = this.keyboard_foreground;
+			this.copy_as_button.innerText = "Copy as...";
+			this.status_div_container.appendChild(this.copy_as_button);
 			this.paste_button = document.createElement("button");
 			this.paste_button.style.backgroundColor = this.keyboard_background;
 			this.paste_button.style.color = this.keyboard_foreground;
@@ -1030,6 +1036,20 @@ export class AnsiTerm {
 					this.canvas.focus();
 				});
 
+			this.copy_as_button.addEventListener("click",
+				(event) => {
+					this.menu.open = true;
+					this.menu.show();
+					let r1 = this.copy_as_button.getBoundingClientRect();
+					let r2 = this.menu.getBoundingClientRect();
+					let x = r1.x- r2.width;
+					let y = r1.y - r2.height;
+					//x = this.copy_as_button.style.right - this.menu.style.width;
+					//y = this.copy_as_button.style.top - this.menu.style.height;
+					this.menu.style.left = x + "px";
+					this.menu.style.top = y + "px";
+					});
+
 			this.paste_button.addEventListener("click",
 				(event) => {
 					this._read_from_clipboard();
@@ -1050,7 +1070,7 @@ export class AnsiTerm {
 		this.menu = document.createElement("dialog");
 		this.menu.open = false;
 		this.menu.style.position = "absolute";
-		this.menu.style.width = "150px";
+		this.menu.style.display = "inline-block";
 		this.menu.style.height = "auto";
 		this.menu.style.marginTop = "10px";
 		this.menu.style.marginBottom = "10px";
