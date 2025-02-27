@@ -475,7 +475,12 @@ class GenericScrollBarAdder {
 	_layout()
 	{
 		this.div = null;
-		this.controlled_element = document.getElementById(this.controlled_element_id);
+		if (typeof this.controlled_element_or_id == 'string') {
+			this.controlled_element = document.getElementById(this.controlled_element_or_id);
+		}
+		else {
+			this.controlled_element = this.controlled_element_or_id;
+		}
 
 		this.div = document.createElement("div");
 		this.div.classList.add("generic-scrollbar");
@@ -575,7 +580,7 @@ class GenericScrollBarAdder {
 		horizontal: "horizontal",	
 	};
 
-	constructor(controlledElementId, params)
+	constructor(controlledElementOrId, params)
 	{
 		// Contructor's parameters and their defaut values:
 
@@ -591,7 +596,8 @@ class GenericScrollBarAdder {
 
 		// Apply defaults, overwrite with actual parameters
 		this.configuration = { ...GENERICSCROLLBARADDER_DEFAULTS, ...params };
-		this.controlled_element_id = controlledElementId;
+
+		this.controlled_element_or_id = controlledElementOrId;
 
 		// Convert public configuration keys to internal members.
 		for (let key in this.configuration) {

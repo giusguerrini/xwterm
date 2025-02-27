@@ -115,6 +115,8 @@ const ANSITERM_VERSION = "0.7.0";
 	https://www.commandlinux.com/man-page/man4/console_codes.4.html
 */			
 
+//import "./scrollbar.js";
+
 // DEFAULTS
 
 const ANSITERM_DEFAULTS = {
@@ -127,7 +129,7 @@ const ANSITERM_DEFAULTS = {
 
 	font:  "Courier New", // Font name. A monospaced font is required (or at least suggested).
 
-	statusFont:  "Arial bold", // Font for the status line and the title.
+	statusFont:  "Helvetica bold", //"Arial bold", // Font for the status line and the title.
 	
 	// Custom layout control:
 
@@ -153,13 +155,13 @@ const ANSITERM_DEFAULTS = {
 
 	// Colors and appearance:
 
-	foreground:  "rgb(192,192,192)", // Default foreground color.
+	foreground:  "rgb(224,224,224)", // Default foreground color.
 	background:  "rgb(0,0,0)", // Default background color.
 	statusForegroundOk:  "rgb(0,32,0)", // Status line foreground color when status is OK.
 	statusBackgroundOk:  "rgb(160,192,160)", // Status line background color when status is OK.
 	statusForegroundKo:  "rgb(255,255,0)", // Status line foreground color when status is not OK.
 	statusBackgroundKo:  "rgb(192,64,64)", // Status line background color when status is not OK.
-	titleBackground:  "rgb(192,192,192)", // Title background color.
+	titleBackground:  "rgb(224,224,224)", // Title background color.
 	titleForeground:  "rgb(0,0,128)", // Title foreground color.
 	//keyboardBackground:  this.title_background, // Keyboard background color. Usually the same as the title.
 	//keyboardForeground:  this.title_foreground, // Keyboard foreground color. Usually the same as the title.
@@ -893,7 +895,7 @@ export class AnsiTerm {
 			this.status_div_container.style.border = "1px solid black";
 			this.status_div_container.style.display = "grid";
 			this.status_div_container.style.gridTemplateColumns
-			 = "fit-content(10%) fit-content(30%) auto fit-content(10%) fit-content(10%) fit-content(10%) fit-content(10%)";
+			 = "fit-content(10%) fit-content(30%) auto fit-content(15%) fit-content(10%) fit-content(10%) fit-content(10%)";
 			this.div.appendChild(this.status_div_container);
 			this.freeze_button = document.createElement("button");
 			this.freeze_button.style.backgroundColor = this.keyboard_background;
@@ -905,17 +907,23 @@ export class AnsiTerm {
 			this.freeze_div.style.backgroundColor = this.status_background_ok;
 			this.freeze_div.style.color = this.status_foreground_ok;
 			this.freeze_div.style.border = "1px solid black";
+			this.freeze_div.style.paddingLeft = "6px";
+			this.freeze_div.style.paddingRight = "6px";
 			this.freeze_div.innerText = "Unfrozen";
 			this.status_div_container.appendChild(this.freeze_div);
 			this.status_div = document.createElement("div");
 			this.status_div.style.font = this.status_fullfont;
 			this.status_div.style.border = "1px solid black";
+			this.status_div.style.paddingLeft = "6px";
+			this.status_div.style.paddingRight = "6px";
 			this.status_div_container.appendChild(this.status_div);
 			this.version_div = document.createElement("div");
 			this.version_div.style.font = this.status_fullfont;
 			this.version_div.style.backgroundColor = this.status_background_ok;
 			this.version_div.style.color = this.status_foreground_ok;
 			this.version_div.style.border = "1px solid black";
+			this.version_div.style.paddingLeft = "6px";
+			this.version_div.style.paddingRight = "6px";
 			this.version_div.innerText = "xwterm " + ANSITERM_VERSION;
 			this.status_div_container.appendChild(this.version_div);
 			this.copy_button = document.createElement("button");
@@ -984,9 +992,7 @@ export class AnsiTerm {
 
 			this.copy_button.addEventListener("click",
 				(event) => {
-					this._write_to_clipboard();
-					this._clear_selection();
-					this.canvas.focus();
+					this._clipboard_copy();
 				});
 
 			this.copy_as_button.addEventListener("click",
@@ -1037,19 +1043,22 @@ export class AnsiTerm {
 			copy_as_is: {
 					text: "Copy as is",
 					fn: () => {
-
+						this._clipboard_copy();
 					}
 				},
+				/*
 			copy_and_trim: {
 					text: "Copy and trim spaces",
 					fn: () => {
 						
 					}
-				},
+				}, */
 			copy_as_ansi: {
 					text: "Copy as ANSI sequence",
 					fn: () => {
-
+						this._write_to_clipboard_as_ansi();
+						this._clear_selection();
+						this.canvas.focus();
 					}
 				},
 			copy_as_html: {
@@ -1085,19 +1094,90 @@ export class AnsiTerm {
 			e.innerText = this.menu_items[key].text; 
 			e.addEventListener("click", (event) => {
 				this.menu_items[key].fn();
+				e.style.color = this.title_foreground;
+				e.style.backgroundColor = this.title_background;
 				this.menu.close();
 			});
+			e.addEventListener("mouseenter",
+				(event) => {
+					e.style.color = this.title_background;
+					e.style.backgroundColor = this.title_foreground;
+				}
+			);
+			e.addEventListener("mouseleave",
+				(event) => {
+					e.style.color = this.title_foreground;
+					e.style.backgroundColor = this.title_background;
+				}
+			);
 			this.menu_items[key].element = e;
 			this.menu_div.appendChild(e);
 		}
 
-		//this.div.parentElement.appendChild(this.menu);
-		this.status_div_container.appendChild(this.menu);
-		//document.body.appendChild(this.menu);
-
-		//this.menu.close();
+		document.body.appendChild(this.menu);
 
 		}
+		
+		// Set up canvas' sensitivity to mouse events.
+		this.canvas.addEventListener("click", (event) => {
+			this._on_mouse_click(event);
+		});
+
+		this.canvas.addEventListener("mousedown", (event) => {
+			this._on_mouse_down(event);
+		});
+
+		this.canvas.addEventListener("mouseup", (event) => {
+			this._on_mouse_up(event);
+		});
+
+		this.canvas.addEventListener("mousemove", (event) => {
+			this._on_mouse_move(event);
+		});
+
+
+		this.gc = this.canvas.getContext("2d");
+		this.gc.font = this.fullfont;
+		this.gc.textBaseline = "bottom";
+
+		// An ugly trick to calculate character width and height.
+		this.charwidth = 0;
+		this.charheight = 0;
+		//[..."Xmg_TGOWMQ[]{}|"].forEach(e => {
+		//[..."\u2500|"].forEach(e => {
+		[..."X|"].forEach(e => {
+				let cm = this.gc.measureText(e);
+				// Sometimes the measures are not integers, so we
+				// round them to the nearest integer.
+				let w = Math.floor(cm.actualBoundingBoxLeft + cm.actualBoundingBoxRight + 0.5);
+				let h = Math.floor(cm.fontBoundingBoxAscent + cm.fontBoundingBoxDescent + 0.5);
+				if (w > this.charwidth) {
+					this.charwidth = w;
+				}
+				if (h > this.charheight) {
+					this.charheight = h;
+				}
+		});
+
+		this.underline_height = Math.floor(this.charheight / 10); // TODO: make parametric
+		this.underline_off = Math.floor(this.charheight / 10); // TODO: make parametric
+		if (this.underline_off < 1) {
+			this.underline_off = 1;
+		}
+		this.width = this.charwidth * this.ncolumns;
+		this.height = this.charheight * this.nlines;
+		//this.gc.canvas.width = this.width;
+		//this.gc.canvas.height = this.height;
+		this.gc.canvas.width = this.width;
+		this.gc.canvas.height = this.height;
+		// We must repeat this after a size change:
+		this.gc.font = this.fullfont;
+		this.gc.textBaseline = "bottom";
+
+
+		//this.scrollbar = new GenericScrollBarAdder(this.canvas);
+
+
 	}
 
 	// Table to convert public configuration keys to internal members.
@@ -1198,68 +1278,12 @@ export class AnsiTerm {
 		this.url_config = this.config;
 		//this.url_dest = this.url + this.dest;
 		this.fullfont = this.fontsize.toString() + "px " + this.font;
-		this.status_fullfont = this.fontsize.toString() + "px " + this.status_font;
+		this.status_fullfont = /* this.fontsize.toString() + "px " + */ this.status_font;
 
 
 		// Create elements and layout.
 		this._layout();
 		
-		// Set up canvas' sensitivity to mouse events.
-		this.canvas.addEventListener("click", (event) => {
-			this._on_mouse_click(event);
-		});
-
-		this.canvas.addEventListener("mousedown", (event) => {
-			this._on_mouse_down(event);
-		});
-
-		this.canvas.addEventListener("mouseup", (event) => {
-			this._on_mouse_up(event);
-		});
-
-		this.canvas.addEventListener("mousemove", (event) => {
-			this._on_mouse_move(event);
-		});
-
-
-		this.gc = this.canvas.getContext("2d");
-		this.gc.font = this.fullfont;
-		this.gc.textBaseline = "bottom";
-
-		// An ugly trick to alculate character width and height.
-		this.charwidth = 0;
-		this.charheight = 0;
-		//[..."Xmg_TGOWMQ[]{}|"].forEach(e => {
-		//[..."\u2500|"].forEach(e => {
-		[..."X|"].forEach(e => {
-				let cm = this.gc.measureText(e);
-				// Sometimes the measures are not integers, so we
-				// round them to the nearest integer.
-				let w = Math.floor(cm.actualBoundingBoxLeft + cm.actualBoundingBoxRight + 0.5);
-				let h = Math.floor(cm.fontBoundingBoxAscent + cm.fontBoundingBoxDescent + 0.5);
-				if (w > this.charwidth) {
-					this.charwidth = w;
-				}
-				if (h > this.charheight) {
-					this.charheight = h;
-				}
-		});
-
-		this.underline_height = Math.floor(this.charheight / 10); // TODO: make parametric
-		this.underline_off = Math.floor(this.charheight / 10); // TODO: make parametric
-		if (this.underline_off < 1) {
-			this.underline_off = 1;
-		}
-		this.width = this.charwidth * this.ncolumns;
-		this.height = this.charheight * this.nlines;
-		//this.gc.canvas.width = this.width;
-		//this.gc.canvas.height = this.height;
-		this.gc.canvas.width = this.width;
-		this.gc.canvas.height = this.height;
-		// We must repeat this after a size change:
-		this.gc.font = this.fullfont;
-		this.gc.textBaseline = "bottom";
-
 		this._create_palette();
 
 
@@ -1288,6 +1312,8 @@ export class AnsiTerm {
 		this.def_G0 = false;
 
 		this._create_sm();
+
+		this.selection_timer = null;
 
 		this.timer = setTimeout( (() => { this._setsize(); }), this.immediate_refresh);
 
@@ -1824,6 +1850,12 @@ export class AnsiTerm {
 
 		if (this.y_lastblink >= y_start && this.y_lastblink <= y_end) {
 			this.y_lastblink -= jump;
+			if (this.y_lastblink < 0) {
+				this.y_lastblink = 0;
+			}
+			else if (this.y_lastblink >= this.nlines) {
+				this.y_lastblink = this.nlines - 1;
+			}
 		}
 	}
 
@@ -2534,14 +2566,21 @@ export class AnsiTerm {
 		
 	}
 
-	_write_to_clipboard()
+	_clipboard_copy()
+	{
+		this._write_to_clipboard_as_text();
+		this._clear_selection();
+		this.canvas.focus();
+	}
+
+	_write_to_clipboard(character_handler)
 	{
 		let t = "";
 		try {
 			let xi = this.selection_start % this.ncolumns;
 			let yi = Math.floor(this.selection_start / this.ncolumns);
 			for (let i = this.selection_start; i <= this.selection_end; ++i) {
-				t += this.screen[yi][xi].ch;
+				t += character_handler(this.screen[yi][xi]);
 				++xi;
 				if (xi >= this.ncolumns) {
 					t = t.replace(/ +$/,"\n");
@@ -2571,6 +2610,54 @@ export class AnsiTerm {
 			}
 		}
 	}
+	
+	_write_to_clipboard_as_text()
+	{
+		this._write_to_clipboard((ch) => {
+			return ch.ch;
+		});
+	}
+
+	_write_to_clipboard_as_ansi()
+	{
+		let prev = {
+		background: null,
+		foreground: null,
+		blink: false,
+		underline: false,
+		reverse: false,
+		bold: false,
+		italic: false,
+		};
+
+		this._write_to_clipboard((ch) => {
+			let rv = "";
+			if (ch.background != prev.background) {
+				rv += '\x1B[48;2;1;' + ch.background.replace(/rgb\(/,"").replace(/\)/,"").replace(/,/g,";") + 'm';
+			}
+			if (ch.forground != prev.foreground) {
+				rv += '\x1B[38;2;1;' + ch.background.replace(/rgb\(/,"").replace(/\)/,"").replace(/,/g,";") + 'm';				
+			}
+			if (ch.blink != prev.blink) {
+				rv += ch.blink ? '\x1B[5m' : '\x1B[25m';				
+			}
+			if (ch.underline != prev.underline) {
+				rv += ch.underline ? '\x1B[4m' : '\x1B[24m';				
+			}
+			if (ch.bold != prev.bold) {
+				rv += ch.bold ? '\x1B[1m' : '\x1B[22m';				
+			}
+			if (ch.italic != prev.italic) {
+				rv += ch.italic ? '\x1B[3m' : '\x1B[23m';				
+			}
+			if (ch.reverse != prev.reverse) {
+				rv += ch.italic ? '\x1B[7m' : '\x1B[27m';				
+			}
+			rv += ch.ch;
+			prev = ch;
+			return rv;
+		});
+	}
 
 	_selection_menu(x, y)
 	{
@@ -2581,7 +2668,7 @@ export class AnsiTerm {
 				this.menu.showModal();
 			}
 			else {
-				this._write_to_clipboard();
+				this._write_to_clipboard_as_text();
 			}
 		}
 
@@ -2610,21 +2697,29 @@ export class AnsiTerm {
 		}
 		let cleared = this._clear_selection();
 		if (! cleared) {
-			this.selection_start = -1;
-			this.selection_end = -1;
-			this.selection_last = -1;
-			this.selection_on = true;
-			this.selection_active = true;
-			let x = Math.floor(e.offsetX / this.charwidth);
-			let y = Math.floor(e.offsetY / this.charheight);
-			this._update_selection(x, y);
-			this._update_freeze_state();
+			this.selection_timer = setTimeout( () => {
+				this.selection_start = -1;
+				this.selection_end = -1;
+				this.selection_last = -1;
+				this.selection_on = true;
+				this.selection_active = true;
+				let x = Math.floor(e.offsetX / this.charwidth);
+				let y = Math.floor(e.offsetY / this.charheight);
+				this._update_selection(x, y);
+				this._update_freeze_state();
+				this.selection_timer = null;
+			}, 250);
+
 		}
 		//console.log(e);
 	}
 
 	_on_mouse_up(e)
 	{
+		if (this.selection_timer) {
+			clearTimeout(this.selection_timer);
+			this.selection_timer = null;
+		} 
 		if (e.button != 0) {
 			e.preventDefault();
 			e.stopPropagation();
