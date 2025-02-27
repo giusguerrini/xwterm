@@ -955,7 +955,7 @@ export class AnsiTerm {
 					});
 			button_properties.push({
 						text: "CTRL-L",
-						key: { key: 'l', code: 'KeyL', composed: false, ctrlKey: false, altKey: false, metaKey: false, },
+						key: { key: 'l', code: 'KeyL', composed: true, ctrlKey: true, altKey: false, metaKey: false, },
 					});
 			button_properties.push({
 						text: "\x60 (Backquote)",
