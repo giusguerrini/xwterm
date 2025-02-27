@@ -991,29 +991,13 @@ export class AnsiTerm {
 
 			this.copy_as_button.addEventListener("click",
 				(event) => {
-					if (false) {
-					//this.menu.open = true;
-					let p1 = getAbsolutePosition(this.copy_as_button);
-					this.menu.showModal();
-					let p2 = getAbsolutePosition(this.menu);
-					let r1 = this.copy_as_button.getBoundingClientRect();
-					let r2 = this.menu.getBoundingClientRect();
-					let x = Math.floor(r2.x + (p1.x - p2.x) - r2.width);
-					let y = Math.floor(r2.y + (p1.y - p2.y) - r2.height);
-					//this.menu.close();
-					this.menu.style.top = x + "px";
-					this.menu.style.left = y + "px";
-					//this.menu.showModal();
-					}
-					else {
 					this.menu.showModal();
 					let r1 = this.copy_as_button.getBoundingClientRect();
 					let r2 = this.menu.getBoundingClientRect();
-					let x = Math.floor(event.x - event.offsetX - r2.width);
+					let x = Math.floor(event.x - event.offsetX - r2.width + r1.width);
 					let y = Math.floor(event.y - event.offsetY - r2.height);
-					this.menu.style.top = x + "px";
-					this.menu.style.left = y + "px";
-					}
+					this.menu.style.left = x + "px";
+					this.menu.style.top = y + "px";
 					});
 
 			this.paste_button.addEventListener("click",
