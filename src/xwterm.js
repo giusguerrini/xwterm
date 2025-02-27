@@ -172,6 +172,20 @@ const ANSITERM_DEFAULTS = {
 	titleText:  "ANSI Terminal", // Initial title text.
 };
 
+function getAbsolutePosition(element)
+{
+	let x = 0;
+	let y = 0;
+  
+	while (element) {
+	  x += element.offsetLeft - element.scrollLeft + element.clientLeft;
+	  y += element.offsetTop - element.scrollTop + element.clientTop;
+	  element = element.offsetParent;
+	}
+  
+	return { x, y };
+}
+
 /*
 TODO: define classes for screen, cells, graphic states, etc.
 
@@ -189,67 +203,6 @@ class AnsiTermScreen {
 		this.gc = gc;
 		this._reset();
 	}
-
-	_clearscreen()
-	{
-		for (let y = 0; y < this.nlines; ++y) {
-			for (let x = 0; x < this.ncolumns; ++x) {
-				this.screen[y][x] = {
-					ch: " ",
-					fg: this.foreground,
-					bg: this.background,
-					bold: false,
-					italic: false,
-					underline: false,
-					reverse: false,
-					blink: false,
-					selected: false,
-				};
-			}
-		}
-	}
-
-	_erase_screen(mode)
-	{
-		if (mode == 0) {
-			for (let y = this.posy; y < this.nlines; ++y) {
-				for (let x = 0; x < this.ncolumns; ++x) {
-					this.screen[y][x] = {
-						ch: " ",
-						fg: this.foreground,
-						bg: this.background,
-						bold: false,
-						italic: false,
-						underline: false,
-						reverse: false,
-						blink: false,
-						selected: false,
-					};
-				}
-			}
-		}
-		else if (mode == 1) {
-			for (let y = 0; y < this.posy; ++y) {
-				for (let x = 0; x < this.ncolumns; ++x) {
-					this.screen[y][x] = {
-						ch: " ",
-						fg: this.foreground,
-						bg: this.background,
-						bold: false,
-						italic: false,
-						underline: false,
-						reverse: false,
-						blink: false,
-						selected: false,
-					};
-				}
-			}
-		}
-		else if (mode == 2) {
-			this._clearscreen();
-		}
-	}
-
 }
 	*/
 
@@ -1038,16 +991,18 @@ export class AnsiTerm {
 
 			this.copy_as_button.addEventListener("click",
 				(event) => {
-					this.menu.open = true;
-					this.menu.show();
+					//this.menu.open = true;
+					let p1 = getAbsolutePosition(this.copy_as_button);
+					this.menu.showModal();
+					let p2 = getAbsolutePosition(this.menu);
 					let r1 = this.copy_as_button.getBoundingClientRect();
 					let r2 = this.menu.getBoundingClientRect();
-					let x = r1.x- r2.width;
-					let y = r1.y - r2.height;
-					//x = this.copy_as_button.style.right - this.menu.style.width;
-					//y = this.copy_as_button.style.top - this.menu.style.height;
-					this.menu.style.left = x + "px";
-					this.menu.style.top = y + "px";
+					let x = Math.floor(r2.x + (p1.x - p2.x) - r2.width);
+					let y = Math.floor(r2.y + (p1.y - p2.y) - r2.height);
+					//this.menu.close();
+					this.menu.style.top = x + "px";
+					this.menu.style.left = y + "px";
+					//this.menu.showModal();
 					});
 
 			this.paste_button.addEventListener("click",
@@ -1065,33 +1020,86 @@ export class AnsiTerm {
 		}
 
 
-		if (false) {
+		if (true) {
 		// TODO / WIP: Copy/Paste popup menu
 		this.menu = document.createElement("dialog");
-		this.menu.open = false;
-		this.menu.style.position = "absolute";
-		this.menu.style.display = "inline-block";
-		this.menu.style.height = "auto";
-		this.menu.style.marginTop = "10px";
-		this.menu.style.marginBottom = "10px";
-		this.menu.style.marginLeft = "10px";
-		this.menu.style.marginRight = "10px";
-		this.menu.innerText = "Copy";
+		//this.menu.open = false;
+		//this.menu.style.position = "absolute";
+		//this.menu.style.display = "inline-block";
+		//this.menu.style.visibility = "hidden";
+		this.menu.style.height = "max-content"; //"auto";
+		this.menu.style.width = "max-content"; //"auto";
+		this.menu.style.border = "3px solid " + this.title_foreground;
+		this.menu.style.margin = "0px";
+		this.menu.style.padding = "0px";
+		this.menu.style.backgroundColor = this.title_background;
+		this.menu.style.color = this.title_foreground;
+		//this.menu.style.font = this.status_fullfont;
+			
+		this.menu.innerText = "Copy as...";
+	
+		this.menu_items = {
+			copy_as_is: {
+					text: "Copy as is",
+					fn: () => {
+
+					}
+				},
+			copy_and_trim: {
+					text: "Copy and trim spaces",
+					fn: () => {
+						
+					}
+				},
+			copy_as_ansi: {
+					text: "Copy as ANSI sequence",
+					fn: () => {
+
+					}
+				},
+			copy_as_html: {
+					text: "Copy as HTML",
+					fn: () => {
+						
+					}
+				},
+			quit: {
+					text: "Quit",
+					fn: () => {
+						
+					}
+				},
+
+		};
+
+		this.menu_div = document.createElement("div");
+		this.menu_div.style.border = "0px";
+		this.menu_div.style.margin = "0px";
+		this.menu_div.style.padding = "0px";
+		this.menu_div.style.display = "grid";
+		this.menu_div.style.gridTemplateColumns = "auto";
+		this.menu.appendChild(this.menu_div);
+
+		for (let key in this.menu_items) {
+			let e = document.createElement("button");
+			e.style.border = "3px solid " + this.title_foreground;;
+			e.style.margin = "0px";
+			e.style.padding = "0px";
+			e.style.backgroundColor = this.title_background;
+			e.style.color = this.title_foreground;
+			e.innerText = this.menu_items[key].text; 
+			e.addEventListener("click", (event) => {
+				this.menu_items[key].fn();
+				this.menu.close();
+			});
+			this.menu_items[key].element = e;
+			this.menu_div.appendChild(e);
+		}
+
 		this.div.parentElement.appendChild(this.menu);
-		this.menu_ul = document.createElement("ul");
-		this.menu.appendChild(this.menu_ul);
-		this.menu_ul_li1 = document.createElement("li");
-		this.menu_ul_li1.innerText = "Copy as is";
-		this.menu_ul.appendChild(this.menu_ul_li1);
-		this.menu_ul_li2 = document.createElement("li");
-		this.menu_ul_li2.innerText = "Copy and trim spaces";
-		this.menu_ul.appendChild(this.menu_ul_li2);
-		this.menu_ul_li3 = document.createElement("li");
-		this.menu_ul_li3.innerText = "Copy and add CR";
-		this.menu_ul.appendChild(this.menu_ul_li3);
-		this.menu_ul_li4 = document.createElement("li");
-		this.menu_ul_li4.innerText = "Quit";
-		this.menu_ul.appendChild(this.menu_ul_li4);
+
+		//this.menu.close();
+
 		}
 	}
 
@@ -2574,8 +2582,7 @@ export class AnsiTerm {
 			if (false) {
 				this.menu.style.left = x + "px";
 				this.menu.style.top = y + "px";
-				this.menu.open = true;
-				this.menu.show();
+				this.menu.showModal();
 			}
 			else {
 				this._write_to_clipboard();
