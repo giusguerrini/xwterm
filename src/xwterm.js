@@ -895,18 +895,18 @@ export class AnsiTerm {
 			this.status_div_container.style.gridTemplateColumns
 			 = "fit-content(10%) fit-content(30%) auto fit-content(10%) fit-content(10%) fit-content(10%) fit-content(10%)";
 			this.div.appendChild(this.status_div_container);
-			this.lock_button = document.createElement("button");
-			this.lock_button.style.backgroundColor = this.keyboard_background;
-			this.lock_button.style.color = this.keyboard_foreground;
-			this.lock_button.innerText = "Lock";
-			this.status_div_container.appendChild(this.lock_button);
-			this.lock_div = document.createElement("div");
-			this.lock_div.style.font = this.status_fullfont;
-			this.lock_div.style.backgroundColor = this.status_background_ok;
-			this.lock_div.style.color = this.status_foreground_ok;
-			this.lock_div.style.border = "1px solid black";
-			this.lock_div.innerText = "Unlocked";
-			this.status_div_container.appendChild(this.lock_div);
+			this.freeze_button = document.createElement("button");
+			this.freeze_button.style.backgroundColor = this.keyboard_background;
+			this.freeze_button.style.color = this.keyboard_foreground;
+			this.freeze_button.innerText = "Freeze";
+			this.status_div_container.appendChild(this.freeze_button);
+			this.freeze_div = document.createElement("div");
+			this.freeze_div.style.font = this.status_fullfont;
+			this.freeze_div.style.backgroundColor = this.status_background_ok;
+			this.freeze_div.style.color = this.status_foreground_ok;
+			this.freeze_div.style.border = "1px solid black";
+			this.freeze_div.innerText = "Unfrozen";
+			this.status_div_container.appendChild(this.freeze_div);
 			this.status_div = document.createElement("div");
 			this.status_div.style.font = this.status_fullfont;
 			this.status_div.style.border = "1px solid black";
@@ -991,6 +991,7 @@ export class AnsiTerm {
 
 			this.copy_as_button.addEventListener("click",
 				(event) => {
+					if (false) {
 					//this.menu.open = true;
 					let p1 = getAbsolutePosition(this.copy_as_button);
 					this.menu.showModal();
@@ -1003,6 +1004,16 @@ export class AnsiTerm {
 					this.menu.style.top = x + "px";
 					this.menu.style.left = y + "px";
 					//this.menu.showModal();
+					}
+					else {
+					this.menu.showModal();
+					let r1 = this.copy_as_button.getBoundingClientRect();
+					let r2 = this.menu.getBoundingClientRect();
+					let x = Math.floor(event.x - event.offsetX - r2.width);
+					let y = Math.floor(event.y - event.offsetY - r2.height);
+					this.menu.style.top = x + "px";
+					this.menu.style.left = y + "px";
+					}
 					});
 
 			this.paste_button.addEventListener("click",
@@ -1011,9 +1022,9 @@ export class AnsiTerm {
 					this.canvas.focus();
 				});
 
-			this.lock_button.addEventListener("click",
+			this.freeze_button.addEventListener("click",
 				(event) => {
-					this._toggle_lock();
+					this._toggle_freeze();
 					this.canvas.focus();
 				});
 	
@@ -1082,7 +1093,7 @@ export class AnsiTerm {
 
 		for (let key in this.menu_items) {
 			let e = document.createElement("button");
-			e.style.border = "3px solid " + this.title_foreground;;
+			e.style.border = "1px solid " + this.title_foreground;;
 			e.style.margin = "0px";
 			e.style.padding = "0px";
 			e.style.backgroundColor = this.title_background;
@@ -1096,7 +1107,9 @@ export class AnsiTerm {
 			this.menu_div.appendChild(e);
 		}
 
-		this.div.parentElement.appendChild(this.menu);
+		//this.div.parentElement.appendChild(this.menu);
+		this.status_div_container.appendChild(this.menu);
+		//document.body.appendChild(this.menu);
 
 		//this.menu.close();
 
@@ -1193,7 +1206,7 @@ export class AnsiTerm {
 		
 		this.incoming_text = "";
 
-		this.output_locked_by_user = false;
+		this.output_frozen_by_user = false;
 
 		this.url_source = this.source;
 		//this.url_source = this.url + this.source;
@@ -1470,22 +1483,21 @@ export class AnsiTerm {
 		}
 	}
 
-	_update_lock_state()
+	_update_freeze_state()
 	{
-		let unlocked = !(this.output_locked_by_user || this.selection_active);
-		//console.log(unlocked);
-		if (unlocked) {
+		let frozen = (this.output_frozen_by_user || this.selection_active);
+		if (! frozen) {
 			this._apply(this.incoming_text);
 			this.incoming_text = "";
 		}
-		this._update_status_element(this.lock_div, unlocked, "Unlocked", "Locked - " + this.incoming_text.length + " bytes pending")
+		this._update_status_element(this.freeze_div, !frozen, "Unfrozen", "Frozen - " + this.incoming_text.length + " bytes pending")
 	}
 
-	_toggle_lock()
+	_toggle_freeze()
 	{
-		this.output_locked_by_user = ! this.output_locked_by_user;
-		this.lock_button.innerText = this.output_locked_by_user ? "Unlock" : "Lock";
-		this._update_lock_state();
+		this.output_frozen_by_user = ! this.output_frozen_by_user;
+		this.freeze_button.innerText = this.output_frozen_by_user ? "Unfreeze" : "Freeze";
+		this._update_freeze_state();
 	}
 
 	_set_title(t)
@@ -2244,9 +2256,9 @@ export class AnsiTerm {
 					let data = JSON.parse(xhr.responseText);
 					let t = data["text"];
 					t =  decodeURIComponent(escape(t));
-					if (this.output_locked_by_user || this.selection_active) {
+					if (this.output_frozen_by_user || this.selection_active) {
 						this.incoming_text += t;
-						this._update_lock_state();
+						this._update_freeze_state();
 					}
 					else {
 						this._apply(t);
@@ -2524,7 +2536,7 @@ export class AnsiTerm {
 		this.selection_last = -1;
 		this.selection_on = false;
 		this.selection_active = false;
-		this._update_lock_state();
+		this._update_freeze_state();
 		return rv;
 	}
 
@@ -2622,7 +2634,7 @@ export class AnsiTerm {
 			let x = Math.floor(e.offsetX / this.charwidth);
 			let y = Math.floor(e.offsetY / this.charheight);
 			this._update_selection(x, y);
-			this._update_lock_state();
+			this._update_freeze_state();
 		}
 		//console.log(e);
 	}
