@@ -1041,7 +1041,7 @@ export class AnsiTerm {
 	
 		this.menu_items = {
 			copy_as_is: {
-					text: "Copy as is",
+					text: "Copy as text",
 					fn: () => {
 						this._clipboard_copy();
 					}
@@ -2593,8 +2593,21 @@ export class AnsiTerm {
 			return;
 		}
 		try {
-			navigator.clipboard.writeText(t);
-		} catch {						
+			if (false) {
+				// Trying to pass escapes, but API converts them to UTF8 anyway... :-(
+				let encoder = new TextEncoder('latin1');
+				let latin1Bytes = encoder.encode(t);
+				let blob = new Blob([latin1Bytes], { type: 'text/plain; charset=latin1' });
+				//let blob = new Blob( [ 'text/plain; charset=latin1' ], blob);
+				let cli = [ new ClipboardItem({ 'text/plain': blob }) ];
+				//let cli = [ new ClipboardItem({ 'application/binary': blob }) ];
+				navigator.clipboard.write(cli);
+			}
+			else {
+				navigator.clipboard.writeText(t);
+			}
+		} catch {
+			/*		
 			const textArea = document.createElement("textarea");
 			textArea.value = t;
 			textArea.style.position = "fixed";
@@ -2608,6 +2621,7 @@ export class AnsiTerm {
 			} finally {
 					document.body.removeChild(textArea);
 			}
+			*/
 		}
 	}
 	
@@ -2635,7 +2649,7 @@ export class AnsiTerm {
 			if (ch.background != prev.background) {
 				rv += '\x1B[48;2;1;' + ch.background.replace(/rgb\(/,"").replace(/\)/,"").replace(/,/g,";") + 'm';
 			}
-			if (ch.forground != prev.foreground) {
+			if (ch.foreground != prev.foreground) {
 				rv += '\x1B[38;2;1;' + ch.background.replace(/rgb\(/,"").replace(/\)/,"").replace(/,/g,";") + 'm';				
 			}
 			if (ch.blink != prev.blink) {
