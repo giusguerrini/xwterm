@@ -188,6 +188,18 @@ function getAbsolutePosition(element)
 	return { x, y };
 }
 
+var encodeHtml_textarea = null;
+function encodeHtml(html)
+{
+	if (! encodeHtml_textarea) {
+		encodeHtml_textarea = document.createElement('textarea');
+	}
+	encodeHtml_textarea.innerHTML = html;
+	return encodeHtml_textarea.value;
+}
+
+  
+
 /*
 TODO: define classes for screen, cells, graphic states, etc.
 
@@ -1041,7 +1053,7 @@ export class AnsiTerm {
 	
 		this.menu_items = {
 			copy_as_is: {
-					text: "Copy as text",
+					text: "Text",
 					fn: () => {
 						this._clipboard_copy();
 					}
@@ -1054,7 +1066,7 @@ export class AnsiTerm {
 					}
 				}, */
 			copy_as_ansi: {
-					text: "Copy as ANSI sequence",
+					text: "ANSI sequence",
 					fn: () => {
 						this._write_to_clipboard_as_ansi();
 						this._clear_selection();
@@ -1062,19 +1074,32 @@ export class AnsiTerm {
 					}
 				},
 			copy_as_html: {
-					text: "Copy as HTML",
+					text: "HTML",
 					fn: () => {
-						
+						this._write_to_clipboard_as_html(true);
+						this._clear_selection();
+						this.canvas.focus();						
 					}
 				},
+			copy_as_rich_text: {
+				text: "Rich Text",
+				fn: () => {
+					this._write_to_clipboard_as_html(false);
+					this._clear_selection();
+					this.canvas.focus();						
+				}
+			},
 			quit: {
 					text: "Quit",
 					fn: () => {
-						
+						this._clear_selection();
+						this.canvas.focus();												
 					}
 				},
 
 		};
+
+
 
 		this.menu_div = document.createElement("div");
 		this.menu_div.style.border = "0px";
@@ -2573,39 +2598,43 @@ export class AnsiTerm {
 		this.canvas.focus();
 	}
 
-	_write_to_clipboard(character_handler)
+	
+	_write_to_clipboard(character_handler, blob_handler, trim_lines)
 	{
 		let t = "";
+		let lf;
+		
+		if (trim_lines) {
+			lf = (l) => {
+				return l.replace(/ +$/,"\n");
+			}
+		}
+		else {
+			lf = (l) => {
+				return l + "\n";
+			}
+		}
+
 		try {
 			let xi = this.selection_start % this.ncolumns;
 			let yi = Math.floor(this.selection_start / this.ncolumns);
+			let l = "";
 			for (let i = this.selection_start; i <= this.selection_end; ++i) {
-				t += character_handler(this.screen[yi][xi]);
+				l += character_handler(this.screen[yi][xi]);
 				++xi;
 				if (xi >= this.ncolumns) {
-					t = t.replace(/ +$/,"\n");
+					t += lf(l);
+					l = "";
 					xi = 0;
 					++yi;
 				}
 			}
-			t = t.replace(/ +$/,"\n");
+			t += lf(l);
 		} catch {
 			return;
 		}
 		try {
-			if (false) {
-				// Trying to pass escapes, but API converts them to UTF8 anyway... :-(
-				let encoder = new TextEncoder('latin1');
-				let latin1Bytes = encoder.encode(t);
-				let blob = new Blob([latin1Bytes], { type: 'text/plain; charset=latin1' });
-				//let blob = new Blob( [ 'text/plain; charset=latin1' ], blob);
-				let cli = [ new ClipboardItem({ 'text/plain': blob }) ];
-				//let cli = [ new ClipboardItem({ 'application/binary': blob }) ];
-				navigator.clipboard.write(cli);
-			}
-			else {
-				navigator.clipboard.writeText(t);
-			}
+			blob_handler(t);
 		} catch {
 			/*		
 			const textArea = document.createElement("textarea");
@@ -2628,8 +2657,12 @@ export class AnsiTerm {
 	_write_to_clipboard_as_text()
 	{
 		this._write_to_clipboard((ch) => {
-			return ch.ch;
-		});
+				return ch.ch;
+			}, 
+			(t) => {
+				navigator.clipboard.writeText(t);
+			},
+			true);
 	}
 
 	_write_to_clipboard_as_ansi()
@@ -2645,32 +2678,108 @@ export class AnsiTerm {
 		};
 
 		this._write_to_clipboard((ch) => {
-			let rv = "";
-			if (ch.background != prev.background) {
-				rv += '\x1B[48;2;1;' + ch.background.replace(/rgb\(/,"").replace(/\)/,"").replace(/,/g,";") + 'm';
-			}
-			if (ch.foreground != prev.foreground) {
-				rv += '\x1B[38;2;1;' + ch.background.replace(/rgb\(/,"").replace(/\)/,"").replace(/,/g,";") + 'm';				
-			}
-			if (ch.blink != prev.blink) {
-				rv += ch.blink ? '\x1B[5m' : '\x1B[25m';				
-			}
-			if (ch.underline != prev.underline) {
-				rv += ch.underline ? '\x1B[4m' : '\x1B[24m';				
-			}
-			if (ch.bold != prev.bold) {
-				rv += ch.bold ? '\x1B[1m' : '\x1B[22m';				
-			}
-			if (ch.italic != prev.italic) {
-				rv += ch.italic ? '\x1B[3m' : '\x1B[23m';				
-			}
-			if (ch.reverse != prev.reverse) {
-				rv += ch.italic ? '\x1B[7m' : '\x1B[27m';				
-			}
-			rv += ch.ch;
-			prev = ch;
-			return rv;
-		});
+				let rv = "";
+				if (ch.background != prev.background) {
+					rv += '\x1B[48;2;1;' + ch.background.replace(/rgb\(/,"").replace(/\)/,"").replace(/,/g,";") + 'm';
+				}
+				if (ch.foreground != prev.foreground) {
+					rv += '\x1B[38;2;1;' + ch.background.replace(/rgb\(/,"").replace(/\)/,"").replace(/,/g,";") + 'm';				
+				}
+				if (ch.blink != prev.blink) {
+					rv += ch.blink ? '\x1B[5m' : '\x1B[25m';				
+				}
+				if (ch.underline != prev.underline) {
+					rv += ch.underline ? '\x1B[4m' : '\x1B[24m';				
+				}
+				if (ch.bold != prev.bold) {
+					rv += ch.bold ? '\x1B[1m' : '\x1B[22m';				
+				}
+				if (ch.italic != prev.italic) {
+					rv += ch.italic ? '\x1B[3m' : '\x1B[23m';				
+				}
+				if (ch.reverse != prev.reverse) {
+					rv += ch.reverse ? '\x1B[7m' : '\x1B[27m';				
+				}
+				rv += ch.ch;
+				prev = ch;
+				return rv;
+			},
+			(t) => {
+				// Trying to pass escapes, but the API converts them to UTF8 anyway... :-(
+				let encoder = new TextEncoder('latin1');
+				let latin1Bytes = encoder.encode(t);
+				let blob = new Blob([latin1Bytes], { type: 'text/plain; charset=latin1' });
+				let cli = [ new ClipboardItem({ 'text/plain': blob }) ];
+				navigator.clipboard.write(cli);
+			},
+			true);
+	}
+
+	_write_to_clipboard_as_html(plain_text)
+	{
+		let prev = {
+		background: null,
+		foreground: null,
+		blink: false,
+		underline: false,
+		reverse: false,
+		bold: false,
+		italic: false,
+		};
+
+		let start = true;
+
+		this._write_to_clipboard((ch) => {
+				let rv = "";
+				let ns = "";
+				let fs = "";
+				if (start) {
+					start = false;
+					rv = `<!DOCTYPE html>
+<html>
+ <head>
+ </head>
+ <body>
+  <pre>
+   <span>
+`
+				}
+				if (ch.background != prev.background
+				 || ch.foreground != prev.foreground
+				 || ch.underline != prev.underline
+				 // || ch.blink != prev.blink
+				 || ch.bold != prev.bold
+				 || ch.italic != prev.italic
+				 || ch.reverse != prev.reverse) {
+					let fg = ch.foreground;
+					let bg = ch.background;
+					if (ch.reverse) {
+						bg = ch.foreground;
+						fg = ch.background;
+					}
+					fs = (ch.bold ? "bold" : "") + (ch.italic ? "italic" : "");
+					ns = "color: " + fg + "; background-color: " + bg + ";";
+					   + "font-style: " + (fs == "" ? "normal" : fs) + ";"
+					   + "text-decoration: " + (ch.underline ? "underline" : "none") + ";";
+					rv += "</span><span style=\"" + ns + "\">";
+				}
+				rv += ch.ch;
+				prev = ch;
+				return rv;
+			},
+			(t) => {
+				t += `</span>
+  </pre>
+ </body>
+</html>
+`
+				t = encodeHtml(t);
+				let mimetype = plain_text ? "text/plain" : "text/html";
+				let blob = new Blob([t], { type: mimetype });
+				let cli = [ new ClipboardItem({ [mimetype]: blob }) ];
+				navigator.clipboard.write(cli);	
+			},
+			false);
 	}
 
 	_selection_menu(x, y)
