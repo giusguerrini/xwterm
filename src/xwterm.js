@@ -142,16 +142,42 @@ const ANSITERM_DEFAULTS = {
 
 	// Protocol parameters:
 
+	channelType: "rest", // Type of transport. Possible values are:
+	// "rest": use HTTP/HTTPS GET to get characters and POST to send key and resize events.
+	//         "source", "config" and "dest" parameters configure the requests (see below).
+	// "websocket": use websocket. Data are sent and received as JSON structures.
+	//         "wsEndpoint" il the server address:port, "wsDataTag" is the name of the JSON
+	//         field containing characters (both send and received), "wsSizeTag" is the
+	//         name of the JSON tag containing the size (see below).
+	// "poll": user-provided send and receive methods. "customSend" and "customReceive"
+	//         parameters contains the callbacks the program will invoke to ask the server for new
+	//         character to display and to send keybord and resize evets respectively (see below).
+	//         "rest" is implemented this way.
+	// "listen": user-provided send and receive methods. It is similar to poll, but the custom
+	//         receive callback is expected to block waiting for new data.
+	//         "websocket" is implemented this way.
 	//url:  window.location.href, // URL of the server. This usually is the same as the URL of the page.
 
+	// Parameters for "rest" channel type:
 	source:  "/?console", // GET request to receive characters from the server.
 	config:  "/?size=?lines?x?columns?", // GET request to set the size of the terminal.
 	dest:  "/", // POST request to send characters to the server.
 	timeout:  0, //10000; // Timeout for all request. 0 means no timeout. If timeout is reached, the ESC sequence is aborted.
 
-	immediateRefresh:  70, // Time in milliseconds to send an update request after sending an event.
+	// Parameters for "rest" and "poll" channel types:
+	immediateRefresh:  70, // Time in milliseconds to send an update request aftertheen nextding an event.
 	fastRefresh:  500, // Time in milliseconds to send the next update request after receiving a response.
 	slowRefresh:  2000, // Time in milliseconds to send the next update request after a protocol failure.
+
+	// Parameters for "websocket" channel type
+	wsEndpoint: "127.0.0.1:8765", // Websocket endpoint
+	wsDataTag: "text", // name of the JSON field containing characters (both send and received),
+	wsSizeTag: "size", // name of the JSON tag containing the sreen size.
+	wsSizeData: "lines?x?columns?", // format of the JSON tag containing the sreen size.
+
+	// Paramters for "poll" and "listen" channel type
+	customSend: null,
+	customReceive: null,
 
 	// Colors and appearance:
 
@@ -172,6 +198,12 @@ const ANSITERM_DEFAULTS = {
 	blinkPeriod:  500, // Blink period in milliseconds for both cursor an blinking characters.
 
 	titleText:  "ANSI Terminal", // Initial title text.
+	
+	cursorUpdateStyle: "precise", // Default value for cursor update style.
+	// Possible values:
+	// "precise": the cursor is updated on position change,
+	// "smart": the cursor is updated only at blink time and on key events,
+	// "lazy": the cursor is updated only at blink time.
 };
 
 function getAbsolutePosition(element)
@@ -1217,12 +1249,19 @@ export class AnsiTerm {
 		canvasId: "canvasid",
 		titlesId: "titleid",
 		url: "url",
+		channelType: "channel_type",
 		source: "source",
 		config: "config",
 		dest: "dest",
 		immediateRefresh: "immediate_refresh",
 		fastRefresh: "fast_refresh",
 		slowRefresh: "slow_refresh",
+		wsEndpoint: "ws_endpoint",
+		wsDataTag: "ws_data_tag",
+		wsSizeTag: "ws_size_tag",
+		wsSizeData: "ws_size_data",
+		customSend: "custom_send",
+		customReceive: "custom_receive",
 		foreground: "foreground",
 		background: "background",
 		statusForegroundOk: "status_foreground_ok",
@@ -1239,6 +1278,7 @@ export class AnsiTerm {
 		blinkPeriod: "blink_period",
 		timeout: "timeout",
 		titleText: "title_text",
+		cursorUpdateStyle: "cursor_update_style",
 	};
 
 
@@ -1271,6 +1311,22 @@ export class AnsiTerm {
 		this.url = this.url || window.location.href;
 		this.keyboard_background = this.keyboard_background || this.title_background;
 		this.keyboard_foreground = this.keyboard_foreground || this.title_foreground;
+
+		switch (this.cursor_update_style) {
+			case "lazy":
+				this.cursor_update_on_keypress = false;
+				this.cursor_precise = false;
+				break;
+			case "precise":
+				this.cursor_update_on_keypress = false;
+				this.cursor_precise = true;
+				break;
+			case "smart":
+			default:
+				this.cursor_update_on_keypress = true;
+				this.cursor_precise = false;
+				break;
+		}
 
 		// Initialize state variables.
 		this.underline = false;
@@ -1582,7 +1638,7 @@ export class AnsiTerm {
 				18: 15,
 				19: 15,
 			};
-			this._send("\x1B]" + a0 + ";rgb:" + this.palette[to_palette[a0]].slice(4).replace(")", "").replace(/,/g, "/") + "\x07");
+			this._send_data("\x1B]" + a0 + ";rgb:" + this.palette[to_palette[a0]].slice(4).replace(")", "").replace(/,/g, "/") + "\x07");
 		}
 	}
 
@@ -1787,6 +1843,9 @@ export class AnsiTerm {
 		this.posy = y
 		this.pospx = this.posx * this.charwidth;
 		this.pospy = (this.posy + 1) * this.charheight - 1;
+		if (this.cursor_precise) {
+			this._do_blink_cursor();
+		}
 	}
 
 	_incpos(dx, dy)
@@ -2132,7 +2191,7 @@ export class AnsiTerm {
 			break;
 		}
 		if (r != "") {
-			this._send(r);
+			this._send_data(r);
 		}
 		// But here's what linux' "resize" command does:
 		//'\r\n\x1B[?2004l\r\x1B7\x1B[r\x1B[9999;9999H\x1B[6n'
@@ -2307,14 +2366,12 @@ export class AnsiTerm {
 					if (t != "") {
 						console.log(data);
 					}
-					clearTimeout(this.timer);
-					this.timer = setTimeout( (()  => { this._update(); }), this.fast_refresh);
+					this._schedule_update(this.fast_refresh);
 					this._set_status(true);
 				}
 				else {
 					console.log(xhr.status);
-					clearTimeout(this.timer);
-					this.timer = setTimeout( (() => { this._update(); }), this.slow_refresh);
+					this._schedule_update(this.slow_refresh);
 					this._set_status(false);
 				}
 			}
@@ -2328,6 +2385,12 @@ export class AnsiTerm {
 		}
 	}
 
+	_schedule_update(timeout)
+	{
+		clearTimeout(this.timer);
+		this.timer = setTimeout( (() => { this._update(); }), timeout);
+	}
+
 	_update()
 	{
 		this._send_request(this.url_source);
@@ -2339,7 +2402,7 @@ export class AnsiTerm {
 		this._send_request(q);
 	}
 
-	_send(t)
+	_send_data(t)
 	{
 		let xhr = new XMLHttpRequest();
 		xhr.onreadystatechange = () => {
@@ -2347,15 +2410,12 @@ export class AnsiTerm {
 				clearTimeout(this.timer);
 				if (xhr.status >= 200 && xhr.status < 400) {
 					console.log(xhr.responseText);
-					//clearTimeout(this.timer);
-					//this.timer = setTimeout( (()  => { this.update(); }), this.fast_refresh);
-					this._update();
+					this._schedule_update(this.immediate_refresh);
 					this._set_status(true);
 				}
 				else {
 					console.log(xhr.status);
-					clearTimeout(this.timer);
-					this.timer = setTimeout( (() => { this._update(); }), this.slow_refresh);
+					this._schedule_update(this.slow_refresh);
 					this._set_status(false);
 				}
 			}
@@ -2371,22 +2431,22 @@ export class AnsiTerm {
 
 	_send_id()
 	{
-		this._send("\x1B[?6c");
+		this._send_data("\x1B[?6c");
 	}
 
 	_send_version()
 	{
-		this._send("\x1B[>65;6800;1c");
+		this._send_data("\x1B[>65;6800;1c");
 	}
 
 	_send_pos()
 	{
-		this._send("\x1B[" + (this.posy + 1) + ";" + (this.posx + 1) + "R"); // VT101 and Windows console
+		this._send_data("\x1B[" + (this.posy + 1) + ";" + (this.posx + 1) + "R"); // VT101 and Windows console
 	}
 
 	_send_ok()
 	{
-		this._send("\x1B[0n");
+		this._send_data("\x1B[0n");
 	}
 
 	_eval_key(ev)
@@ -2455,7 +2515,10 @@ export class AnsiTerm {
 	{
 		let key = this._eval_key(e);
 		if (key != "") {
-			this._send(key);
+			this._send_data(key);
+		}
+		if (this.cursor_update_on_keypress) {
+			this._do_blink_cursor();
 		}
 	}
 
@@ -2584,7 +2647,7 @@ export class AnsiTerm {
 	_read_from_clipboard()
 	{
 		navigator.clipboard.readText().then((text) => {
-			this._send(text);
+			this._send_data(text);
 		}).catch((error) => {
 			console.error('Error reading from clipboard:', error);
 		});
@@ -2870,3 +2933,10 @@ export class AnsiTerm {
 }
 
 
+class AnsiTermDriver
+{
+	constructor()
+	{
+
+	}
+}

@@ -1,4 +1,7 @@
 # Changelog
+## [0.7.0] - 2025-03-01
+- Added menu for advanced clipboard copy.
+
 ## [0.6.0] - 2025-02-26
 - Fixed index overflow during selection.
 - Fixed typos in documentation.
