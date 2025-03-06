@@ -3,7 +3,7 @@ var socket = null;
 function WebSocketExample()
 {
 	let do_it = () => {
-	    s = JSON.stringify({ text: 'echo $$; date\r' });
+	    s = JSON.stringify({ text: 'echo $$\r\ndate\r\n' });
 	    socket.send(s);
 	}
 
@@ -16,6 +16,7 @@ if (! socket) {
 
 	socket.addEventListener('message', (event) => {
 	    console.log('Messagge from server:', event.data);
+	    document.getElementById("fromweb").value = event.data;
 	});
 
 	socket.addEventListener('close', (event) => {
