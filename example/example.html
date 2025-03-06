@@ -2,11 +2,42 @@
 <html>
 <head>
 <style type="text/css">
+        table {
+            border-collapse: collapse;
+            width: 80%;
+            margin: 20px auto;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2; 
+        }
 </style>
 </head>
 <body>
-	<script src="./wsrecv.js"></script>
-	<button onclick="WebSocketExample()">WebSocket</button>
+	<table>
+		<thead>
+			<tr>
+				<th>XWterm version</th>
+				<th>Title</th>
+				<th>Connected</th>
+				<th>Frozen</th>
+				<th>Bytes pending</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td id="version"></td>
+				<td id="title"></td>
+				<td id="connected"></td>
+				<td id="frozen"></td>
+				<td id="bytes"></td>
+			</tr>
+		</tbody>
+	</table>
 </body>
 <script type="module">
 import { AnsiTerm } from "./xwterm.js";
@@ -20,9 +51,13 @@ var ansi = new AnsiTerm(
 		/* Changing size:
 		*/
 		{
+		//canvasId: "mycanvas",
 		nLines : 40,
 		nColumns : 120,
-		"fontSize" : 12,
+		fontSize : 12,
+		hasTitleBar: false,
+		hasStatusBar: false,
+		hasSoftFKeys: false,
 		}
 
 		/* Chaning some more properties:
@@ -37,5 +72,17 @@ var ansi = new AnsiTerm(
 		}
 		*/
 	);
+	
+	document.getElementById("version").innerText = AnsiTerm.getVersion();
+	ansi.registerOnTitleChange((t) => {
+		document.getElementById("title").innerText = t;
+	});
+	ansi.registerOnStatusChange((connected) => {
+		document.getElementById("connected").innerText = connected ? "yes" : "no";
+	});
+	ansi.registerOnFreezeChange((frozen, nbytes) => {
+		document.getElementById("frozen").innerText = frozen ? "yes" : "no";
+		document.getElementById("bytes").innerText = nbytes;
+	});
 </script>
 </html>

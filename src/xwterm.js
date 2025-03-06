@@ -204,6 +204,11 @@ const ANSITERM_DEFAULTS = {
 	// "precise": the cursor is updated on position change,
 	// "smart": the cursor is updated only at blink time and on key events,
 	// "lazy": the cursor is updated only at blink time.
+
+	hasTitleBar: true, // If true, the standard title bar is added
+	hasStatusBar: true, // If true, the standard status bar is added
+	hasSoftKeyboard: true, // If true, the soft keyboard is added
+	hasSoftFKeys: true, // If true, the soft keyboard contains function keys F1...F12
 };
 
 function getAbsolutePosition(element)
@@ -254,6 +259,15 @@ class AnsiTermScreen {
 
 export class AnsiTerm {
 
+
+	//
+	// This public method returns xwterm's version string.
+	//
+
+	static getVersion()
+	{
+		return ANSITERM_VERSION;
+	}
 
 	_reset()
 	{
@@ -926,141 +940,170 @@ export class AnsiTerm {
 			this.div.style.display = "grid";
 			this.div.style.gridTemplateColumns = "auto";
 			this.title = document.createElement("div");
-			this.title.style.border = "2px solid black";
-			this.title.style.backgroundColor = this.title_background;
-			this.title.style.color = this.title_foreground;
-			this.title.style.font = this.status_fullfont;
-			this.div.appendChild(this.title);
+			if (this.has_title_bar) {
+				this.title.style.border = "2px solid black";
+				this.title.style.backgroundColor = this.title_background;
+				this.title.style.color = this.title_foreground;
+				this.title.style.font = this.status_fullfont;
+				this.div.appendChild(this.title);
+			}
+			else {
+				this.title = null;
+			}
 			this.canvas = document.createElement("canvas");
 			this.canvas.tabIndex = 0;
 			this.div.appendChild(this.canvas);
-			this.status_div_container = document.createElement("div");
-			this.status_div_container.style.font = this.status_fullfont;
-			this.status_div_container.style.border = "1px solid black";
-			this.status_div_container.style.display = "grid";
-			this.status_div_container.style.gridTemplateColumns
-			 = "fit-content(10%) fit-content(30%) auto fit-content(15%) fit-content(10%) fit-content(10%) fit-content(10%)";
-			this.div.appendChild(this.status_div_container);
-			this.freeze_button = document.createElement("button");
-			this.freeze_button.style.backgroundColor = this.keyboard_background;
-			this.freeze_button.style.color = this.keyboard_foreground;
-			this.freeze_button.innerText = "Freeze";
-			this.status_div_container.appendChild(this.freeze_button);
-			this.freeze_div = document.createElement("div");
-			this.freeze_div.style.font = this.status_fullfont;
-			this.freeze_div.style.backgroundColor = this.status_background_ok;
-			this.freeze_div.style.color = this.status_foreground_ok;
-			this.freeze_div.style.border = "1px solid black";
-			this.freeze_div.style.paddingLeft = "6px";
-			this.freeze_div.style.paddingRight = "6px";
-			this.freeze_div.innerText = "Unfrozen";
-			this.status_div_container.appendChild(this.freeze_div);
-			this.status_div = document.createElement("div");
-			this.status_div.style.font = this.status_fullfont;
-			this.status_div.style.border = "1px solid black";
-			this.status_div.style.paddingLeft = "6px";
-			this.status_div.style.paddingRight = "6px";
-			this.status_div_container.appendChild(this.status_div);
-			this.version_div = document.createElement("div");
-			this.version_div.style.font = this.status_fullfont;
-			this.version_div.style.backgroundColor = this.status_background_ok;
-			this.version_div.style.color = this.status_foreground_ok;
-			this.version_div.style.border = "1px solid black";
-			this.version_div.style.paddingLeft = "6px";
-			this.version_div.style.paddingRight = "6px";
-			this.version_div.innerText = "xwterm " + ANSITERM_VERSION;
-			this.status_div_container.appendChild(this.version_div);
-			this.copy_button = document.createElement("button");
-			this.copy_button.style.backgroundColor = this.keyboard_background;
-			this.copy_button.style.color = this.keyboard_foreground;
-			this.copy_button.innerText = "Copy";
-			this.status_div_container.appendChild(this.copy_button);
-			this.copy_as_button = document.createElement("button");
-			this.copy_as_button.style.backgroundColor = this.keyboard_background;
-			this.copy_as_button.style.color = this.keyboard_foreground;
-			this.copy_as_button.innerText = "Copy as...";
-			this.status_div_container.appendChild(this.copy_as_button);
-			this.paste_button = document.createElement("button");
-			this.paste_button.style.backgroundColor = this.keyboard_background;
-			this.paste_button.style.color = this.keyboard_foreground;
-			this.paste_button.innerText = "Paste";
-			this.status_div_container.appendChild(this.paste_button);
-			this.keyboard_div = document.createElement("div");
-			this.keyboard_div.style.display = "grid";
-			this.keyboard_div.style.gridTemplateColumns = "auto auto auto auto auto auto auto auto auto auto auto auto";
-			this.keyboard_div.style.border = "2px solid black";
-			this.div.appendChild(this.keyboard_div);
-
-			let button_properties = [];
-
-			for (let i = 0; i < 12; ++i) {
-				let t = "F" + (i+1);
-				let p = {
-					text: t,
-					key: { key: t, code: t, composed: false, ctrlKey: false, altKey: false, metaKey: false, },
-				};
-				button_properties.push(p);
+			if (this.has_status_bar) {
+				this.status_div_container = document.createElement("div");
+				this.status_div_container.style.font = this.status_fullfont;
+				this.status_div_container.style.border = "1px solid black";
+				this.status_div_container.style.display = "grid";
+				this.status_div_container.style.gridTemplateColumns
+				= "fit-content(10%) fit-content(30%) auto fit-content(15%) fit-content(10%) fit-content(10%) fit-content(10%)";
+				this.div.appendChild(this.status_div_container);
+				this.freeze_button = document.createElement("button");
+				this.freeze_button.style.backgroundColor = this.keyboard_background;
+				this.freeze_button.style.color = this.keyboard_foreground;
+				this.freeze_button.innerText = "Freeze";
+				this.status_div_container.appendChild(this.freeze_button);
+				this.freeze_div = document.createElement("div");
+				this.freeze_div.style.font = this.status_fullfont;
+				this.freeze_div.style.backgroundColor = this.status_background_ok;
+				this.freeze_div.style.color = this.status_foreground_ok;
+				this.freeze_div.style.border = "1px solid black";
+				this.freeze_div.style.paddingLeft = "6px";
+				this.freeze_div.style.paddingRight = "6px";
+				this.freeze_div.innerText = "Unfrozen";
+				this.status_div_container.appendChild(this.freeze_div);
+				this.status_div = document.createElement("div");
+				this.status_div.style.font = this.status_fullfont;
+				this.status_div.style.border = "1px solid black";
+				this.status_div.style.paddingLeft = "6px";
+				this.status_div.style.paddingRight = "6px";
+				this.status_div_container.appendChild(this.status_div);
+				this.version_div = document.createElement("div");
+				this.version_div.style.font = this.status_fullfont;
+				this.version_div.style.backgroundColor = this.status_background_ok;
+				this.version_div.style.color = this.status_foreground_ok;
+				this.version_div.style.border = "1px solid black";
+				this.version_div.style.paddingLeft = "6px";
+				this.version_div.style.paddingRight = "6px";
+				this.version_div.innerText = "xwterm " + ANSITERM_VERSION;
+				this.status_div_container.appendChild(this.version_div);
+				this.copy_button = document.createElement("button");
+				this.copy_button.style.backgroundColor = this.keyboard_background;
+				this.copy_button.style.color = this.keyboard_foreground;
+				this.copy_button.innerText = "Copy";
+				this.status_div_container.appendChild(this.copy_button);
+				this.copy_as_button = document.createElement("button");
+				this.copy_as_button.style.backgroundColor = this.keyboard_background;
+				this.copy_as_button.style.color = this.keyboard_foreground;
+				this.copy_as_button.innerText = "Copy as...";
+				this.status_div_container.appendChild(this.copy_as_button);
+				this.paste_button = document.createElement("button");
+				this.paste_button.style.backgroundColor = this.keyboard_background;
+				this.paste_button.style.color = this.keyboard_foreground;
+				this.paste_button.innerText = "Paste";
+				this.status_div_container.appendChild(this.paste_button);
 			}
-			button_properties.push({
-						text: "TAB",
-						key: { key: 'Tab', code: 'Tab', composed: false, ctrlKey: false, altKey: false, metaKey: false, },
+			else {
+				this.status_div_container = null;
+				this.freeze_div = null;
+				this.freeze_button = null;
+				this.status_div = null;
+				this.version_div = null;
+				this.copy_button = null;
+				this.copy_as_button = null;
+				this.paste_button = null;
+			}
+
+			if (this.has_soft_keyboard) {
+				this.keyboard_div = document.createElement("div");
+				this.keyboard_div.style.display = "grid";
+				this.keyboard_div.style.gridTemplateColumns = "auto auto auto auto auto auto auto auto auto auto auto auto";
+				this.keyboard_div.style.border = "2px solid black";
+				this.div.appendChild(this.keyboard_div);
+
+				let button_properties = [];
+
+				for (let i = 0; i < 12; ++i) {
+					let t = "F" + (i+1);
+					let p = {
+						text: t,
+						key: { key: t, code: t, composed: false, ctrlKey: false, altKey: false, metaKey: false, },
+					};
+					button_properties.push(p);
+				}
+
+				button_properties.push({
+							text: "TAB",
+							key: { key: 'Tab', code: 'Tab', composed: false, ctrlKey: false, altKey: false, metaKey: false, },
+						});
+				button_properties.push({
+							text: "CTRL-L",
+							key: { key: 'l', code: 'KeyL', composed: true, ctrlKey: true, altKey: false, metaKey: false, },
+						});
+				button_properties.push({
+							text: "\x60 (Backquote)",
+							key: { key: "\x60", code: 'Backquote', composed: false, ctrlKey: false, altKey: false, metaKey: false, },
+						});
+				button_properties.push({
+							text: "\x7e (Tilde)",
+							key: { key: "\x7e", code: 'Tilde', composed: false, ctrlKey: false, altKey: false, metaKey: false, },
+						});
+				
+				for (let i = 0; i < button_properties.length; ++i) {
+					let e = null;
+					if (i >= 12 || this.has_soft_fkeys) {
+						e = document.createElement("button");
+						e.style.backgroundColor = this.keyboard_background;
+						e.style.color = this.keyboard_foreground;
+						e.innerText = button_properties[i].text;
+						e.addEventListener("click", (event) => {
+								this._send_key(button_properties[i].key);
+								this.canvas.focus();
+							});
+						this.keyboard_div.appendChild(e);
+					}
+					if (i >= 12) {
+						e.style.gridColumnStart = (i - 12) * 3 + 1;
+						e.style.gridColumnEnd = (i - 12) * 3 + 4;
+					}
+				}
+			}
+			else {
+				this.keyboard_div = null;
+			}
+
+			if (this.has_status_bar) {
+				this.copy_button.addEventListener("click",
+					(event) => {
+						this._clipboard_copy();
 					});
-			button_properties.push({
-						text: "CTRL-L",
-						key: { key: 'l', code: 'KeyL', composed: true, ctrlKey: true, altKey: false, metaKey: false, },
-					});
-			button_properties.push({
-						text: "\x60 (Backquote)",
-						key: { key: "\x60", code: 'Backquote', composed: false, ctrlKey: false, altKey: false, metaKey: false, },
-					});
-			button_properties.push({
-						text: "\x7e (Tilde)",
-						key: { key: "\x7e", code: 'Tilde', composed: false, ctrlKey: false, altKey: false, metaKey: false, },
-					});
-			
-			for (let i = 0; i < button_properties.length; ++i) {
-				let e = document.createElement("button");
-				e.style.backgroundColor = this.keyboard_background;
-				e.style.color = this.keyboard_foreground;
-				e.innerText = button_properties[i].text;
-				e.addEventListener("click", (event) => {
-						this._send_key(button_properties[i].key);
+
+				this.copy_as_button.addEventListener("click",
+					(event) => {
+						this.menu.showModal();
+						let r1 = this.copy_as_button.getBoundingClientRect();
+						let r2 = this.menu.getBoundingClientRect();
+						let x = Math.floor(event.x - event.offsetX - r2.width + r1.width);
+						let y = Math.floor(event.y - event.offsetY - r2.height);
+						this.menu.style.left = x + "px";
+						this.menu.style.top = y + "px";
+						});
+
+				this.paste_button.addEventListener("click",
+					(event) => {
+						this._read_from_clipboard();
 						this.canvas.focus();
 					});
-				if (i >= 12) {
-					e.style.gridColumnStart = (i - 12) * 3 + 1;
-					e.style.gridColumnEnd = (i - 12) * 3 + 4;
-				}
-				this.keyboard_div.appendChild(e);
-			}
 
-			this.copy_button.addEventListener("click",
-				(event) => {
-					this._clipboard_copy();
-				});
-
-			this.copy_as_button.addEventListener("click",
-				(event) => {
-					this.menu.showModal();
-					let r1 = this.copy_as_button.getBoundingClientRect();
-					let r2 = this.menu.getBoundingClientRect();
-					let x = Math.floor(event.x - event.offsetX - r2.width + r1.width);
-					let y = Math.floor(event.y - event.offsetY - r2.height);
-					this.menu.style.left = x + "px";
-					this.menu.style.top = y + "px";
+				this.freeze_button.addEventListener("click",
+					(event) => {
+						this._toggle_freeze();
+						this.canvas.focus();
 					});
-
-			this.paste_button.addEventListener("click",
-				(event) => {
-					this._read_from_clipboard();
-					this.canvas.focus();
-				});
-
-			this.freeze_button.addEventListener("click",
-				(event) => {
-					this._toggle_freeze();
-					this.canvas.focus();
-				});
+			}
 	
 		}
 
@@ -1279,6 +1322,10 @@ export class AnsiTerm {
 		timeout: "timeout",
 		titleText: "title_text",
 		cursorUpdateStyle: "cursor_update_style",
+		hasTitleBar: "has_title_bar",
+		hasStatusBar: "has_status_bar",
+		hasSoftKeyboard: "has_soft_keyboard",
+		hasSoftFKeys: "has_soft_fkeys",
 	};
 
 
@@ -1327,6 +1374,11 @@ export class AnsiTerm {
 				this.cursor_precise = false;
 				break;
 		}
+
+		// Lists of custom event handlers.
+		this.on_title_change = [];
+		this.on_status_change = [];
+		this.on_freeze_change = [];
 
 		// Initialize state variables.
 		this.underline = false;
@@ -1569,20 +1621,65 @@ export class AnsiTerm {
 	_set_status(ok)
 	{
 		if (this.status_ok != ok) {
-			this._update_status_element(this.status_div, ok, "Connected", "Disconnected")
+			this.on_status_change.forEach(callback => callback(ok));
+			if (this.status_div) {
+				this._update_status_element(this.status_div, ok, "Connected", "Disconnected");
+			}
 			this.status_ok = ok;
 		}
 	}
 
+	//
+	// Public methods to register and cancel one or more custom callbacks to be notified
+	// of connection state changes. Useful for implementing a custom status view.
+	// These callbacks will receive a boolean parameter: true for "connected", false for "disconnected".
+	//
+	registerOnStatusChange(cb)
+	{
+		this.on_status_change.push(cb);
+		cb(this.status_ok);
+	}
+	cancelOnStatusChange(cb)
+	{
+		this.on_status_change = this.on_status_change.filter((cb) => cb != callback);
+	}
+
+	
+	_is_frozen()
+	{
+		return (this.output_frozen_by_user || this.selection_active);
+	}
+
 	_update_freeze_state()
 	{
-		let frozen = (this.output_frozen_by_user || this.selection_active);
+		let frozen = this._is_frozen();
 		if (! frozen) {
 			this._apply(this.incoming_text);
 			this.incoming_text = "";
 		}
-		this._update_status_element(this.freeze_div, !frozen, "Unfrozen", "Frozen - " + this.incoming_text.length + " bytes pending")
+		this.on_freeze_change.forEach(callback => callback(frozen, this.incoming_text.length));
+		if (this.freeze_div) {
+			this._update_status_element(this.freeze_div, !frozen, "Unfrozen", "Frozen - " + this.incoming_text.length + " bytes pending");
+		}
 	}
+
+	//
+	// Public methods to register and cancel one or more custom callbacks to be notified
+	// of freeze state changes. Useful for implementing a custom status view.
+	// These callbacks will receive two parameters:
+	// - a boolean parameter: true for "frozen", false for "unfrozen",
+	// - a numeric parameter containing the number of pending bytes (i.e., not yet submitted to the interpreter).
+	//
+	registerOnFreezeChange(cb)
+	{
+		this.on_freeze_change.push(cb);
+		cb(this._is_frozen(), this.incoming_text.length);
+	}
+	cancelOnFreezehange(cb)
+	{
+		this.on_freeze_change = this.on_freeze_change.filter((cb) => cb != callback);
+	}
+
 
 	_toggle_freeze()
 	{
@@ -1594,6 +1691,7 @@ export class AnsiTerm {
 	_set_title(t)
 	{
 		this.title_text = t;
+		this.on_title_change.forEach(callback => callback(t));
 		if (this.title) {
 			try {
 				this.title.innerText = t;
@@ -1601,6 +1699,21 @@ export class AnsiTerm {
 			}
 		}
 	}
+
+	//
+	// Public methods to register and cancel one or more custom callbacks to be notified
+	// of title changes. Useful for implementing a custom title view.
+	//
+	registerOnTitleChange(cb)
+	{
+		this.on_title_change.push(cb);
+		cb(this.title_text);
+	}
+	cancelOnTitleChange(cb)
+	{
+		this.on_title_change = this.on_title_change.filter((cb) => cb != callback);
+	}
+
 
 	_do_osc()
 	{
@@ -2932,11 +3045,23 @@ export class AnsiTerm {
 
 }
 
-
+/*
 class AnsiTermDriver
 {
 	constructor()
 	{
+		this.on_send_done = [];
+		this.on_receive_done = [];
+	}
 
+	send(t, then)
+	{
+		this.on_send_done.push(then);
+	}
+
+	receive(then)
+	{
+		this.on_receive_done.push(then);
 	}
 }
+*/
