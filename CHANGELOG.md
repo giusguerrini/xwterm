@@ -1,4 +1,14 @@
 # Changelog
+## [0.9.0] - 2025-03-06
+- Fixed bound checks in redraw
+- Added "selet all" button in status bar
+- Added public methods to
+ - write text (and ANSI sequences) to terminal
+ - send keyboard events to the remote
+ - invoke the functions bound to status bar's buttons:
+ copy as text/Rich Text/HTML/ANSI to clipboard,
+ select all, paste clipboard, toggle freeze state.
+  
 ## [0.8.0] - 2025-03-05
 - Added parameters to enable or disable
  - title bar

@@ -1,6 +1,6 @@
 
 	
-const ANSITERM_VERSION = "0.8.0";
+const ANSITERM_VERSION = "0.9.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -257,6 +257,58 @@ class AnsiTermScreen {
 }
 	*/
 
+/**
+ * AnsiTerm class represents an ANSI terminal emulator.
+ * It provides methods to handle terminal operations, keyboard events, 
+ * and rendering of characters with various attributes such as bold, italic, 
+ * underline, and colors.
+ * 
+ * @class
+ * @param {Object|string} params - Configuration parameters or the ID of the div element to create the terminal in.
+ * @param {number} [params.nLines=24] - Number of lines in the terminal.
+ * @param {number} [params.nColumns=80] - Number of columns in the terminal.
+ * @param {number} [params.fontSize=14] - Font size for the terminal text.
+ * @param {string} [params.font="monospace"] - Font family for the terminal text.
+ * @param {string} [params.statusFont="monospace"] - Font family for the status bar text.
+ * @param {string} [params.divId=""] - ID of the div element to create the terminal in.
+ * @param {string} [params.canvasId=""] - ID of the canvas element to use for the terminal.
+ * @param {string} [params.titlesId=""] - ID of the element to use for the terminal title.
+ * @param {string} [params.url=""] - URL for the terminal's data source.
+ * @param {string} [params.channelType=""] - Type of channel for communication.
+ * @param {string} [params.source=""] - Source for the terminal's data.
+ * @param {string} [params.config=""] - Configuration URL for the terminal.
+ * @param {string} [params.dest=""] - Destination URL for sending terminal data.
+ * @param {number} [params.immediateRefresh=100] - Immediate refresh interval in milliseconds.
+ * @param {number} [params.fastRefresh=500] - Fast refresh interval in milliseconds.
+ * @param {number} [params.slowRefresh=2000] - Slow refresh interval in milliseconds.
+ * @param {string} [params.wsEndpoint=""] - WebSocket endpoint for the terminal.
+ * @param {string} [params.wsDataTag=""] - WebSocket data tag for the terminal.
+ * @param {string} [params.wsSizeTag=""] - WebSocket size tag for the terminal.
+ * @param {string} [params.wsSizeData=""] - WebSocket size data for the terminal.
+ * @param {function} [params.customSend=null] - Custom function for sending data.
+ * @param {function} [params.customReceive=null] - Custom function for receiving data.
+ * @param {string} [params.foreground="rgb(255,255,255)"] - Default foreground color.
+ * @param {string} [params.background="rgb(0,0,0)"] - Default background color.
+ * @param {string} [params.statusForegroundOk="rgb(0,255,0)"] - Status bar foreground color for OK status.
+ * @param {string} [params.statusBackgroundOk="rgb(0,128,0)"] - Status bar background color for OK status.
+ * @param {string} [params.statusForegroundKo="rgb(255,0,0)"] - Status bar foreground color for KO status.
+ * @param {string} [params.statusBackgroundKo="rgb(128,0,0)"] - Status bar background color for KO status.
+ * @param {string} [params.titleBackground="rgb(0,0,128)"] - Title bar background color.
+ * @param {string} [params.titleForeground="rgb(255,255,255)"] - Title bar foreground color.
+ * @param {string} [params.keyboardBackground="rgb(0,0,128)"] - Soft keyboard background color.
+ * @param {string} [params.keyboardForeground="rgb(255,255,255)"] - Soft keyboard foreground color.
+ * @param {string} [params.selectionBackground="rgb(255,255,0)"] - Selection background color.
+ * @param {string} [params.selectionForeground="rgb(0,0,0)"] - Selection foreground color.
+ * @param {boolean} [params.blinkIsBold=false] - Whether blinking text should be bold.
+ * @param {number} [params.blinkPeriod=500] - Blink period in milliseconds.
+ * @param {number} [params.timeout=1000] - Timeout for state machine in milliseconds.
+ * @param {string} [params.titleText=""] - Default title text.
+ * @param {string} [params.cursorUpdateStyle="smart"] - Cursor update style ("lazy", "precise", "smart").
+ * @param {boolean} [params.hasTitleBar=true] - Whether the terminal has a title bar.
+ * @param {boolean} [params.hasStatusBar=true] - Whether the terminal has a status bar.
+ * @param {boolean} [params.hasSoftKeyboard=false] - Whether the terminal has a soft keyboard.
+ * @param {boolean} [params.hasSoftFKeys=false] - Whether the terminal has soft function keys.
+ */
 export class AnsiTerm {
 
 
@@ -924,6 +976,7 @@ export class AnsiTerm {
 		this.copy_button = null;
 		this.copy_as_button = null;
 		this.paste_button = null;
+		this.select_all_button = null;
 
 
 		if (this.canvasid != "") {
@@ -968,7 +1021,7 @@ export class AnsiTerm {
 				this.status_div_container.style.border = "1px solid black";
 				this.status_div_container.style.display = "grid";
 				this.status_div_container.style.gridTemplateColumns
-				= "fit-content(10%) fit-content(30%) auto fit-content(15%) fit-content(10%) fit-content(10%) fit-content(10%)";
+				= "fit-content(10%) fit-content(30%) auto fit-content(15%) fit-content(10%) fit-content(10%) fit-content(10%) fit-content(10%)";
 				this.div.appendChild(this.status_div_container);
 				this.freeze_button = document.createElement("button");
 				this.freeze_button.style.backgroundColor = this.keyboard_background;
@@ -999,6 +1052,11 @@ export class AnsiTerm {
 				this.version_div.style.paddingRight = "6px";
 				this.version_div.innerText = "xwterm " + ANSITERM_VERSION;
 				this.status_div_container.appendChild(this.version_div);
+				this.select_all_button = document.createElement("button");
+				this.select_all_button.style.backgroundColor = this.keyboard_background;
+				this.select_all_button.style.color = this.keyboard_foreground;
+				this.select_all_button.innerText = "Select all";
+				this.status_div_container.appendChild(this.select_all_button);
 				this.copy_button = document.createElement("button");
 				this.copy_button.style.backgroundColor = this.keyboard_background;
 				this.copy_button.style.color = this.keyboard_foreground;
@@ -1024,6 +1082,7 @@ export class AnsiTerm {
 				this.copy_button = null;
 				this.copy_as_button = null;
 				this.paste_button = null;
+				this.select_all_button = null;
 			}
 
 			if (this.has_soft_keyboard) {
@@ -1069,8 +1128,7 @@ export class AnsiTerm {
 						e.style.color = this.keyboard_foreground;
 						e.innerText = button_properties[i].text;
 						e.addEventListener("click", (event) => {
-								this._send_key(button_properties[i].key);
-								this.canvas.focus();
+								this.sendKeyByKeyEvent(button_properties[i].key);
 							});
 						this.keyboard_div.appendChild(e);
 					}
@@ -1085,6 +1143,11 @@ export class AnsiTerm {
 			}
 
 			if (this.has_status_bar) {
+				this.select_all_button.addEventListener("click",
+					(event) => {
+						this.selectAll();
+					});
+
 				this.copy_button.addEventListener("click",
 					(event) => {
 						this._clipboard_copy();
@@ -1103,14 +1166,12 @@ export class AnsiTerm {
 
 				this.paste_button.addEventListener("click",
 					(event) => {
-						this._read_from_clipboard();
-						this.canvas.focus();
+						this.clipboardPaste();
 					});
 
 				this.freeze_button.addEventListener("click",
 					(event) => {
-						this._toggle_freeze();
-						this.canvas.focus();
+						this.toggleFreezeState();
 					});
 			}
 	
@@ -1152,25 +1213,19 @@ export class AnsiTerm {
 			copy_as_ansi: {
 					text: "ANSI sequence",
 					fn: () => {
-						this._write_to_clipboard_as_ansi();
-						this._clear_selection();
-						this.canvas.focus();
+						this.clipboardCopyAsAnsiSequence();
 					}
 				},
 			copy_as_html: {
 					text: "HTML",
 					fn: () => {
-						this._write_to_clipboard_as_html(true);
-						this._clear_selection();
-						this.canvas.focus();						
+						this.clipboardCopyAsHtml();
 					}
 				},
 			copy_as_rich_text: {
 				text: "Rich Text",
 				fn: () => {
-					this._write_to_clipboard_as_html(false);
-					this._clear_selection();
-					this.canvas.focus();						
+					this.clipboardCopyAsRichText();
 				}
 			},
 			quit: {
@@ -1783,8 +1838,8 @@ export class AnsiTerm {
 		if (height < 0) {
 			height = 0;
 		}
-		else if (height > this.nrows) {
-			height = this.nrows;
+		else if (height > this.nlines) {
+			height = this.nlines;
 		}
 		if (x0 < 0) {
 			x0 = 0;
@@ -1795,8 +1850,8 @@ export class AnsiTerm {
 		if (y0 < 0) {
 			y0 = 0;
 		}
-		if (y0 + height >= this.nrows) {
-			y0 = this.nrows - height;
+		if (y0 + height >= this.nlines) {
+			y0 = this.nlines - height;
 		}
 
 		//console.log("redraw",x0, y0, width, height);
@@ -2468,6 +2523,22 @@ export class AnsiTerm {
 		this._printchar_in_place_pix(ch, this.posx, this.posy, this.pospx, this.pospy);
 	}
 
+	//
+	// Public function: Writes the given text (possibly containing ANSI sequence
+	// to the terminal.
+	//
+	write(t)
+	{
+		t =  decodeURIComponent(escape(t));
+		if (this.output_frozen_by_user || this.selection_active) {
+			this.incoming_text += t;
+			this._update_freeze_state();
+		}
+		else {
+			this._apply(t);
+		}
+	}
+
 	_send_request(url)
 	{
 		let xhr = new XMLHttpRequest();
@@ -2477,17 +2548,10 @@ export class AnsiTerm {
 				if (xhr.status >= 200 && xhr.status < 400) {
 					let data = JSON.parse(xhr.responseText);
 					let t = data["text"];
-					t =  decodeURIComponent(escape(t));
-					if (this.output_frozen_by_user || this.selection_active) {
-						this.incoming_text += t;
-						this._update_freeze_state();
-					}
-					else {
-						this._apply(t);
-					}
+					this.write(t);
 					if (t != "") {
 						console.log(data);
-					}
+					}			
 					this._schedule_update(this.fast_refresh);
 					this._set_status(true);
 				}
@@ -2642,6 +2706,19 @@ export class AnsiTerm {
 		if (this.cursor_update_on_keypress) {
 			this._do_blink_cursor();
 		}
+	}
+
+	//
+	// Public function to send an ANSI key sequence
+	// given the JavaScript key event, i.e. an object containing the key-related
+	// members as produced by a real key event.
+	// Example: the TAB key is represented by this object:
+	// { key: 'Tab', code: 'Tab', composed: false, ctrlKey: false, altKey: false, metaKey: false, }
+	// 
+	sendKeyByKeyEvent(key)
+	{
+		this._send_key(key);
+		this.canvas.focus();
 	}
 
 	// DEBUG //
@@ -2993,6 +3070,106 @@ export class AnsiTerm {
 		this._update_selection(x, y);
 	}
 
+	_clear_selection_timer()
+	{
+		if (this.selection_timer) {
+			clearTimeout(this.selection_timer);
+			this.selection_timer = null;
+		}
+	} 
+
+	//
+	// Public function: put the whole screen in selection.
+	// It is also invoked on "Select all" button press.
+	//
+	selectAll()
+	{
+		this._clear_selection();
+		this._start_selection(0,0);
+		this._update_selection(this.ncolumns-1, this.nlines -1);
+		this._end_selection();
+	}
+
+	//
+	// Public function: implements basic "copy from selection"
+	// function.
+	//
+	clipboardCopyAsText()
+	{
+		this._clipboard_copy();
+	}
+
+	//
+	// Public function: implements "copy from selection"
+	// function. Data is encoded as text and ANSI
+	// sequences for character attibutes.
+	//
+	clipboardCopyAsAnsiSequence()
+	{
+		this._write_to_clipboard_as_ansi();
+		this._clear_selection();
+		this.canvas.focus();
+	}
+
+	//
+	// Public function: implements "copy from selection"
+	// function. Data is encoded as HTML text.
+	//
+	clipboardCopyAsHtml()
+	{
+		this._write_to_clipboard_as_html(true);
+		this._clear_selection();
+		this.canvas.focus();						
+	}
+	//
+	// Public function: implements "copy from selection"
+	// function. Data is encoded as Rich Text
+	// (NOTE: it's actually HTML, but trailing spaces in lines are discarded.
+	// TODO: add some hack to procude white background, since it's
+	// more suited to word processors).
+	//
+	clipboardCopyAsRichText()
+	{
+		this._write_to_clipboard_as_html(false);
+		this._clear_selection();
+		this.canvas.focus();						
+	}
+	//
+	// Public function: implements "paste"
+	//
+	clipboardPaste()
+	{
+		this._read_from_clipboard();
+		this.canvas.focus();
+	}
+
+	//
+	// Public function: toogles the terminal's "freeze" state.
+	//
+	toggleFreezeState()
+	{
+		this._toggle_freeze();
+		this.canvas.focus();
+	}
+
+	_start_selection(x, y)
+	{
+		this._clear_selection_timer();
+		this.selection_start = -1;
+		this.selection_end = -1;
+		this.selection_last = -1;
+		this.selection_on = true;
+		this.selection_active = true;
+		this._update_selection(x, y);
+		this._update_freeze_state();
+	}
+
+	_end_selection()
+	{
+		this.selection_on = false;
+		this.selection_end = this.selection_last;
+	}
+
 	_on_mouse_down(e)
 	{
 		if (e.button != 0) {
@@ -3006,16 +3183,9 @@ export class AnsiTerm {
 		let cleared = this._clear_selection();
 		if (! cleared) {
 			this.selection_timer = setTimeout( () => {
-				this.selection_start = -1;
-				this.selection_end = -1;
-				this.selection_last = -1;
-				this.selection_on = true;
-				this.selection_active = true;
 				let x = Math.floor(e.offsetX / this.charwidth);
 				let y = Math.floor(e.offsetY / this.charheight);
-				this._update_selection(x, y);
-				this._update_freeze_state();
-				this.selection_timer = null;
+				this._start_selection(x, y);
 			}, 250);
 
 		}
@@ -3024,25 +3194,13 @@ export class AnsiTerm {
 
 	_on_mouse_up(e)
 	{
-		if (this.selection_timer) {
-			clearTimeout(this.selection_timer);
-			this.selection_timer = null;
-		} 
+		this._clear_selection_timer();
 		if (e.button != 0) {
 			e.preventDefault();
 			e.stopPropagation();
 			return;
 		}
-		this.selection_on = false;
-		if (false) {
-			let x = Math.floor(e.offsetX / this.charwidth);
-			let y = Math.floor(e.offsetY / this.charheight);
-			this.selection_end = this._update_selection(x, y);
-		}
-		else {
-			this.selection_end = this.selection_last;
-		}
-		//console.log(e);
+		this._end_selection();
 	}
 
 	_on_mouse_click(e)
