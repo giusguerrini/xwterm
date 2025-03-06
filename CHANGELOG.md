@@ -12,6 +12,7 @@
 These new services make it possible to create
 custom decorations on the main canvas. A simple
 example is given in example.html.
+- Fixed index overflow during selection. 
 
 ## [0.7.0] - 2025-03-01
 - Added menu for advanced clipboard copy.
