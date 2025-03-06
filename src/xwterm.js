@@ -1,6 +1,6 @@
 
 	
-const ANSITERM_VERSION = "0.7.0";
+const ANSITERM_VERSION = "0.8.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -916,6 +916,15 @@ export class AnsiTerm {
 		this.div = null;
 		this.canvas = null;
 		this.title = null;
+		this.status_div_container = null;
+		this.freeze_div = null;
+		this.freeze_button = null;
+		this.status_div = null;
+		this.version_div = null;
+		this.copy_button = null;
+		this.copy_as_button = null;
+		this.paste_button = null;
+
 
 		if (this.canvasid != "") {
 			this.canvas = document.getElementById(this.canvasid);

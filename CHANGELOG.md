@@ -1,4 +1,18 @@
 # Changelog
+## [0.8.0] - 2025-03-05
+- Added parameters to enable or disable
+ - title bar
+ - status bar
+ - soft keyboard and optionally function keys.
+- Added public methods to register callbacks on
+ - title change
+ - connection state change
+ - freeze state change
+- Added a static method to read xwterm's version.
+These new services make it possible to create
+custom decorations on the main canvas. A simple
+example is given in example.html.
+
 ## [0.7.0] - 2025-03-01
 - Added menu for advanced clipboard copy.
 
