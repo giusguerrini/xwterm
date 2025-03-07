@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style type="text/css">
+        canvas {
+            border-collapse: collapse;
+            width: 80%;
+            margin: 20px auto;
+            text-align: center;
+        }
+        table {
+            border-collapse: collapse;
+            width: 80%;
+            margin: 20px auto;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2; 
+        }
+</style>
+</head>
+<body>
+<script type="module">
+	import { AnsiTerm } from "./xwterm.js";
+	window.ansi = new AnsiTerm( 
+		{
+		canvasId: "terminal",
+		nLines : 25,
+		nColumns : 80,
+		fontSize : 15,
+		hasTitleBar: false,
+		hasStatusBar: false,
+		hasSoftFKeys: false,
+		}
+	);
+	
+	document.getElementById("version").innerText = AnsiTerm.getVersion();
+	ansi.registerOnTitleChange((t) => {
+		document.getElementById("title").innerText = t;
+	});
+	ansi.registerOnStatusChange((connected) => {
+		document.getElementById("connected").innerText = connected ? "yes" : "no";
+	});
+	ansi.registerOnFreezeChange((frozen, nbytes) => {
+		document.getElementById("frozen").innerText = frozen ? "yes" : "no";
+		document.getElementById("bytes").innerText = nbytes;
+	});
+
+	var jack_timer = null;
+	var jack_index = 0;
+
+	window.jack = function () {
+		let j = "All work and no play makes Jack a dull boy\r\n";
+		ansi.write(j.substring(jack_index,jack_index+1));
+		jack_index = (jack_index + 1) % j.length;
+		jack_timer = setTimeout(jack, 200 + Math.random()*200);
+		if (jack_index == 0 && Math.random() >= 0.7) {
+			ansi.write("\x1b[9" + (1 + Math.floor(Math.random() * 6 + 0.5)) + "m");
+		}
+	}
+</script>
+	<div style="display: grid; grid-template-colums: auto;">
+		<canvas id="terminal"></canvas>
+		<table>
+			<thead>
+				<tr>
+					<th>XWterm version</th>
+					<th>Title</th>
+					<th>Connected</th>
+					<th>Frozen</th>
+					<th>Bytes pending</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td id="version"></td>
+					<td id="title"></td>
+					<td id="connected"></td>
+					<td id="frozen"></td>
+					<td id="bytes"></td>
+				</tr>
+			</tbody>
+		</table>
+		<div style="display: grid; grid-template-columns: auto auto auto auto auto auto auto;">
+			<button onclick="ansi.toggleFreezeState()">Freeze/Unfreeze</button>
+			<button onclick="ansi.selectAll()">Select all</button>
+			<button onclick="ansi.clipboardCopyAsText()">Copy as text</button>
+			<button onclick="ansi.clipboardCopyAsRichText()">Copy as Rich Text</button>
+			<button onclick="ansi.clipboardCopyAsHtml()">Copy as HTML</button>
+			<button onclick="ansi.clipboardCopyAsAnsiSequence()">Copy as ANSI</button>
+			<button onclick="ansi.clipboardPaste()">Paste</button>
+
+			<button onclick="ansi.sendKeyByKeyEvent({ key: 'l', code: 'KeyL', composed: true, ctrlKey: true, altKey: false, metaKey: false, })">Send CTRL-L</button>
+			<button onclick="jack()">Jack!</button>
+		</div>
+	</div>
+</body>
+</html>

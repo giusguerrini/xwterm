@@ -1748,7 +1748,9 @@ export class AnsiTerm {
 	_toggle_freeze()
 	{
 		this.output_frozen_by_user = ! this.output_frozen_by_user;
-		this.freeze_button.innerText = this.output_frozen_by_user ? "Unfreeze" : "Freeze";
+		if (this.freeze_button) {
+			this.freeze_button.innerText = this.output_frozen_by_user ? "Unfreeze" : "Freeze";
+		}
 		this._update_freeze_state();
 	}
 

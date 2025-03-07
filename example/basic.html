@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style type="text/css">
+</style>
+</head>
+<body>
+	<div>Basic terminal example</div>
+</body>
+<script type="module">
+import { AnsiTerm } from "./xwterm.js";
+var ansi = new AnsiTerm( 
+/* Zero-effort: Nothing at all, if you want the program to create a div for you  and apply default properties*/
+
+		/* User-provided div:
+		"mydiv"
+		*/
+		
+		/* Changing size:
+		*/
+		{
+		nLines : 40,
+		nColumns : 120,
+		fontSize : 12,
+		}
+
+		/* Chaning some more properties:
+		{
+		"nLines" : 40,
+		"nColumns" : 120,
+		"fontSize" : 13, //15
+		"font" : "Courier New",
+		"immediateRefresh" : 70,
+		"fastRefresh" : 500,
+		"slowRefresh" : 2000,
+		}
+		*/
+	);
+</script>
+</html>
