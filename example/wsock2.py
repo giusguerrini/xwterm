@@ -1,14 +1,18 @@
 #!/usr/bin/python3
 
+import os
+import platform 
 import asyncio
 import websockets
-import pty
-import os
-import fcntl
 import binascii
 import struct
-import termios
 import json
+try:
+    import fcntl
+    import pty
+    import termios
+except:
+    pass
 
 DEFAULT_PORT=8765
 
@@ -25,7 +29,7 @@ ws = False
 async def main():
 
 
-    async def new_shell():
+    async def new_shell_linux():
         [pid, fd] = pty.fork()
 
         if pid == 0:
@@ -36,7 +40,7 @@ async def main():
 
         def set_size(fd, li, co):
             s = struct.pack('HHHH', li, co, 0, 0)
-            fcntl.ioctl(fd, termios.TIOCSWINSZ, s)
+            #fcntl.ioctl(fd, termios.TIOCSWINSZ, s)
 
         set_size(fd, DEFAULT_NLINES, DEFAULT_NCOLUMNS)
 
@@ -53,28 +57,79 @@ async def main():
 
         return { "rd": reader, "wr": writer }
 
+    async def new_shell_windows():
+        cmd = ["cmd.exe", "/a"];
+
+        #stdout, stderr = proc.communicate()
+
+        loop = asyncio.get_running_loop()
+
+        if False:
+            proc = await asyncio.create_subprocess_exec(*cmd, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+            # Thanks to Martijn Pieters:
+            # https://stackoverflow.com/questions/52089869/how-to-create-asyncio-stream-reader-writer-for-stdin-stdout:
+            #
+            # No support for asyncio stdio yet on Windows, see https://bugs.python.org/issue26832
+            # use an executor to read from stdio and write to stdout
+            # note: if nothing ever drains the writer explicitly, no flushing ever takes place!
+            class Win32Reader:
+                def __init__(self, stream):
+                    self.stream = stream
+                async def read(self, size):
+                    d = await loop.run_in_executor(None, self.stream.read)
+                    print(d)
+                    return d
+
+            class Win32Writer:
+                def __init__(self, stream):
+                    self.buffer = []
+                    self.stream = stream
+                def write(self, data):
+                    self.buffer.append(data)
+                async def drain(self):
+                    data, self.buffer = self.buffer, []
+                    return await loop.run_in_executor(None, self.stream.write, data)
+
+            writer = Win32Writer(proc.stdin)
+            reader = Win32Reader(proc.stdout)
+            reader_err = Win32Reader(proc.stderr)
+
+        else:
+
+            proc = await asyncio.create_subprocess_exec(*cmd, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+            reader = proc.stdout
+            reader_err = proc.stderr
+            writer = proc.stdin
+
+
+        return { "rd": reader, "wr": writer, "err": reader_err }
+
+    async def new_shell():
+        print("New shell...")
+        if platform.system() == "Linux":
+            return await new_shell_linux()
+        else:
+            return await new_shell_windows()
+
 
     async def read_from_process(ws, reader):
         try:
             while True:
-                print("in ascolto da tty...")
                 data = await reader.read(1000)
                 if not data:
-                    print("...nessun dato")
                     break
                 try:
                     d = data.decode()
-                    print(f"Ricevuto: {d}")
+                    print(f"From shell: {d}")
                     js = json.dumps({ 'text': d })
-                    print(f"Invio di: {js}")
+                    print(f"To remote: {js}")
                     await ws.send(js)
-                    print(f"Inviato")
                 except Exception as e:
                     print(e)
         except Exception as e:
             print(e)
 
-    async def ws_handler_core(websocket, path, writer):
+    async def ws_handler_core(websocket, writer):
         async for message in websocket:
             print(f">> {message}")
             try:
@@ -85,9 +140,12 @@ async def main():
                 print(e)
 
 
-    async def ws_handler(ws, path):
+    async def ws_handler(ws):
         rw = await new_shell()
-        await asyncio.gather(read_from_process(ws, rw["rd"]), ws_handler_core(ws, path, rw["wr"]))
+        if "err" in rw:
+            await asyncio.gather(read_from_process(ws, rw["rd"]), ws_handler_core(ws, rw["wr"]), read_from_process(ws, rw["err"]))
+        else:
+            await asyncio.gather(read_from_process(ws, rw["rd"]), ws_handler_core(ws, rw["wr"]))
 
 
     async def server():
