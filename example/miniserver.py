@@ -29,6 +29,14 @@ DATA_REQUEST_PARAM="console"
 SET_SIZE_PARAM="size" # e.g. size=25x80
 DEFAULT_URL="/example.html"
 
+# Linux only
+def set_size(fd, li, co):
+    try:
+        s = struct.pack('HHHH', li, co, 0, 0)
+        fcntl.ioctl(fd, termios.TIOCSWINSZ, s)
+    except:
+        pass
+
 
 class Shell:
     def  __init__(process):
@@ -56,10 +64,6 @@ async def new_shell_linux():
     flag = fcntl.fcntl(fd, fcntl.F_GETFD)
     fcntl.fcntl(fd, fcntl.F_SETFL, flag | os.O_NONBLOCK)
 
-    def set_size(fd, li, co):
-        s = struct.pack('HHHH', li, co, 0, 0)
-        fcntl.ioctl(fd, termios.TIOCSWINSZ, s)
-
     set_size(fd, DEFAULT_NLINES, DEFAULT_NCOLUMNS)
 
     #os.write(fd, bytes("\n", "UTF-8"))
@@ -85,6 +89,7 @@ async def new_shell_linux():
 
     process = Shell()
     process.pid = pid
+    process.proc = None
     process.fd = fd
     process.rd = reader
     process.wr = writer
@@ -116,7 +121,9 @@ async def new_shell_windows():
             pass
 
     process = Shell()
+    process.pid = None
     process.proc = proc
+    process.fd = None
     process.rd = reader
     process.wr = writer
     process.err = reader_err
@@ -154,7 +161,7 @@ async def read_from_process(session, reader):
                 break
             try:
                 d = data.decode()
-                print(f"From shell: {d}")
+                #print(f"From shell: {d}")
                 #js = json.dumps({ 'text': d })
                 #print(f"To remote: {js}")
                 await txq.put(d)
@@ -170,7 +177,7 @@ async def write_to_process(session):
     writer = session.process.wr
     while True:
         message = await rxq.get()
-        print(f">> {message}")
+        #print(f">> {message}")
         try:
             t = ''
             try:
@@ -208,10 +215,10 @@ session_tasks = set()
 async def session_manager(request):
     session_id = request.cookies.get('session_id')
 
-    print("Receive session ID: ", session_id or "");
+    #print("Receive session ID: ", session_id or "");
     if session_id and session_id in sessions:
         # Existing session
-        print("Existing session: ", session_id);
+        #print("Existing session: ", session_id);
         session = sessions[session_id]
     else:
         # New session
@@ -225,24 +232,35 @@ async def session_manager(request):
         session.task = task
         empty = not session_tasks
         session_tasks.add(task)
-        if empty:
-            await session_task_queue.put(True)
+        await session_task_queue.put(True)
 
     session.last_visited = time.time()
 
     return session
 
+async def session_task_listener():
+    print("Session task listener: waiting for signal")
+    ok = await session_task_queue.get()
+    print("Session task listener: got signal ", ok)
+    return ok
+
+
 async def session_task_scheduler():
     print("Session task scheduler: started")
+    
+    listener = asyncio.create_task(session_task_listener())
+    
     while True:
-        while True:
-            if not session_tasks:
-                break
-            tasks = list(session_tasks) 
-            done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-        print("Session task scheduler: waiting for signal")
-        ok = await session_task_queue.get()
-        print("Session task scheduler: got signal ", ok)
+        print("Session task scheduler: waiting for tasks")
+        tasks = list(session_tasks)
+        tasks.append(listener)
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        if listener in done:
+                ok = await listener
+                listener = asyncio.create_task(session_task_listener())
+
+        print("Session task scheduler: ", len(done), " completed, ", len(pending), " pending")
+        print("Session task scheduler: got signal ", ok, " from listener")
         if not ok:
             break
 
@@ -271,6 +289,7 @@ async def session_cleaner():
     print("Session cleaner started")
     while True:
         await asyncio.sleep(10)
+        print("Session cleaner loop")
         s = sessions.copy()
         for session_id in s:
             session = sessions[session_id]
@@ -321,14 +340,34 @@ def session_decorator(fn):
 
 @session_decorator
 async def do_GET(request, session):
-    print("GET: Session=", session.sid);
+    #print("GET: Session=", session.sid);
+    params = request.query
+
+    if SET_SIZE_PARAM in params:
+        try:
+            sz = params[SET_SIZE_PARAM].split("x")
+            if len(sz) >= 2:
+                li = int(sz[0])
+                co = int(sz[1])
+                set_size(session.process.fd, li, co)
+        except Exception as e:
+            print(e)
+ 
+    #if DATA_REQUEST_PARAM in params:
+    #    pass
+ 
     text = "";
     if not session.visited:
         text = "Session ID = " + session.sid + "\r\n"
         session.visited = True;
     #response = aiohttp.web.Response(text=f'Visits: {session_data["visits"]}')
     try:
-        text += session.txq.get_nowait()
+        while True:
+            t = session.txq.get_nowait()
+            if t == "":
+                break
+            text += t
+        text = text.decode('utf-8')
     except:
         pass
     response = aiohttp.web.Response(body=json.dumps({ 'text': text }), content_type='application/json')
@@ -349,12 +388,12 @@ async def do_GET_files(request, session):
 
 @session_decorator
 async def do_POST(request, session):
-    print("POST: Session=", session.sid);
+    #print("POST: Session=", session.sid);
     try:
         data = await request.text()
         #
         # data = data.decode("UTF-8")
-        print("POST: Data=", data)
+        #print("POST: Data=", data)
         await session.rxq.put(data)
         response = aiohttp.web.Response(text='', status = 200)
     except Exception as e:

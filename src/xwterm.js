@@ -2531,7 +2531,19 @@ export class AnsiTerm {
 	//
 	write(t)
 	{
-		t =  decodeURIComponent(escape(t));
+		try {
+			try {
+				// escape is deprecated, and it's also prone to weird xceptions,
+				// but it more relaxed in non-ASCII characters
+				// (e.g. old sample server works)
+				t =  decodeURIComponent(escape(t));
+			}
+			catch {
+				t =  decodeURIComponent(encodeURIComponent(t));
+			}
+		} catch(err) {
+			console.log(err.toString() + ": " + t)
+		}
 		if (this.output_frozen_by_user || this.selection_active) {
 			this.incoming_text += t;
 			this._update_freeze_state();
@@ -2544,6 +2556,9 @@ export class AnsiTerm {
 	_send_request(url)
 	{
 		let xhr = new XMLHttpRequest();
+
+		
+		xhr.withCredentials = true;
 
 		xhr.onreadystatechange = () => {
 			if (xhr.readyState === XMLHttpRequest.DONE) {
