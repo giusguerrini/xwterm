@@ -8,6 +8,7 @@
  - invoke the functions bound to status bar's buttons:
  copy as text/Rich Text/HTML/ANSI to clipboard,
  select all, paste clipboard, toggle freeze state.
+- New exaples.
   
 ## [0.8.0] - 2025-03-05
 - Added parameters to enable or disable

@@ -2548,8 +2548,14 @@ export class AnsiTerm {
 		xhr.onreadystatechange = () => {
 			if (xhr.readyState === XMLHttpRequest.DONE) {
 				if (xhr.status >= 200 && xhr.status < 400) {
-					let data = JSON.parse(xhr.responseText);
-					let t = data["text"];
+					let t = xhr.responseText;
+					let data = t;
+					try {
+						data = JSON.parse(t);
+						t = data["text"];
+					}
+					catch {
+					}
 					this.write(t);
 					if (t != "") {
 						console.log(data);
