@@ -11,6 +11,7 @@ import aiohttp
 import struct
 import aiohttp.web
 import mimetypes
+import time
 import json
 try:
     import fcntl
@@ -40,6 +41,8 @@ class Session:
         self.visited =  False
         self.rxq = asyncio.Queue()
         self.txq = asyncio.Queue()
+        self.last_visited = time.time()
+        self.task = None
 
 
 # Platoform-specific shell process management
@@ -55,7 +58,7 @@ async def new_shell_linux():
 
     def set_size(fd, li, co):
         s = struct.pack('HHHH', li, co, 0, 0)
-        #fcntl.ioctl(fd, termios.TIOCSWINSZ, s)
+        fcntl.ioctl(fd, termios.TIOCSWINSZ, s)
 
     set_size(fd, DEFAULT_NLINES, DEFAULT_NCOLUMNS)
 
@@ -137,9 +140,10 @@ async def end_shell(session):
 async def close_session(session):
     await end_shell(session)
     try:
-        del sessions[session]
+        del sessions[session.sid]
     except:
         pass
+
 
 async def read_from_process(session, reader):
     try:
@@ -164,7 +168,8 @@ async def write_to_process(session):
     rxq = session.rxq
     print(f"Writer connected to {rxq}")
     writer = session.process.wr
-    async for message in rxq:
+    while True:
+        message = await rxq.get()
         print(f">> {message}")
         try:
             t = ''
@@ -172,7 +177,7 @@ async def write_to_process(session):
                 d = json.loads(message)
                 t = d['text']
             except:
-                pass
+                t = message
             if t != '':
                 writer.write(t.encode())
                 await writer.drain()
@@ -184,24 +189,21 @@ async def write_to_process(session):
 async def session_core(session):
     proc = session.process
     if proc.err:
-        print("Windows")
         await asyncio.gather(read_from_process(session, proc.rd),
                              write_to_process(session),
                              read_from_process(session, proc.err),
                              return_exceptions=True)
     else:
-        print("Linux")
         await asyncio.gather(read_from_process(session, proc.rd),
                              write_to_process(session),
                              return_exceptions=True)
 
-import asyncio
-
-session_tasks = set()
 
 
 # Session dictionary
 sessions = {}
+session_task_queue = asyncio.Queue()
+session_tasks = set()
 
 async def session_manager(request):
     session_id = request.cookies.get('session_id')
@@ -219,10 +221,81 @@ async def session_manager(request):
         session = Session(session_id, shell)
         sessions[session_id] = session
         task = asyncio.create_task(session_core(session))
-        session_tasks.add(task)
         task.add_done_callback(session_tasks.discard)
+        session.task = task
+        empty = not session_tasks
+        session_tasks.add(task)
+        if empty:
+            await session_task_queue.put(True)
+
+    session.last_visited = time.time()
 
     return session
+
+async def session_task_scheduler():
+    print("Session task scheduler: started")
+    while True:
+        while True:
+            if not session_tasks:
+                break
+            tasks = list(session_tasks) 
+            done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        print("Session task scheduler: waiting for signal")
+        ok = await session_task_queue.get()
+        print("Session task scheduler: got signal ", ok)
+        if not ok:
+            break
+
+async def session_task_terminate():
+    print("Session task scheduler: closing...")
+
+    async def cancel(task):
+        print("Closing task ", task, "...")
+        try:
+            task.cancel()
+            await task
+        except:
+            pass
+        print("...done")
+
+    #{ cancel(x) for x in session_tasks }
+    for task in session_tasks:
+        cancel(task)
+
+    print("Session task scheduler: closed")
+
+
+session_cleaner_task = None
+
+async def session_cleaner():
+    print("Session cleaner started")
+    while True:
+        await asyncio.sleep(10)
+        s = sessions.copy()
+        for session_id in s:
+            session = sessions[session_id]
+            if (time.time() - session.last_visited > 30):
+                print("Session ", session.sid, ": timeout -- closing...")
+                await close_session(session)
+                try:
+                    session.task.cancel()
+                    await session.task
+                except:
+                    pass
+                print("Session ", session.sid, ": closed")
+
+async def session_cleaner_terminate():
+    print("Session  cleaner: closing...")
+    try:
+        session_cleaner_task.cancel()
+        await session_cleaner_task
+    except:
+        pass
+    print("Session cleaner: closed")
+
+
+
+
 
 # This decorator adds session management to the core request logic.
 # Core function receive session ID and session data as additional parameters.
@@ -300,6 +373,26 @@ async def init_app():
                     aiohttp.web.get('/{file_path:.*}', do_GET_files),
                     aiohttp.web.post('/', do_POST),
                     aiohttp.web.put('/', do_PUT)])
+    
+    scheduler = None
+    async def start_scheduler(app):
+        scheduler = asyncio.create_task(session_task_scheduler())
+    async def stop_scheduler(app):
+        scheduler.cancel()
+        await scheduler
+
+    app.on_startup.append(start_scheduler)
+    app.on_cleanup.append(stop_scheduler)
+
+    async def start_cleaner(app):
+        session_cleaner_task = asyncio.create_task(session_cleaner())
+    async def stop_cleaner(app):
+        session_cleaner.cancel()
+        await session_cleaner_task
+
+    app.on_startup.append(start_cleaner)
+    app.on_cleanup.append(stop_cleaner)
+
     return app
 
 if __name__ == '__main__':
