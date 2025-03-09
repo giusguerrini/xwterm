@@ -40,7 +40,13 @@ def set_size(fd, li, co):
 
 class Shell:
     def  __init__(process):
-        pass
+        process.pid = None
+        process.proc = None
+        process.fd = None
+        process.rd = None
+        process.wr = None
+        process.err = None
+        process.kill = None
 
 class Session:
     def  __init__(self, sid, process):
@@ -169,11 +175,11 @@ async def read_from_process(session, reader):
                 print(e)
     except Exception as e:
         print(e)
-        await close_session(session)
+    print("Session ", session.sid, ": stdout/stderr closing...")
 
 async def write_to_process(session):
     rxq = session.rxq
-    print(f"Writer connected to {rxq}")
+    #print(f"Writer connected to {rxq}")
     writer = session.process.wr
     while True:
         message = await rxq.get()
@@ -190,20 +196,39 @@ async def write_to_process(session):
                 await writer.drain()
         except Exception as e:
             print(e)
-            await close_session(session)
+            break
+    print("Session ", session.sid, ": stdin closing...")
 
 
 async def session_core(session):
+
+    print("Session ", session.sid, ": starting I/O tasks")
     proc = session.process
+
+    tasks = list()
+
+    tasks.append(asyncio.create_task(read_from_process(session, proc.rd)))
+    tasks.append(asyncio.create_task(write_to_process(session)))
     if proc.err:
-        await asyncio.gather(read_from_process(session, proc.rd),
-                             write_to_process(session),
-                             read_from_process(session, proc.err),
-                             return_exceptions=True)
-    else:
-        await asyncio.gather(read_from_process(session, proc.rd),
-                             write_to_process(session),
-                             return_exceptions=True)
+        tasks.append(asyncio.create_task(read_from_process(session, proc.err)))
+
+    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+
+    print("Session core: ", len(done), " completed, ", len(pending), " pending")
+
+    try:
+        for task in pending:
+            print(" cancel ", task)
+            task.cancel()
+    except Exception as e:
+        print(e)
+        
+    print(" end_shell")
+
+    await end_shell(session)
+    #await close_session(session)
+
+    print("Session ", session.sid, ": exiting")
 
 
 
@@ -314,8 +339,6 @@ async def session_cleaner_terminate():
 
 
 
-
-
 # This decorator adds session management to the core request logic.
 # Core function receive session ID and session data as additional parameters.
 def session_decorator(fn):
@@ -338,45 +361,8 @@ def session_decorator(fn):
         return response
     return wrapper
 
-@session_decorator
-async def do_GET(request, session):
-    #print("GET: Session=", session.sid);
-    params = request.query
-
-    if SET_SIZE_PARAM in params:
-        try:
-            sz = params[SET_SIZE_PARAM].split("x")
-            if len(sz) >= 2:
-                li = int(sz[0])
-                co = int(sz[1])
-                set_size(session.process.fd, li, co)
-        except Exception as e:
-            print(e)
- 
-    #if DATA_REQUEST_PARAM in params:
-    #    pass
- 
-    text = "";
-    if not session.visited:
-        text = "Session ID = " + session.sid + "\r\n"
-        session.visited = True;
-    #response = aiohttp.web.Response(text=f'Visits: {session_data["visits"]}')
-    try:
-        while True:
-            t = session.txq.get_nowait()
-            if t == "":
-                break
-            text += t
-        text = text.decode('utf-8')
-    except:
-        pass
-    response = aiohttp.web.Response(body=json.dumps({ 'text': text }), content_type='application/json')
-    #print("GET: Session=", session_id, " Data=", sessions[session_id]);
-    return response
-
-@session_decorator
-async def do_GET_files(request, session):
-    file_path = request.match_info.get('file_path', 'index.html')
+async def get_files(request, session):
+    file_path = request.match_info.get('file_path', 'example.html')
     if os.path.exists(file_path):
         with open(file_path, 'rb') as file:
             content = file.read()
@@ -385,6 +371,50 @@ async def do_GET_files(request, session):
             mime_type = 'application/octet-stream'
     response = aiohttp.web.Response(body=content, content_type=mime_type)
     return response
+
+@session_decorator
+async def do_GET(request, session):
+    #print("GET: Session=", session.sid);
+    params = request.query
+
+    if (SET_SIZE_PARAM in params) or (DATA_REQUEST_PARAM in params): 
+
+        if (SET_SIZE_PARAM in params): 
+            try:
+                sz = params[SET_SIZE_PARAM].split("x")
+                if len(sz) >= 2:
+                    li = int(sz[0])
+                    co = int(sz[1])
+                    set_size(session.process.fd, li, co)
+            except Exception as e:
+                print(e)
+
+        text = "";
+        if not session.visited:
+            text = "Session ID = " + session.sid + "\r\n"
+            session.visited = True;
+        #response = aiohttp.web.Response(text=f'Visits: {session_data["visits"]}')
+        try:
+            while True:
+                t = session.txq.get_nowait()
+                if t == "":
+                    break
+                text += t
+            text = text.decode('utf-8')
+        except:
+            pass
+        response = aiohttp.web.Response(body=json.dumps({ 'text': text }), content_type='application/json')
+        #print("GET: Session=", session_id, " Data=", sessions[session_id]);
+    else:
+        response = await get_files(request, session)
+
+    return response
+
+
+
+@session_decorator
+async def do_GET_files(request, session):
+    return await get_files(request, session)
 
 @session_decorator
 async def do_POST(request, session):
