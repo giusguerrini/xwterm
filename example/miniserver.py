@@ -37,6 +37,67 @@ def set_size(fd, li, co):
     except:
         pass
 
+class AyncJob:
+
+    def __init__(self, name="?", on_task_termination=None, terminate_on_first_competed=False, *tasklist):
+        self.on_task_termination = on_task_termination
+        self.terminate_on_first_competed = terminate_on_first_competed
+        self.name = name
+        self.signal_q = asyncio.Queue()
+        self.tasks = set()
+        self.listener = asyncio.create_task(self.listen())
+        self.tasks.append(self.listener)
+        for t in tasklist:
+            self.tasks.add(t)
+
+    async def listen(self):
+        print("Job ", self.name, ": waiting for signal")
+        ok = await self.signal_q.get()
+        print("Job ", self.name, ": got signal ", ok)
+        return ok
+    
+    async def job(self):
+
+        while True:
+            print("Job ", self.name, ": waiting for tasks")
+            
+            tasks = list(self.tasks)
+            tasks.append(self.listener)
+
+            done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+
+            print("Job ", self.name, ": ", len(done), " completed, ", len(pending), " pending")
+
+            end = False
+
+            for task in done:
+                result = await task
+                if task == self.listener:
+                    print("Job ", self.name, ": got signal ", result)
+                    self.listener = asyncio.create_task(self.listen())
+                    end = not result
+                else:
+                    self.tasks.remove(task)
+                    if self.on_task_termination:
+                        self.on_task_termination(task)
+                    if self.terminate_on_first_competed:
+                        end = True
+                
+            if end:
+                print("Job ", self.name, ": terminating...")
+                for task in pending:
+                    print(" ...cancel ", task)
+                    task.cancel()
+                    await task            
+                print("Job ", self.name, ": terminated")
+                break
+
+
+    async def add(self, task):
+        self.tasks.add(task)
+        await self.signal_q.put(True)
+
+    
 
 class Shell:
     def  __init__(process):
@@ -281,8 +342,8 @@ async def session_task_scheduler():
         tasks.append(listener)
         done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         if listener in done:
-                ok = await listener
-                listener = asyncio.create_task(session_task_listener())
+            ok = await listener
+            listener = asyncio.create_task(session_task_listener())
 
         print("Session task scheduler: ", len(done), " completed, ", len(pending), " pending")
         print("Session task scheduler: got signal ", ok, " from listener")
