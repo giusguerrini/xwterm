@@ -287,6 +287,15 @@ class Shell:
                     ("lpAttributeList", ctypes.c_void_p)
                 ]
 
+            kernel32.CreatePseudoConsole.argtypes = [
+                wintypes.COORD,
+                wintypes.HANDLE,
+                wintypes.HANDLE,
+                wintypes.DWORD, 
+                ctypes.POINTER(ctypes.c_void_p)
+            ]
+            kernel32.CreatePseudoConsole.restype = wintypes.HRESULT
+
             self.pty = ctypes.c_void_p()
             size = (DEFAULT_NCOLUMNS, DEFAULT_NLINES)
             kernel32.CreatePseudoConsole(size, ctypes.c_void_p(), ctypes.c_void_p(), 0, ctypes.byref(self.pty))
