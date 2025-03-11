@@ -522,8 +522,6 @@ class Session:
                 except:
                     t = message
                 if t != '':
-                    if platform.system() != "Linux":
-                        t.replace("\r","\r\n")
                     writer.write(t.encode())
                     await writer.drain()
             except asyncio.CancelledError:
