@@ -40,7 +40,7 @@ else:
 
     #LONG = ctypes.c_long
     HRESULT = wintypes.LONG
-    SIZE_T = c_size_t
+    SIZE_T = ctypes.c_size_t
 
     PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016
 
