@@ -71,6 +71,11 @@ else:
             ("StartupInfo", STARTUPINFOA),
             ("lpAttributeList", ctypes.c_void_p)
         ]
+        def copy(self):
+            new_instance = StartupInfoEx()
+            ctypes.memmove(ctypes.addressof(new_instance), ctypes.addressof(self), ctypes.sizeof(self))
+            return new_instance
+
 
     class COORD(ctypes.Structure):
         _fields_ = [("X", wintypes.SHORT), ("Y", wintypes.SHORT)]
