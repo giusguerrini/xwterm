@@ -329,7 +329,7 @@ class Shell:
 
             startupinfo = StartupInfoEx()
             startupinfo.StartupInfo.cb = ctypes.sizeof(startupinfo)
-            startupinfo.lpAttributeList = attr_list
+            startupinfo.lpAttributeList = ctypes.cast(ctypes.addressof(attr_list), ctypes.c_void_p)
 
             proc = await asyncio.create_subprocess_exec(*cmd,
                                                         startupinfo = startupinfo,
