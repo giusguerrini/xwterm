@@ -374,6 +374,18 @@ class Session:
     async def request_handler(request):
 
         sid = request.cookies.get('session_id')
+        if not sid:
+            #
+            # Hack: chrome on Windows ignore some cookies...
+            #
+            if "Cookie" in request.headers:
+                cl = request.headers["Cookie"]
+                cookies = {}
+                for cookie in cl.split('; '):
+                    key, value = cookie.split('=', 1)
+                    cookies[key] = value
+                if 'session_id' in cookies:
+                    sid = cookies['session_id']
 
         #print("Receive session ID: ", session_id or "");
         if sid and sid in Session.sessions:
@@ -445,6 +457,7 @@ async def get_files(request, session):
         with open(file_path, 'rb') as file:
             content = file.read()
         mime_type, _ = mimetypes.guess_type(file_path)
+        print("File ", file_path, " mime-type ", mime_type)
         if mime_type is None:
             mime_type = 'application/octet-stream'
     response = aiohttp.web.Response(body=content, content_type=mime_type)
@@ -540,6 +553,8 @@ async def init_app():
     app.on_startup.append(run_session_manager)
 
     return app
+
+mimetypes.add_type('application/javascript', '.js')
 
 if __name__ == '__main__':
     aiohttp.web.run_app(init_app(), host='127.0.0.1', port=8000)
