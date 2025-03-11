@@ -45,6 +45,7 @@ else:
 
     PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016
 
+
     class STARTUPINFOA(Structure):
         _fields_ = [
             ("cb", wintypes.DWORD),
@@ -65,30 +66,11 @@ else:
             ("hStdInput", wintypes.HANDLE),
             ("hStdOutput", wintypes.HANDLE),
             ("hStdError", wintypes.HANDLE)
-                       ("lpAttributeList", ctypes.c_void_p)
- 
         ]
 
     class StartupInfoEx(ctypes.Structure):
         _fields_ = [
             ("StartupInfo", STARTUPINFOA),
-            ("lpReserved", wintypes.LPSTR),
-            ("lpDesktop", wintypes.LPSTR),
-            ("lpTitle", wintypes.LPSTR),
-            ("dwX", wintypes.DWORD),
-            ("dwY", wintypes.DWORD),
-            ("dwXSize", wintypes.DWORD),
-            ("dwYSize", wintypes.DWORD),
-            ("dwXCountChars", wintypes.DWORD),
-            ("dwYCountChars", wintypes.DWORD),
-            ("dwFillAttribute", wintypes.DWORD),
-            ("dwFlags", wintypes.DWORD),
-            ("wShowWindow", wintypes.WORD),
-            ("cbReserved2", wintypes.WORD),
-            ("lpReserved2", wintypes.LPBYTE),
-            ("hStdInput", wintypes.HANDLE),
-            ("hStdOutput", wintypes.HANDLE),
-            ("hStdError", wintypes.HANDLE),
             ("lpAttributeList", ctypes.c_void_p)
         ]
         def copy(self):
