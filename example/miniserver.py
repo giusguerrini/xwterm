@@ -40,6 +40,7 @@ else:
 
     #LONG = ctypes.c_long
     HRESULT = wintypes.LONG
+    SIZE_T = c_size_t
 
     PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016
 
@@ -311,7 +312,7 @@ class Shell:
             size = COORD(DEFAULT_NCOLUMNS, DEFAULT_NLINES)
             kernel32.CreatePseudoConsole(size, ctypes.c_void_p(), ctypes.c_void_p(), 0, ctypes.byref(self.pty))
 
-            attr_size = wintypes.SIZE()
+            attr_size = SIZE_T()
             kernel32.InitializeProcThreadAttributeList(None, 1, 0, ctypes.byref(attr_size))
             attr_list = ctypes.create_string_buffer(attr_size.value)
             kernel32.InitializeProcThreadAttributeList(attr_list, 1, 0, ctypes.byref(attr_size))
