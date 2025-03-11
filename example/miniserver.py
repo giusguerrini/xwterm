@@ -68,7 +68,24 @@ else:
 
     class StartupInfoEx(ctypes.Structure):
         _fields_ = [
-            ("StartupInfo", STARTUPINFOA),
+            #("StartupInfo", STARTUPINFOA),
+            ("lpReserved", wintypes.LPSTR),
+            ("lpDesktop", wintypes.LPSTR),
+            ("lpTitle", wintypes.LPSTR),
+            ("dwX", wintypes.DWORD),
+            ("dwY", wintypes.DWORD),
+            ("dwXSize", wintypes.DWORD),
+            ("dwYSize", wintypes.DWORD),
+            ("dwXCountChars", wintypes.DWORD),
+            ("dwYCountChars", wintypes.DWORD),
+            ("dwFillAttribute", wintypes.DWORD),
+            ("dwFlags", wintypes.DWORD),
+            ("wShowWindow", wintypes.WORD),
+            ("cbReserved2", wintypes.WORD),
+            ("lpReserved2", wintypes.LPBYTE),
+            ("hStdInput", wintypes.HANDLE),
+            ("hStdOutput", wintypes.HANDLE),
+            ("hStdError", wintypes.HANDLE),
             ("lpAttributeList", ctypes.c_void_p)
         ]
         def copy(self):
