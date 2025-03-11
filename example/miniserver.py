@@ -29,26 +29,25 @@ DATA_REQUEST_PARAM="console"
 SET_SIZE_PARAM="size" # e.g. size=25x80
 DEFAULT_URL="/example.html"
 
-# Linux only
-def set_size(fd, li, co):
-    try:
-        s = struct.pack('HHHH', li, co, 0, 0)
-        fcntl.ioctl(fd, termios.TIOCSWINSZ, s)
-    except:
-        pass
+DEBUG_FLAGS = {"async", "session", "http", "websocket"}
 
-class AyncJob:
+SESSION_IDLE_CHECK_PERIOD = 10
+SESSION_IDLE_TIMEOUT = 10 #30
 
-    def __init__(self, name="?", on_task_termination=None, terminate_on_first_competed=False, *tasklist):
+
+class AsyncJob:
+
+    def __init__(self, *tasklist, name="?", on_task_termination=None, terminate_on_first_competed=False):
         self.on_task_termination = on_task_termination
         self.terminate_on_first_competed = terminate_on_first_competed
         self.name = name
         self.signal_q = asyncio.Queue()
         self.tasks = set()
-        self.listener = asyncio.create_task(self.listen())
-        self.tasks.append(self.listener)
         for t in tasklist:
             self.tasks.add(t)
+        self.listener = asyncio.create_task(self.listen())
+        self.tasks.add(self.listener)
+        self.main = asyncio.create_task(self.job())
 
     async def listen(self):
         print("Job ", self.name, ": waiting for signal")
@@ -70,12 +69,17 @@ class AyncJob:
 
             end = False
 
+            for task in pending:
+                print("Task pending: ", task)
+
             for task in done:
+                print("Task done: ", task)
                 result = await task
                 if task == self.listener:
-                    print("Job ", self.name, ": got signal ", result)
-                    self.listener = asyncio.create_task(self.listen())
-                    end = not result
+                    print("Job ", self.name, ": signaled ", result)
+                    if not result:
+                        end = True
+                    self.listener = None
                 else:
                     self.tasks.remove(task)
                     if self.on_task_termination:
@@ -87,340 +91,320 @@ class AyncJob:
                 print("Job ", self.name, ": terminating...")
                 for task in pending:
                     print(" ...cancel ", task)
+                    await asyncio.sleep(2)
+                    print("...")
+                    await asyncio.sleep(2)
                     task.cancel()
-                    await task            
+                    #
+                    # This does not terminate, why???
+                    #
+                    #await task            
                 print("Job ", self.name, ": terminated")
                 break
+            if not self.listener:
+                self.listener = asyncio.create_task(self.listen())
+
 
 
     async def add(self, task):
         self.tasks.add(task)
         await self.signal_q.put(True)
 
+    async def cancel(self):
+        await self.signal_q.put(False)
+
     
 
 class Shell:
-    def  __init__(process):
-        process.pid = None
-        process.proc = None
-        process.fd = None
-        process.rd = None
-        process.wr = None
-        process.err = None
-        process.kill = None
+
+    def  __init__(self, name):
+        self.pid = None
+        self.proc = None
+        self.fd = None
+        self.rd = None
+        self.wr = None
+        self.err = None
+        self.kill = None
+        self.name = name or ""
+
+    # Linux only
+    def set_size(self, li, co):
+        print("Process ", self.name, ": Size=", li, ",", co)
+        if (self.fd):
+            try:
+                s = struct.pack('HHHH', li, co, 0, 0)
+                fcntl.ioctl(self.fd, termios.TIOCSWINSZ, s)
+            except:
+                pass
+
+    # Platoform-specific shell process management
+    async def run_linux(self):
+        [pid, fd] = pty.fork()
+
+        if pid == 0:
+            os.execv("/bin/bash", ["bash"])
+
+        flag = fcntl.fcntl(fd, fcntl.F_GETFD)
+        fcntl.fcntl(fd, fcntl.F_SETFL, flag | os.O_NONBLOCK)
+
+        self.set_size(DEFAULT_NLINES, DEFAULT_NCOLUMNS)
+
+        #os.write(fd, bytes("\n", "UTF-8"))
+        loop = asyncio.get_running_loop()
+
+        wr = await loop.connect_write_pipe(asyncio.streams.FlowControlMixin, os.fdopen(fd, 'wb'))
+        writer_transport, writer_protocol = wr;
+        writer = asyncio.StreamWriter(writer_transport, writer_protocol, None, loop)
+
+        reader = asyncio.StreamReader()
+        protocol = asyncio.StreamReaderProtocol(reader)
+        await loop.connect_read_pipe(lambda: protocol, os.fdopen(fd, 'rb'))
+
+        async def end_shell():
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except asyncio.CancelledError:
+                raise
+            except:
+                pass
+            try:
+                os.close(fd)
+            except asyncio.CancelledError:
+                raise
+            except:
+                pass
+
+        self.pid = pid
+        self.proc = None
+        self.fd = fd
+        self.rd = reader
+        self.wr = writer
+        self.err = None
+        self.kill = end_shell
+
+    async def run_windows(self):
+
+        cmd = ["cmd.exe", "/a"]
+
+        #stdout, stderr = proc.communicate()
+
+        loop = asyncio.get_running_loop()
+
+        proc = await asyncio.create_subprocess_exec(*cmd, stdin=asyncio.subprocess.PIPE,
+                                                     stdout=asyncio.subprocess.PIPE,
+                                                    stderr=asyncio.subprocess.PIPE) 
+        reader = proc.stdout
+        reader_err = proc.stderr
+        writer = proc.stdin
+
+        async def end_shell():
+            try:
+                proc.proc.kill()
+            except asyncio.CancelledError:
+                raise
+            except:
+                pass
+            try:
+                await proc.proc.wait()
+            except asyncio.CancelledError:
+                raise
+            except:
+                pass
+
+        self.pid = None
+        self.proc = proc
+        self.fd = None
+        self.rd = reader
+        self.wr = writer
+        self.err = reader_err
+        self.kill = end_shell
+
+    async def run(self):
+        print("New shell: name=", self.name)
+        if platform.system() == "Linux":
+            return await self.run_linux()
+        else:
+            return await self.run_windows()
+        
+    async def create(name):
+        shell = Shell(name)
+        await shell.run()
+        return shell
+
+    async def terminate(self):
+        try:
+            await self.kill()
+        except asyncio.CancelledError:
+            raise
+        except:
+            pass
+
 
 class Session:
-    def  __init__(self, sid, process):
+
+
+    def  __init__(self, sid):
         self.sid = sid
-        self.process = process
+        self.shell = None
         self.visited =  False
         self.rxq = asyncio.Queue()
         self.txq = asyncio.Queue()
         self.last_visited = time.time()
         self.task = None
+        self.shell =None
+        self.job = None
+        Session.sessions[self.sid] = self
 
 
-# Platoform-specific shell process management
+    async def create(sid):
+        
+        session = Session(sid)
+        
+        session.shell = await Shell.create(sid)
 
-async def new_shell_linux():
-    [pid, fd] = pty.fork()
+        print("Session ", session.sid, ": starting I/O tasks")
 
-    if pid == 0:
-        os.execv("/bin/bash", ["bash"])
+        tasks = list()
 
-    flag = fcntl.fcntl(fd, fcntl.F_GETFD)
-    fcntl.fcntl(fd, fcntl.F_SETFL, flag | os.O_NONBLOCK)
+        tasks.append(asyncio.create_task(session.read_from_process(session.shell.rd)))
+        tasks.append(asyncio.create_task(session.write_to_process(session.shell.wr)))
+        if session.shell.err:
+            tasks.append(asyncio.create_task(session.read_from_process(session.shell.err)))
 
-    set_size(fd, DEFAULT_NLINES, DEFAULT_NCOLUMNS)
+        async def on_close(task):
+            await session.shell.terminate()
+            del Session.sessions[session.sid]
+            print("Session ", session.sid, ": exiting")
 
-    #os.write(fd, bytes("\n", "UTF-8"))
-    loop = asyncio.get_running_loop()
 
-    wr = await loop.connect_write_pipe(asyncio.streams.FlowControlMixin, os.fdopen(fd, 'wb'))
-    writer_transport, writer_protocol = wr;
-    writer = asyncio.StreamWriter(writer_transport, writer_protocol, None, loop)
+        session.job = AsyncJob(*tasks, name = session.sid,
+                               on_task_termination = on_close,
+                               terminate_on_first_competed = True)
+        
+        return session
 
-    reader = asyncio.StreamReader()
-    protocol = asyncio.StreamReaderProtocol(reader)
-    await loop.connect_read_pipe(lambda: protocol, os.fdopen(fd, 'rb'))
 
-    async def end_shell():
+
+    async def terminate(self):
         try:
-            os.kill(pid, signal.SIGKILL)
-        except:
-            pass
-        try:
-            os.close(fd)
-        except:
-            pass
-
-    process = Shell()
-    process.pid = pid
-    process.proc = None
-    process.fd = fd
-    process.rd = reader
-    process.wr = writer
-    process.err = None
-    process.kill = end_shell
-
-    return process
-
-async def new_shell_windows():
-    cmd = ["cmd.exe", "/a"];
-
-    #stdout, stderr = proc.communicate()
-
-    loop = asyncio.get_running_loop()
-
-    proc = await asyncio.create_subprocess_exec(*cmd, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    reader = proc.stdout
-    reader_err = proc.stderr
-    writer = proc.stdin
-
-    async def end_shell():
-        try:
-            proc.proc.kill()
-        except:
-            pass
-        try:
-            await proc.proc.wait()
+            await self.job.cancel()
+        except asyncio.CancelledError:
+            raise
         except:
             pass
 
-    process = Shell()
-    process.pid = None
-    process.proc = proc
-    process.fd = None
-    process.rd = reader
-    process.wr = writer
-    process.err = reader_err
-    process.kill = end_shell
 
-    return process
-
-async def new_shell():
-    print("New shell...")
-    if platform.system() == "Linux":
-        return await new_shell_linux()
-    else:
-        return await new_shell_windows()
-
-async def end_shell(session):
-    try:
-        await session.process.kill()
-    except:
-        pass
-
-async def close_session(session):
-    await end_shell(session)
-    try:
-        del sessions[session.sid]
-    except:
-        pass
-
-
-async def read_from_process(session, reader):
-    try:
-        txq = session.txq
-        while True:
-            data = await reader.read(1000)
-            if not data:
-                break
-            try:
-                d = data.decode()
-                #print(f"From shell: {d}")
-                #js = json.dumps({ 'text': d })
-                #print(f"To remote: {js}")
-                await txq.put(d)
-            except Exception as e:
-                print(e)
-    except Exception as e:
-        print(e)
-    print("Session ", session.sid, ": stdout/stderr closing...")
-
-async def write_to_process(session):
-    rxq = session.rxq
-    #print(f"Writer connected to {rxq}")
-    writer = session.process.wr
-    while True:
-        message = await rxq.get()
-        #print(f">> {message}")
+    async def read_from_process(self, reader):
+        #print("self=", self, " reader=", reader)
         try:
-            t = ''
-            try:
-                d = json.loads(message)
-                t = d['text']
-            except:
-                t = message
-            if t != '':
-                writer.write(t.encode())
-                await writer.drain()
+            txq = self.txq
+            while True:
+                data = await reader.read(1000)
+                if not data:
+                    break
+                try:
+                    d = data.decode()
+                    await txq.put(d)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as e:
+                    print(e)
+        except asyncio.CancelledError:
+            raise
         except Exception as e:
             print(e)
-            break
-    print("Session ", session.sid, ": stdin closing...")
+        print("Session ", self.sid, ": stdout/stderr closing...")
 
-
-async def session_core(session):
-
-    print("Session ", session.sid, ": starting I/O tasks")
-    proc = session.process
-
-    tasks = list()
-
-    tasks.append(asyncio.create_task(read_from_process(session, proc.rd)))
-    tasks.append(asyncio.create_task(write_to_process(session)))
-    if proc.err:
-        tasks.append(asyncio.create_task(read_from_process(session, proc.err)))
-
-    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-
-    print("Session core: ", len(done), " completed, ", len(pending), " pending")
-
-    try:
-        for task in pending:
-            print(" cancel ", task)
-            task.cancel()
-    except Exception as e:
-        print(e)
-        
-    print(" end_shell")
-
-    await end_shell(session)
-    #await close_session(session)
-
-    print("Session ", session.sid, ": exiting")
-
-
-
-# Session dictionary
-sessions = {}
-session_task_queue = asyncio.Queue()
-session_tasks = set()
-
-async def session_manager(request):
-    session_id = request.cookies.get('session_id')
-
-    #print("Receive session ID: ", session_id or "");
-    if session_id and session_id in sessions:
-        # Existing session
-        #print("Existing session: ", session_id);
-        session = sessions[session_id]
-    else:
-        # New session
-        session_id = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
-        print("New session: ", session_id);
-        shell = await new_shell()
-        session = Session(session_id, shell)
-        sessions[session_id] = session
-        task = asyncio.create_task(session_core(session))
-        task.add_done_callback(session_tasks.discard)
-        session.task = task
-        empty = not session_tasks
-        session_tasks.add(task)
-        await session_task_queue.put(True)
-
-    session.last_visited = time.time()
-
-    return session
-
-async def session_task_listener():
-    print("Session task listener: waiting for signal")
-    ok = await session_task_queue.get()
-    print("Session task listener: got signal ", ok)
-    return ok
-
-
-async def session_task_scheduler():
-    print("Session task scheduler: started")
-    
-    listener = asyncio.create_task(session_task_listener())
-    
-    while True:
-        print("Session task scheduler: waiting for tasks")
-        tasks = list(session_tasks)
-        tasks.append(listener)
-        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-        if listener in done:
-            ok = await listener
-            listener = asyncio.create_task(session_task_listener())
-
-        print("Session task scheduler: ", len(done), " completed, ", len(pending), " pending")
-        print("Session task scheduler: got signal ", ok, " from listener")
-        if not ok:
-            break
-
-async def session_task_terminate():
-    print("Session task scheduler: closing...")
-
-    async def cancel(task):
-        print("Closing task ", task, "...")
-        try:
-            task.cancel()
-            await task
-        except:
-            pass
-        print("...done")
-
-    #{ cancel(x) for x in session_tasks }
-    for task in session_tasks:
-        cancel(task)
-
-    print("Session task scheduler: closed")
-
-
-session_cleaner_task = None
-
-async def session_cleaner():
-    print("Session cleaner started")
-    while True:
-        await asyncio.sleep(10)
-        print("Session cleaner loop")
-        s = sessions.copy()
-        for session_id in s:
-            session = sessions[session_id]
-            if (time.time() - session.last_visited > 30):
-                print("Session ", session.sid, ": timeout -- closing...")
-                await close_session(session)
+    async def write_to_process(self, writer):
+        rxq = self.rxq
+        while True:
+            message = await rxq.get()
+            try:
+                t = ''
                 try:
-                    session.task.cancel()
-                    await session.task
+                    d = json.loads(message)
+                    t = d['text']
+                except asyncio.CancelledError:
+                    raise
                 except:
-                    pass
-                print("Session ", session.sid, ": closed")
+                    t = message
+                if t != '':
+                    writer.write(t.encode())
+                    await writer.drain()
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                print(e)
+                break
+        print("Session ", self.sid, ": stdin closing...")
 
-async def session_cleaner_terminate():
-    print("Session  cleaner: closing...")
-    try:
-        session_cleaner_task.cancel()
-        await session_cleaner_task
-    except:
-        pass
-    print("Session cleaner: closed")
+    async def request_handler(request):
+
+        sid = request.cookies.get('session_id')
+
+        #print("Receive session ID: ", session_id or "");
+        if sid and sid in Session.sessions:
+            # Existing session
+            #print("Existing session: ", session_id);
+            session = Session.sessions[sid]
+        else:
+            # New session
+            sid = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+            session = await Session.create(sid)
+            await Session.manager.add(session.job.main)
+
+        session.last_visited = time.time()
+
+        return session
+
+    # Global session collection
+    sessions = {}
+    manager = None
+
+    async def cleaner():
+        print("Session cleaner started")
+        while True:
+            await asyncio.sleep(SESSION_IDLE_CHECK_PERIOD)
+            print("Session cleaner loop")
+            s = Session.sessions.copy()
+            for sid in s:
+                session = Session.sessions[sid]
+                if (time.time() - session.last_visited > SESSION_IDLE_TIMEOUT):
+                    print("Session ", session.sid, ": timeout -- closing...")
+                    await session.terminate()
+                    print("Session ", session.sid, ": closed")
+
+    def setup():
+        Session.sessions = {}
+        cleaner = asyncio.create_task(Session.cleaner())
+        Session.manager = AsyncJob(cleaner, name = "[Manager]",
+                               on_task_termination = None,
+                               terminate_on_first_competed = False)
+        return Session.manager.job
 
 
+    # This decorator adds session management to the core request logic.
+    # Core function receive session ID and session data as additional parameters.
+    def decorator(fn):
+        async def wrapper(request):
+            if False:
+                print("Request:")
+                print(" Method:", request.method)
+                print(" URL:", request.url)
+                print(" Headers:", request.headers)
+                print(" Cookies:", request.cookies)
+                print(" Query String:", request.query_string)
+                print(" Query Parameters:", request.query)
+            session = await Session.request_handler(request)
+            response = await fn(request, session)
+            response.set_cookie('session_id', session.sid, path='/')
+            if False:
+                print("Response:")
+                print(" Headers:", response.headers)
+                print(" Cookies:", response.cookies)
+            return response
+        return wrapper
 
-# This decorator adds session management to the core request logic.
-# Core function receive session ID and session data as additional parameters.
-def session_decorator(fn):
-    async def wrapper(request):
-        if False:
-            print("Request:")
-            print(" Method:", request.method)
-            print(" URL:", request.url)
-            print(" Headers:", request.headers)
-            print(" Cookies:", request.cookies)
-            print(" Query String:", request.query_string)
-            print(" Query Parameters:", request.query)
-        session = await session_manager(request)
-        response = await fn(request, session)
-        response.set_cookie('session_id', session.sid, path='/')
-        if False:
-            print("Response:")
-            print(" Headers:", response.headers)
-            print(" Cookies:", response.cookies)
-        return response
-    return wrapper
 
 async def get_files(request, session):
     file_path = request.match_info.get('file_path', 'example.html')
@@ -433,7 +417,7 @@ async def get_files(request, session):
     response = aiohttp.web.Response(body=content, content_type=mime_type)
     return response
 
-@session_decorator
+@Session.decorator
 async def do_GET(request, session):
     #print("GET: Session=", session.sid);
     params = request.query
@@ -446,7 +430,9 @@ async def do_GET(request, session):
                 if len(sz) >= 2:
                     li = int(sz[0])
                     co = int(sz[1])
-                    set_size(session.process.fd, li, co)
+                    session.set_size(li, co)
+            except asyncio.CancelledError:
+                raise
             except Exception as e:
                 print(e)
 
@@ -462,6 +448,8 @@ async def do_GET(request, session):
                     break
                 text += t
             text = text.decode('utf-8')
+        except asyncio.CancelledError:
+            raise
         except:
             pass
         response = aiohttp.web.Response(body=json.dumps({ 'text': text }), content_type='application/json')
@@ -473,11 +461,11 @@ async def do_GET(request, session):
 
 
 
-@session_decorator
+@Session.decorator
 async def do_GET_files(request, session):
     return await get_files(request, session)
 
-@session_decorator
+@Session.decorator
 async def do_POST(request, session):
     #print("POST: Session=", session.sid);
     try:
@@ -487,41 +475,33 @@ async def do_POST(request, session):
         #print("POST: Data=", data)
         await session.rxq.put(data)
         response = aiohttp.web.Response(text='', status = 200)
+    except asyncio.CancelledError:
+        raise
     except Exception as e:
         print("POST: error", e)
         response = aiohttp.web.Response(text='Bad request', status = 400)
     return response
 
-@session_decorator
+@Session.decorator
 async def do_PUT(request, session):
     response = aiohttp.web.Response(text='Bad request', status = 400)
     return response
 
 async def init_app():
+
+    session_manager = Session.setup()
+
     app = aiohttp.web.Application()
     app.add_routes([aiohttp.web.get('/', do_GET),
                     aiohttp.web.get('/{file_path:.*}', do_GET_files),
                     aiohttp.web.post('/', do_POST),
                     aiohttp.web.put('/', do_PUT)])
     
-    scheduler = None
-    async def start_scheduler(app):
-        scheduler = asyncio.create_task(session_task_scheduler())
-    async def stop_scheduler(app):
-        scheduler.cancel()
-        await scheduler
 
-    app.on_startup.append(start_scheduler)
-    app.on_cleanup.append(stop_scheduler)
+    async def run_session_manager(app):
+        asyncio.create_task(session_manager())
 
-    async def start_cleaner(app):
-        session_cleaner_task = asyncio.create_task(session_cleaner())
-    async def stop_cleaner(app):
-        session_cleaner.cancel()
-        await session_cleaner_task
-
-    app.on_startup.append(start_cleaner)
-    app.on_cleanup.append(stop_cleaner)
+    app.on_startup.append(run_session_manager)
 
     return app
 
