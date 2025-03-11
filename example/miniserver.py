@@ -28,6 +28,70 @@ try:
 except:
     pass
 
+if platform.system() == "Linux":
+    pass
+else:
+
+    #
+    # ctypes.wintypes integration...
+    #
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+    PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016
+
+    class STARTUPINFOA(Structure):
+        _fields_ = [
+            ("cb", wintypes.DWORD),
+            ("lpReserved", wintypes.LPSTR),
+            ("lpDesktop", wintypes.LPSTR),
+            ("lpTitle", wintypes.LPSTR),
+            ("dwX", wintypes.DWORD),
+            ("dwY", wintypes.DWORD),
+            ("dwXSize", wintypes.DWORD),
+            ("dwYSize", wintypes.DWORD),
+            ("dwXCountChars", wintypes.DWORD),
+            ("dwYCountChars", wintypes.DWORD),
+            ("dwFillAttribute", wintypes.DWORD),
+            ("dwFlags", wintypes.DWORD),
+            ("wShowWindow", wintypes.WORD),
+            ("cbReserved2", wintypes.WORD),
+            ("lpReserved2", wintypes.LPBYTE),
+            ("hStdInput", wintypes.HANDLE),
+            ("hStdOutput", wintypes.HANDLE),
+            ("hStdError", wintypes.HANDLE)
+        ]
+
+    class StartupInfoEx(ctypes.Structure):
+        _fields_ = [
+            ("StartupInfo", STARTUPINFOA),
+            ("lpAttributeList", ctypes.c_void_p)
+        ]
+
+    class COORD(ctypes.Structure):
+        _fields_ = [("X", wintypes.SHORT), ("Y", wintypes.SHORT)]
+
+    kernel32.CreatePseudoConsole.argtypes = [
+        COORD,
+        wintypes.HANDLE,
+        wintypes.HANDLE,
+        wintypes.DWORD, 
+        ctypes.POINTER(ctypes.c_void_p)
+    ]
+
+    kernel32.CreatePseudoConsole.restype = wintypes.HRESULT
+
+    class SMALL_RECT(ctypes.Structure):
+        _fields_ = [("Left", ctypes.c_short), ("Top", ctypes.c_short),
+                    ("Right", ctypes.c_short), ("Bottom", ctypes.c_short)]
+
+    kernel32.SetConsoleScreenBufferSize.argtypes = [wintypes.HANDLE, COORD]
+    kernel32.SetConsoleScreenBufferSize.restype = wintypes.BOOL
+
+    kernel32.SetConsoleWindowInfo.argtypes = [wintypes.HANDLE, ctypes.wintypes.BOOL, POINTER(SMALL_RECT)]
+    kernel32.SetConsoleWindowInfo.restype = wintypes.BOOL
+
+
 DEFAULT_NLINES=40
 DEFAULT_NCOLUMNS=120
 
@@ -165,21 +229,6 @@ class Shell:
     def set_size_windows(self, li, co):
         print("Process ", self.name, ": Size=", li, ",", co)
 
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-
-        class COORD(ctypes.Structure):
-            _fields_ = [("X", ctypes.c_short), ("Y", ctypes.c_short)]
-
-        class SMALL_RECT(ctypes.Structure):
-            _fields_ = [("Left", ctypes.c_short), ("Top", ctypes.c_short),
-                        ("Right", ctypes.c_short), ("Bottom", ctypes.c_short)]
-
-        kernel32.SetConsoleScreenBufferSize.argtypes = [ctypes.wintypes.HANDLE, COORD]
-        kernel32.SetConsoleScreenBufferSize.restype = ctypes.wintypes.BOOL
-
-        kernel32.SetConsoleWindowInfo.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.BOOL, ctypes.POINTER(SMALL_RECT)]
-        kernel32.SetConsoleWindowInfo.restype = ctypes.wintypes.BOOL
-
         new_buffer_size = COORD(co, li)
         result = kernel32.SetConsoleScreenBufferSize(self.pty, new_buffer_size)
         if not result:
@@ -254,50 +303,9 @@ class Shell:
         cmd = ["cmd.exe", "/a"]
 
         if True:
-            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-
-            PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016
-
-            class STARTUPINFOA(Structure):
-                _fields_ = [
-                    ("cb", wintypes.DWORD),
-                    ("lpReserved", wintypes.LPSTR),
-                    ("lpDesktop", wintypes.LPSTR),
-                    ("lpTitle", wintypes.LPSTR),
-                    ("dwX", wintypes.DWORD),
-                    ("dwY", wintypes.DWORD),
-                    ("dwXSize", wintypes.DWORD),
-                    ("dwYSize", wintypes.DWORD),
-                    ("dwXCountChars", wintypes.DWORD),
-                    ("dwYCountChars", wintypes.DWORD),
-                    ("dwFillAttribute", wintypes.DWORD),
-                    ("dwFlags", wintypes.DWORD),
-                    ("wShowWindow", wintypes.WORD),
-                    ("cbReserved2", wintypes.WORD),
-                    ("lpReserved2", wintypes.LPBYTE),
-                    ("hStdInput", wintypes.HANDLE),
-                    ("hStdOutput", wintypes.HANDLE),
-                    ("hStdError", wintypes.HANDLE)
-                ]
-    
-
-            class StartupInfoEx(ctypes.Structure):
-                _fields_ = [
-                    ("StartupInfo", STARTUPINFOA),
-                    ("lpAttributeList", ctypes.c_void_p)
-                ]
-
-            kernel32.CreatePseudoConsole.argtypes = [
-                wintypes.COORD,
-                wintypes.HANDLE,
-                wintypes.HANDLE,
-                wintypes.DWORD, 
-                ctypes.POINTER(ctypes.c_void_p)
-            ]
-            kernel32.CreatePseudoConsole.restype = wintypes.HRESULT
 
             self.pty = ctypes.c_void_p()
-            size = (DEFAULT_NCOLUMNS, DEFAULT_NLINES)
+            size = COORD(DEFAULT_NCOLUMNS, DEFAULT_NLINES)
             kernel32.CreatePseudoConsole(size, ctypes.c_void_p(), ctypes.c_void_p(), 0, ctypes.byref(self.pty))
 
             attr_size = ctypes.wintypes.SIZE_T()
