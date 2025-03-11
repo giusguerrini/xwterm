@@ -68,15 +68,15 @@ else:
             ("hStdError", wintypes.HANDLE)
         ]
 
-    class StartupInfoEx(ctypes.Structure):
+    class STARTUPINFOEX(ctypes.Structure):
         _fields_ = [
             ("StartupInfo", STARTUPINFOA),
             ("lpAttributeList", ctypes.c_void_p)
         ]
-        def copy(self):
-            new_instance = StartupInfoEx()
-            ctypes.memmove(ctypes.addressof(new_instance), ctypes.addressof(self), ctypes.sizeof(self))
-            return new_instance
+        #def copy(self):
+        #    new_instance = StartupInfoEx()
+        #    ctypes.memmove(ctypes.addressof(new_instance), ctypes.addressof(self), ctypes.sizeof(self))
+        #    return new_instance
 
 
     class COORD(ctypes.Structure):
@@ -313,7 +313,7 @@ class Shell:
 
         cmd = ["cmd.exe", "/a"]
 
-        if True:
+        if False:
 
             self.pty = ctypes.c_void_p()
             size = COORD(DEFAULT_NCOLUMNS, DEFAULT_NLINES)
@@ -334,7 +334,7 @@ class Shell:
                 None
             )
 
-            startupinfo = subprocess.STARTUPINFO() #StartupInfoEx()
+            startupinfo = STARTUPINFOEX()
             startupinfo.StartupInfo.cb = ctypes.sizeof(startupinfo)
             startupinfo.lpAttributeList = ctypes.cast(ctypes.addressof(attr_list), ctypes.c_void_p)
 
@@ -522,6 +522,8 @@ class Session:
                 except:
                     t = message
                 if t != '':
+                    if platform.system() != "Linux":
+                        t.replace("\r","\r\n")
                     writer.write(t.encode())
                     await writer.drain()
             except asyncio.CancelledError:
