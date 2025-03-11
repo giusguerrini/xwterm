@@ -82,23 +82,25 @@ class AsyncJob:
                     self.listener = None
                 else:
                     self.tasks.remove(task)
-                    if self.on_task_termination:
-                        self.on_task_termination(task)
                     if self.terminate_on_first_competed:
                         end = True
                 
             if end:
                 print("Job ", self.name, ": terminating...")
                 for task in pending:
-                    print(" ...cancel ", task)
-                    await asyncio.sleep(2)
-                    print("...")
-                    await asyncio.sleep(2)
                     task.cancel()
+                    try:
                     #
-                    # This does not terminate, why???
+                    # Hell, cancellation exception is propagated up to the current task...
                     #
-                    #await task            
+                        await task            
+                    except asyncio.CancelledError:
+                        pass
+                    except:
+                        pass
+                print("Job ", self.name, ": invoking termination callback ", self.on_task_termination)
+                if self.on_task_termination:
+                    await self.on_task_termination(task)
                 print("Job ", self.name, ": terminated")
                 break
             if not self.listener:
