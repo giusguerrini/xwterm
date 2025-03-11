@@ -15,6 +15,11 @@ import mimetypes
 import time
 import json
 try:
+    import ctypes
+    from ctypes.wintypes import HANDLE, DWORD, BOOL
+except:
+    pass
+try:
     import fcntl
     import pty
     import termios
@@ -129,7 +134,6 @@ class AsyncJob:
         await self.signal_q.put(False)
 
     
-
 class Shell:
 
     def  __init__(self, name):
@@ -141,20 +145,60 @@ class Shell:
         self.err = None
         self.kill = None
         self.name = name or ""
+        self.pty = None
 
-    # Linux only
+        #print("New shell: name=", self.name)
+        if platform.system() == "Linux":
+            self.run = self.run_linux
+            self.set_size_core = self.set_size_linux
+        else:
+            self.run = self.run_windows
+            self.set_size_core = self.set_size_windows
+
+    # Platoform-specific pseudo-terminal size management
+
+    def set_size_linux(self, li, co):
+        s = struct.pack('HHHH', li, co, 0, 0)
+        fcntl.ioctl(self.fd, termios.TIOCSWINSZ, s)
+ 
+    def set_size_windows(self, li, co):
+        print("Process ", self.name, ": Size=", li, ",", co)
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+        class COORD(ctypes.Structure):
+            _fields_ = [("X", ctypes.c_short), ("Y", ctypes.c_short)]
+
+        class SMALL_RECT(ctypes.Structure):
+            _fields_ = [("Left", ctypes.c_short), ("Top", ctypes.c_short),
+                        ("Right", ctypes.c_short), ("Bottom", ctypes.c_short)]
+
+        kernel32.SetConsoleScreenBufferSize.argtypes = [ctypes.wintypes.HANDLE, COORD]
+        kernel32.SetConsoleScreenBufferSize.restype = ctypes.wintypes.BOOL
+
+        kernel32.SetConsoleWindowInfo.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.BOOL, ctypes.POINTER(SMALL_RECT)]
+        kernel32.SetConsoleWindowInfo.restype = ctypes.wintypes.BOOL
+
+        new_buffer_size = COORD(co, li)
+        result = kernel32.SetConsoleScreenBufferSize(self.pty, new_buffer_size)
+        if not result:
+            raise ctypes.WinError(ctypes.get_last_error())
+
+        new_window_size = SMALL_RECT(0, 0, co - 1, li - 1)
+        result = kernel32.SetConsoleWindowInfo(self.pty, True, ctypes.byref(new_window_size))
+        if not result:
+            raise ctypes.WinError(ctypes.get_last_error())
+
     def set_size(self, li, co):
         print("Process ", self.name, ": Size=", li, ",", co)
-        if (self.fd):
-            try:
-                s = struct.pack('HHHH', li, co, 0, 0)
-                fcntl.ioctl(self.fd, termios.TIOCSWINSZ, s)
-            except Exception as e:
-                print("Process ", self.name, ": resize failed: ", e)
-        else:
-            print("Process ", self.name, ": fd not defined")
+        try:
+            self.set_size_core(li, co)
+        except Exception as e:
+            print("Process ", self.name, ": resize failed: ", e)
+
 
     # Platoform-specific shell process management
+
     async def run_linux(self):
         [pid, fd] = pty.fork()
 
@@ -202,35 +246,99 @@ class Shell:
         self.wr = writer
         self.err = None
         self.kill = end_shell
+        self.pty = None
 
     async def run_windows(self):
 
         cmd = ["cmd.exe", "/a"]
 
-        #stdout, stderr = proc.communicate()
+        if True:
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
-        loop = asyncio.get_running_loop()
+            PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016
 
-        proc = await asyncio.create_subprocess_exec(*cmd, stdin=asyncio.subprocess.PIPE,
-                                                     stdout=asyncio.subprocess.PIPE,
-                                                    stderr=asyncio.subprocess.PIPE) 
-        reader = proc.stdout
-        reader_err = proc.stderr
-        writer = proc.stdin
+            class StartupInfoEx(ctypes.Structure):
+                _fields_ = [
+                    ("StartupInfo", ctypes.wintypes.STARTUPINFOA),
+                    ("lpAttributeList", ctypes.c_void_p)
+                ]
 
-        async def end_shell():
-            try:
-                proc.proc.kill()
-            except asyncio.CancelledError:
-                raise
-            except:
-                pass
-            try:
-                await proc.proc.wait()
-            except asyncio.CancelledError:
-                raise
-            except:
-                pass
+            self.pty = ctypes.c_void_p()
+            size = (DEFAULT_NCOLUMNS, DEFAULT_NLINES)
+            kernel32.CreatePseudoConsole(size, ctypes.c_void_p(), ctypes.c_void_p(), 0, ctypes.byref(self.pty))
+
+            attr_size = ctypes.wintypes.SIZE_T()
+            kernel32.InitializeProcThreadAttributeList(None, 1, 0, ctypes.byref(attr_size))
+            attr_list = ctypes.create_string_buffer(attr_size.value)
+            kernel32.InitializeProcThreadAttributeList(attr_list, 1, 0, ctypes.byref(attr_size))
+
+            kernel32.UpdateProcThreadAttribute(
+                attr_list,
+                0,
+                PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
+                self.pty,
+                ctypes.sizeof(ctypes.c_void_p),
+                None,
+                None
+            )
+
+            startupinfo = StartupInfoEx()
+            startupinfo.StartupInfo.cb = ctypes.sizeof(startupinfo)
+            startupinfo.lpAttributeList = attr_list
+
+            proc = await asyncio.create_subprocess_exec(*cmd,
+                                                        startupinfo = startupinfo,
+                                                        stdin = asyncio.subprocess.PIPE,
+                                                        stdout = asyncio.subprocess.PIPE,
+                                                        stderr = asyncio.subprocess.PIPE) 
+            reader = proc.stdout
+            reader_err = proc.stderr
+            writer = proc.stdin
+
+            async def end_shell():
+                try:
+                    kernel32.ClosePseudoConsole(self.pty)
+                except asyncio.CancelledError:
+                    raise
+                except:
+                    pass
+                try:
+                    proc.proc.kill()
+                except asyncio.CancelledError:
+                    raise
+                except:
+                    pass
+                try:
+                    await proc.proc.wait()
+                except asyncio.CancelledError:
+                    raise
+                except:
+                    pass
+
+
+        else:
+
+            proc = await asyncio.create_subprocess_exec(*cmd,
+                                                        stdin = asyncio.subprocess.PIPE,
+                                                        stdout = asyncio.subprocess.PIPE,
+                                                        stderr = asyncio.subprocess.PIPE) 
+            reader = proc.stdout
+            reader_err = proc.stderr
+            writer = proc.stdin
+
+            async def end_shell():
+                try:
+                    proc.proc.kill()
+                except asyncio.CancelledError:
+                    raise
+                except:
+                    pass
+                try:
+                    await proc.proc.wait()
+                except asyncio.CancelledError:
+                    raise
+                except:
+                    pass
 
         self.pid = None
         self.proc = proc
@@ -457,7 +565,7 @@ async def get_files(request, session):
         with open(file_path, 'rb') as file:
             content = file.read()
         mime_type, _ = mimetypes.guess_type(file_path)
-        print("File ", file_path, " mime-type ", mime_type)
+        #print("File ", file_path, " mime-type ", mime_type)
         if mime_type is None:
             mime_type = 'application/octet-stream'
     response = aiohttp.web.Response(body=content, content_type=mime_type)

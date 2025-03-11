@@ -1512,6 +1512,7 @@ export class AnsiTerm {
 
 		this.selection_timer = null;
 
+		this.immedate_refresh_request_count = 1
 		this.timer = setTimeout( (() => { this._setsize(); }), this.immediate_refresh);
 
 	}
@@ -2533,7 +2534,7 @@ export class AnsiTerm {
 	{
 		try {
 			try {
-				// escape is deprecated, and it's also prone to weird xceptions,
+				// escape is deprecated, and it's also prone to weird exceptions,
 				// but it more relaxed in non-ASCII characters
 				// (e.g. old sample server works)
 				t =  decodeURIComponent(escape(t));
@@ -2556,7 +2557,6 @@ export class AnsiTerm {
 	_send_request(url)
 	{
 		let xhr = new XMLHttpRequest();
-
 		
 		xhr.withCredentials = true;
 
@@ -2596,6 +2596,12 @@ export class AnsiTerm {
 
 	_schedule_update(timeout)
 	{
+		if (this.immedate_refresh_request_count > 0) {
+			--this.immedate_refresh_request_count;
+			if (this.immedate_refresh_request_count > 0) {
+				timeout = self.immediate_refresh;
+			}
+		}
 		clearTimeout(this.timer);
 		this.timer = setTimeout( (() => { this._update(); }), timeout);
 	}
@@ -2619,7 +2625,14 @@ export class AnsiTerm {
 				clearTimeout(this.timer);
 				if (xhr.status >= 200 && xhr.status < 400) {
 					console.log(xhr.responseText);
-					this._schedule_update(this.immediate_refresh);
+
+					if (this.immedate_refresh_request_count == 0) {
+						this.immedate_refresh_request_count = 1;
+						this._schedule_update(this.immediate_refresh);
+					}
+					else {
+						this.immedate_refresh_request_count = 2;
+					}
 					this._set_status(true);
 				}
 				else {

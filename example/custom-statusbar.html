@@ -70,7 +70,7 @@
 			ansi.write(j.substring(jack_index,jack_index+1));
 			jack_index = (jack_index + 1) % j.length;
 		}
-		jack_timer = setTimeout(jack, 100 + Math.random()*400);
+		jack_timer = setTimeout(jack, 200 + Math.random()*400 + jack_typo*300);
 		if (jack_index == 0 && Math.random() >= 0.7) {
 			ansi.write("\x1b[9" + (1 + Math.floor(Math.random() * 6 + 0.5)) + "m");
 		}
