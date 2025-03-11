@@ -38,6 +38,8 @@ else:
 
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
+    HRESULT = LONG
+
     PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016
 
     class STARTUPINFOA(Structure):
@@ -79,7 +81,7 @@ else:
         ctypes.POINTER(ctypes.c_void_p)
     ]
 
-    kernel32.CreatePseudoConsole.restype = wintypes.HRESULT
+    kernel32.CreatePseudoConsole.restype = HRESULT
 
     class SMALL_RECT(ctypes.Structure):
         _fields_ = [("Left", ctypes.c_short), ("Top", ctypes.c_short),
