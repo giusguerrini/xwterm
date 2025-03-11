@@ -91,7 +91,7 @@ else:
     kernel32.SetConsoleScreenBufferSize.argtypes = [wintypes.HANDLE, COORD]
     kernel32.SetConsoleScreenBufferSize.restype = wintypes.BOOL
 
-    kernel32.SetConsoleWindowInfo.argtypes = [wintypes.HANDLE, ctypes.wintypes.BOOL, POINTER(SMALL_RECT)]
+    kernel32.SetConsoleWindowInfo.argtypes = [wintypes.HANDLE, ctypes.wintypes.BOOL, ctypes.POINTER(SMALL_RECT)]
     kernel32.SetConsoleWindowInfo.restype = wintypes.BOOL
 
 
