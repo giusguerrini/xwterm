@@ -38,7 +38,8 @@ else:
 
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
-    HRESULT = LONG
+    #LONG = ctypes.c_long
+    HRESULT = wintypes.LONG
 
     PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016
 
