@@ -15,6 +15,7 @@ import mimetypes
 import time
 import json
 try:
+    import subprocess
     import ctypes
     from ctypes import wintypes, Structure
     from ctypes.wintypes import HANDLE, DWORD, BOOL
@@ -64,11 +65,13 @@ else:
             ("hStdInput", wintypes.HANDLE),
             ("hStdOutput", wintypes.HANDLE),
             ("hStdError", wintypes.HANDLE)
+                       ("lpAttributeList", ctypes.c_void_p)
+ 
         ]
 
     class StartupInfoEx(ctypes.Structure):
         _fields_ = [
-            #("StartupInfo", STARTUPINFOA),
+            ("StartupInfo", STARTUPINFOA),
             ("lpReserved", wintypes.LPSTR),
             ("lpDesktop", wintypes.LPSTR),
             ("lpTitle", wintypes.LPSTR),
@@ -349,7 +352,7 @@ class Shell:
                 None
             )
 
-            startupinfo = StartupInfoEx()
+            startupinfo = subprocess.STARTUPINFO() #StartupInfoEx()
             startupinfo.StartupInfo.cb = ctypes.sizeof(startupinfo)
             startupinfo.lpAttributeList = ctypes.cast(ctypes.addressof(attr_list), ctypes.c_void_p)
 
