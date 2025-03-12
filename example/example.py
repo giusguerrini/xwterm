@@ -125,7 +125,10 @@ class HttpHandler(BaseHTTPRequestHandler):
 
         if get_file:
             try:
-                with open(url[0][1:], "rb") as f:
+                file_path = url[0][1:]
+                if not os.path.exists(file_path):
+                    file_path = "../src/" + file_path
+                with open(file_path, "rb") as f:
                     enc = ''
                     #enc = 'UTF-8'
                     self.send_response(200, "OK")

@@ -14,6 +14,7 @@ import aiohttp.web
 import mimetypes
 import time
 import json
+#import pathlib
 try:
     import subprocess
     import ctypes
@@ -613,6 +614,8 @@ class Session:
 
 async def get_files(request, session):
     file_path = request.match_info.get('file_path', 'example.html')
+    if not os.path.exists(file_path):
+        file_path = "../src/" + file_path
     if os.path.exists(file_path):
         with open(file_path, 'rb') as file:
             content = file.read()
