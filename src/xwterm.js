@@ -1477,6 +1477,8 @@ export class AnsiTerm {
 		this.fullfont = this.fontsize.toString() + "px " + this.font;
 		this.status_fullfont = /* this.fontsize.toString() + "px " + */ this.status_font;
 
+		this.pending_data_to_send = "";
+		this.pending_data_in_transaction = "";
 
 		// Create elements and layout.
 		this._layout();
@@ -2535,7 +2537,7 @@ export class AnsiTerm {
 		try {
 			try {
 				// escape is deprecated, and it's also prone to weird exceptions,
-				// but it more relaxed in non-ASCII characters
+				// but it's more relaxed in non-ASCII characters handling
 				// (e.g. old sample server works)
 				t =  decodeURIComponent(escape(t));
 			}
@@ -2617,7 +2619,7 @@ export class AnsiTerm {
 		this._send_request(q);
 	}
 
-	_send_data(t)
+	_send_data_core(t, success, error)
 	{
 		let xhr = new XMLHttpRequest();
 		xhr.onreadystatechange = () => {
@@ -2625,20 +2627,11 @@ export class AnsiTerm {
 				clearTimeout(this.timer);
 				if (xhr.status >= 200 && xhr.status < 400) {
 					console.log(xhr.responseText);
-
-					if (this.immedate_refresh_request_count == 0) {
-						this.immedate_refresh_request_count = 1;
-						this._schedule_update(this.immediate_refresh);
-					}
-					else {
-						this.immedate_refresh_request_count = 2;
-					}
-					this._set_status(true);
+					success();
 				}
 				else {
 					console.log(xhr.status);
-					this._schedule_update(this.slow_refresh);
-					this._set_status(false);
+					error();
 				}
 			}
 		}
@@ -2648,6 +2641,55 @@ export class AnsiTerm {
 			xhr.send(t);
 		} catch {
 			this._set_status(false);
+		}
+	}
+
+	_send_data(t)
+	{
+		/*
+		  Here we are trying to mitigate the outgoing traffic so the receiver has a
+		  chance to update the screen. For example, if a key is kept pressed,
+		  autorepeat would saturate the transmitter, so delaying updates until the burst
+		  of events ends. The visible effect would be the miss of character echoes until
+		  the key is down, and the sudden appearance of all the accumulated characters
+		  when the key is released.
+		  No new POSTs are started until the current one is
+		  completed; meanwhile, characters are stored in the "pending_data_to_send"
+		  variable. Also, the transmitter is kept locked for some tenths of milliseconds
+		  still after the completion of POST, and an update is scheduled.
+		 */
+		this.pending_data_to_send += t;
+		if (this.pending_data_in_transaction == "") {
+			this.pending_data_in_transaction = this.pending_data_to_send;
+			this.pending_data_to_send = "";
+			if (this.pending_data_in_transaction) {
+				this._send_data_core(this.pending_data_in_transaction,
+
+				// On success	
+					() => {
+
+						if (this.immedate_refresh_request_count == 0) {
+							this.immedate_refresh_request_count = 1;
+							this._schedule_update(this.immediate_refresh);
+						}
+						else {
+							this.immedate_refresh_request_count = 2;
+						}
+						this._set_status(true);
+
+						setTimeout(() => {
+							this.pending_data_in_transaction = "";
+							this._send_data("")
+						}, this.immediate_refresh);
+					},
+
+				// On error
+					() => {
+						this._schedule_update(this.slow_refresh);
+						this._set_status(false);
+					}
+				);
+			}
 		}
 	}
 

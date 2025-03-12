@@ -3,19 +3,20 @@
 <head>
 <style type="text/css">
         canvas {
+            border: 20px solid blue;
+            border-radius: 20px;
             border-collapse: collapse;
-            width: 80%;
             margin: 20px auto;
-            text-align: center;
+            text-align: left;
         }
         table {
             border-collapse: collapse;
-            width: 80%;
             margin: 20px auto;
+	    table-layout: auto;
         }
         th, td {
             border: 1px solid black;
-            padding: 8px;
+            padding: 5px;
             text-align: center;
         }
         th {
@@ -76,29 +77,8 @@
 		}
 	}
 </script>
-	<div style="display: grid; grid-template-colums: auto;">
-		<canvas id="terminal"></canvas>
-		<table>
-			<thead>
-				<tr>
-					<th>XWterm version</th>
-					<th>Title</th>
-					<th>Connected</th>
-					<th>Frozen</th>
-					<th>Bytes pending</th>
-				</tr>
-			</thead>
-			<tbody>
-				<tr>
-					<td id="version"></td>
-					<td id="title"></td>
-					<td id="connected"></td>
-					<td id="frozen"></td>
-					<td id="bytes"></td>
-				</tr>
-			</tbody>
-		</table>
-		<div style="display: grid; grid-template-columns: auto auto auto auto auto auto auto;">
+	<div style="display: grid; grid-template-columns: 15% max-content; column-gap: 20px;">
+		<div style="display: grid; grid-template-columns: auto;">
 			<button onclick="ansi.toggleFreezeState()">Freeze/Unfreeze</button>
 			<button onclick="ansi.selectAll()">Select all</button>
 			<button onclick="ansi.clipboardCopyAsText()">Copy as text</button>
@@ -106,9 +86,32 @@
 			<button onclick="ansi.clipboardCopyAsHtml()">Copy as HTML</button>
 			<button onclick="ansi.clipboardCopyAsAnsiSequence()">Copy as ANSI</button>
 			<button onclick="ansi.clipboardPaste()">Paste</button>
-
+			<p></p>
 			<button onclick="ansi.sendKeyByKeyEvent({ key: 'l', code: 'KeyL', composed: true, ctrlKey: true, altKey: false, metaKey: false, })">Send CTRL-L</button>
 			<button onclick="jack()">Jack!</button>
+		</div>
+		<div style="display: grid; grid-template-columns: auto; justify-items: start;">
+			<canvas id="terminal"></canvas>
+			<table>
+				<thead>
+					<tr>
+						<th>XWterm version</th>
+						<th>Title</th>
+						<th>Connected</th>
+						<th>Frozen</th>
+						<th>Bytes pending</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td id="version"></td>
+						<td id="title"></td>
+						<td id="connected"></td>
+						<td id="frozen"></td>
+						<td id="bytes"></td>
+					</tr>
+				</tbody>
+			</table>
 		</div>
 	</div>
 </body>
