@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
 <style type="text/css">
         canvas {
             border: 20px solid blue;
@@ -12,7 +13,6 @@
         table {
             border-collapse: collapse;
             margin: 20px auto;
-	    table-layout: auto;
         }
         th, td {
             border: 1px solid black;
@@ -51,31 +51,72 @@
 		document.getElementById("bytes").innerText = nbytes;
 	});
 
-	var jack_timer = null;
-	var jack_index = 0;
-	var jack_typo = 0;
+	class Jack {
 
-	window.jack = function () {
-		let j = "All work and no play makes Jack a dull boy\r\n";
-		if (Math.random() > 0.95 && jack_typo == 0 && jack_index < j.length - 2) {
-			jack_typo = 1;
-			let typos = "<=>-:,@#?*+!$%";
-			let i = Math.floor(Math.random() * typos.length);
-			ansi.write(typos.substring(i,i+1));
+		constructor(text)
+		{
+			this.timer = null;
+			this.index = 0;
+			this.typo = 0;
+			this.text = text + "\r\n";
+			this.typos = "<=>-:,@#?*+!$%";
 		}
-		else if (jack_typo > 0) {
-			jack_typo = 0;
-			ansi.write("\x08"); // "\x7f"
+
+		start()
+		{
+			if (! this.timer) {
+				this.cycle();
+			}
 		}
-		else {
-			ansi.write(j.substring(jack_index,jack_index+1));
-			jack_index = (jack_index + 1) % j.length;
+
+		stop()
+		{
+			if (this.timer) {
+				clearTimeout(this.timer);
+				this.timer = null;
+			}
 		}
-		jack_timer = setTimeout(jack, 200 + Math.random()*400 + jack_typo*300);
-		if (jack_index == 0 && Math.random() >= 0.7) {
-			ansi.write("\x1b[9" + (1 + Math.floor(Math.random() * 6 + 0.5)) + "m");
+
+		cycle()
+		{
+			if (Math.random() > 0.95 && this.typo == 0 && this.index < this.text.length - 2) {
+				this.typo = 1;
+				let i = Math.floor(Math.random() * this.typos.length);
+				ansi.write(this.typos.substring(i,i+1));
+			}
+			else if (this.typo > 0) {
+				this.typo = 0;
+				ansi.write("\x08"); // "\x7f"
+			}
+			else {
+				ansi.write(this.text.substring(this.index,this.index+1));
+				this.index = (this.index + 1) % this.text.length;
+			}
+			
+			this.timer = setTimeout( () => {
+				this.cycle();
+			}, 200 + Math.random()*200 + this.typo*300);
+
+			if (this.index == 0 && Math.random() >= 0.7) {
+				ansi.write("\x1b[9" + (1 + Math.floor(Math.random() * 6 + 0.5)) + "m");
+			}
+		}
+
+		on_button()
+		{
+			return () => {
+				if (this.timer) {
+					this.stop();
+				}
+				else {
+					this.start();
+				}
+			};
 		}
 	}
+	
+	window.jack = (new Jack("All work and no play makes Jack a dull boy")).on_button();
+
 </script>
 	<div style="display: grid; grid-template-columns: 15% max-content; column-gap: 20px;">
 		<div style="display: grid; grid-template-columns: auto;">

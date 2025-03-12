@@ -110,7 +110,7 @@ DEFAULT_NCOLUMNS=120
 CONSOLE_URL="/"
 DATA_REQUEST_PARAM="console"
 SET_SIZE_PARAM="size" # e.g. size=25x80
-DEFAULT_URL="/example.html"
+DEFAULT_FILE="index.html"
 
 #DEBUG_FLAGS = {"async", "process", "session", "http", "websocket"}
 DEBUG_FLAGS = {"async", "process", "session", "websocket"}
@@ -613,7 +613,7 @@ class Session:
 
 
 async def get_files(request, session):
-    file_path = request.match_info.get('file_path', 'example.html')
+    file_path = request.match_info.get('file_path', DEFAULT_FILE)
     if not os.path.exists(file_path):
         file_path = "../src/" + file_path
     if os.path.exists(file_path):

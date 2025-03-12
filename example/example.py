@@ -18,7 +18,7 @@ DEFAULT_NCOLUMNS=120
 CONSOLE_URL="/"
 DATA_REQUEST_PARAM="console"
 SET_SIZE_PARAM="size" # e.g. size=25x80
-DEFAULT_URL="/example.html"
+DEFAULT_URL="/index.html"
 
 
 #[master, slave ] pty.openpty()
