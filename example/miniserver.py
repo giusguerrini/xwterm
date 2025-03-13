@@ -517,10 +517,35 @@ class Shell:
                                                         stdout = asyncio.subprocess.PIPE,
                                                         stderr = asyncio.subprocess.PIPE,
                                                         limit = 1)
- 
+            class FilteredStreamWriter:
+                def __init__(self, writer, filter_func):
+                    self.writer = writer
+                    self.filter_func = filter_func
+
+                def write(self, data):
+                    filtered_data = self.filter_func(data)
+                    self.writer.write(filtered_data)
+
+                def close(self):
+                    self.writer.close()
+
+                async def drain(self):
+                    await self.writer.drain()
+
+
             reader = proc.stdout
             reader_err = proc.stderr
-            writer = proc.stdin
+            #writer = proc.stdin
+
+            def crlf(text):
+                r = b''
+                for b in text:
+                    by = bytes([b])
+                    r = r + by
+                    if by == b'\r':
+                        r = r + b'\n'
+                return r
+            writer = FilteredStreamWriter(proc.stdin, crlf)
 
             async def end_shell():
                 try:
