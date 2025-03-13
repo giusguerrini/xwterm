@@ -16,6 +16,7 @@ import time
 import json
 #import pathlib
 try:
+    import io
     import msvcrt
     import subprocess
     import ctypes
@@ -48,12 +49,12 @@ else:
     PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016
     STARTF_USESTDHANDLES = 0x00000100 
 
-    class STARTUPINFOA(Structure):
+    class STARTUPINFOW(Structure):
         _fields_ = [
             ("cb", wintypes.DWORD),
-            ("lpReserved", wintypes.LPSTR),
-            ("lpDesktop", wintypes.LPSTR),
-            ("lpTitle", wintypes.LPSTR),
+            ("lpReserved", wintypes.LPWSTR),
+            ("lpDesktop", wintypes.LPWSTR),
+            ("lpTitle", wintypes.LPWSTR),
             ("dwX", wintypes.DWORD),
             ("dwY", wintypes.DWORD),
             ("dwXSize", wintypes.DWORD),
@@ -70,15 +71,11 @@ else:
             ("hStdError", wintypes.HANDLE)
         ]
 
-    class STARTUPINFOAEX(ctypes.Structure):
+    class STARTUPINFOWEX(ctypes.Structure):
         _fields_ = [
-            ("StartupInfo", STARTUPINFOA),
+            ("StartupInfo", STARTUPINFOW),
             ("lpAttributeList", ctypes.c_void_p)
         ]
-        #def copy(self):
-        #    new_instance = StartupInfoEx()
-        #    ctypes.memmove(ctypes.addressof(new_instance), ctypes.addressof(self), ctypes.sizeof(self))
-        #    return new_instance
 
     class PROCESS_INFORMATION(ctypes.Structure):
         _fields_ = [
@@ -89,20 +86,20 @@ else:
         ]
     
 
-    CreateProcess = kernel32.CreateProcessA
-    CreateProcess.argtypes = [
-        wintypes.LPSTR,                 # lpApplicationName
-        wintypes.LPSTR,                 # lpCommandLine
+    CreateProcessW = kernel32.CreateProcessW
+    CreateProcessW.argtypes = [
+        wintypes.LPWSTR,                 # lpApplicationName
+        wintypes.LPWSTR,                 # lpCommandLine
         wintypes.LPVOID,                 # lpProcessAttributes
         wintypes.LPVOID,                 # lpThreadAttributes
         BOOL,                   # bInheritHandles
         DWORD,                  # dwCreationFlags
         wintypes.LPVOID,                 # lpEnvironment
-        wintypes.LPSTR,                 # lpCurrentDirectory
-        ctypes.POINTER(STARTUPINFOA),  # lpStartupInfo
+        wintypes.LPWSTR,                 # lpCurrentDirectory
+        ctypes.POINTER(STARTUPINFOWEX),  # lpStartupInfo
         ctypes.POINTER(PROCESS_INFORMATION), # lpProcessInformation
     ]
-    CreateProcess.restype = BOOL
+    CreateProcessW.restype = BOOL
 
     class COORD(ctypes.Structure):
         _fields_ = [("X", wintypes.SHORT), ("Y", wintypes.SHORT)]
@@ -122,6 +119,7 @@ else:
     CreatePipe.argtypes = [ctypes.POINTER(wintypes.HANDLE), ctypes.POINTER(wintypes.HANDLE), ctypes.POINTER(ctypes.c_void_p)]
     SetHandleInformation.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD]
 
+    EXTENDED_STARTUPINFO_PRESENT = 0x00080000
     HANDLE_FLAG_INHERIT = 0x00000001
     INVALID_HANDLE_VALUE = -1
 
@@ -149,12 +147,17 @@ DEFAULT_FILE="index.html"
 DEBUG_FLAGS = {"async", "process", "session", "websocket"}
 
 SESSION_IDLE_CHECK_PERIOD = 10
-SESSION_IDLE_TIMEOUT = 10 #30
+SESSION_IDLE_TIMEOUT = 1000 #30
 
-def find_valid_utf8(text):
+if platform.system() == "Linux":
+    default_encoding = 'utf-8'
+else:
+    default_encoding = 'cp1252'
+
+def find_valid_encoded(text):
     for i in range(len(text), 0, -1):
         try:
-            t = text[:i].decode('utf-8')
+            t = text[:i].decode(default_encoding)
             return t, text[i:]
         except UnicodeDecodeError:
             continue
@@ -313,7 +316,7 @@ class Shell:
         loop = asyncio.get_running_loop()
 
         wr = await loop.connect_write_pipe(asyncio.streams.FlowControlMixin, os.fdopen(fd, 'wb'))
-        writer_transport, writer_protocol = wr;
+        writer_transport, writer_protocol = wr
         writer = asyncio.StreamWriter(writer_transport, writer_protocol, None, loop)
 
         reader = asyncio.StreamReader()
@@ -346,9 +349,10 @@ class Shell:
     async def run_windows(self):
 
         command = "cmd.exe"
-        cmdargs = [ command, "/a"]
+        #cmdargs = [ command, "/a"]
+        cmdargs = [ command]
 
-        if True:
+        if False:
 
             stdin_read = wintypes.HANDLE()
             stdin_write = wintypes.HANDLE()
@@ -360,47 +364,87 @@ class Shell:
             if not CreatePipe(ctypes.byref(stdout_read), ctypes.byref(stdout_write), None):
                 raise ctypes.WinError(ctypes.get_last_error())
 
-            if not SetHandleInformation(stdin_write, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
-                raise ctypes.WinError(ctypes.get_last_error())
-            if not SetHandleInformation(stdout_read, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
-                raise ctypes.WinError(ctypes.get_last_error())
-
-            kernel32.CreatePseudoConsole(size, stdin_read, stdout_write, 0, ctypes.byref(self.pty))
+            #if not SetHandleInformation(stdin_write, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
+            #    raise ctypes.WinError(ctypes.get_last_error())
+            #if not SetHandleInformation(stdout_read, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
+            #    raise ctypes.WinError(ctypes.get_last_error())
 
             self.pty = ctypes.c_void_p()
             size = COORD(DEFAULT_NCOLUMNS, DEFAULT_NLINES)
 
+            rv = kernel32.CreatePseudoConsole(size, stdin_read, stdout_write, 0, ctypes.byref(self.pty))
+            if rv != 0:
+                raise ctypes.WinError(ctypes.get_last_error())
+
             attr_size = SIZE_T()
-            kernel32.InitializeProcThreadAttributeList(None, 1, 0, ctypes.byref(attr_size))
+            if not kernel32.InitializeProcThreadAttributeList(None, 1, 0, ctypes.byref(attr_size)):
+                #raise ctypes.WinError(ctypes.get_last_error())
+                pass
             attr_list = ctypes.create_string_buffer(attr_size.value)
-            kernel32.InitializeProcThreadAttributeList(attr_list, 1, 0, ctypes.byref(attr_size))
+            if not kernel32.InitializeProcThreadAttributeList(attr_list, 1, 0, ctypes.byref(attr_size)):
+                raise ctypes.WinError(ctypes.get_last_error())
 
-            kernel32.UpdateProcThreadAttribute(
-                attr_list,
-                0,
-                PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
-                self.pty,
-                ctypes.sizeof(ctypes.c_void_p),
-                None,
-                None
-            )
+            success = True
+            success = kernel32.UpdateProcThreadAttribute(
+                    attr_list,
+                    0,
+                    PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
+                    self.pty,
+                    ctypes.sizeof(ctypes.c_void_p),
+                    None,
+                    None)
+            if not success:
+                raise ctypes.WinError(ctypes.get_last_error())
 
-            startupinfo = STARTUPINFOAEX()
+            startupinfo = STARTUPINFOWEX()
             startupinfo.StartupInfo.cb = ctypes.sizeof(startupinfo)
             startupinfo.lpAttributeList = ctypes.cast(ctypes.addressof(attr_list), ctypes.c_void_p)
 
-#            startupinfo.StartupInfo.dwFlags = STARTF_USESTDHANDLES
-#            startupinfo.StartupInfo.hStdInput = stdin_read
-#            startupinfo.StartupInfo.hStdOutput = stdout_write
+            startupinfo.StartupInfo.dwFlags = STARTF_USESTDHANDLES
+            startupinfo.StartupInfo.hStdInput = stdin_read
+            startupinfo.StartupInfo.hStdOutput = stdout_write
+            startupinfo.StartupInfo.hStdError = stdout_write
  
-            stdin_fd = msvcrt.open_osfhandle(stdin_write, os.O_WRONLY)
-            stdout_fd = msvcrt.open_osfhandle(stdout_read, os.O_RDONLY)
+            stdin_fd = msvcrt.open_osfhandle(stdin_write.value, os.O_WRONLY)
+            stdout_fd = msvcrt.open_osfhandle(stdout_read.value, os.O_RDONLY)
  
             #pipe_encoding = 'utf-8'
-            pipe_encoding = 'cp1252'
+            #pipe_encoding = 'cp1252'
+            pipe_encoding = default_encoding
 
-            writer = io.open(stdin_fd, mode='w', encoding=pipe_encoding, closefd=True)
-            reader = io.open(stdout_fd, mode='r', encoding=pipe_encoding, closefd=True)
+            loop = asyncio.get_running_loop()
+
+            async def read_from_handle(handle, queue):
+                while True:
+                    data = await loop.run_in_executor(None, handle.read, 1024)
+                    if not data:
+                        break
+                    await queue.put(data)
+
+            async def write_to_handle(handle, queue):
+                while True:
+                    data = await queue.get()
+                    if data is None:
+                        break
+                    await loop.run_in_executor(None, handle.write, data)
+                    await loop.run_in_executor(None, handle.flush)
+
+            stdout_queue = asyncio.Queue()
+            stdin_queue = asyncio.Queue()
+
+            stdout_pipe = os.fdopen(stdout_fd, 'rb')
+            stdin_pipe = os.fdopen(stdin_fd, 'wb')
+            asyncio.create_task(read_from_handle(stdout_pipe, stdout_queue))
+            asyncio.create_task(write_to_handle(stdin_pipe, stdin_queue))
+
+            reader = asyncio.StreamReader()
+            protocol = asyncio.StreamReaderProtocol(reader)
+            await loop.connect_read_pipe(lambda: protocol, stdout_pipe)
+            wr = await loop.connect_write_pipe(asyncio.streams.FlowControlMixin, stdin_pipe)
+
+            writer_transport, writer_protocol = wr
+            writer = asyncio.StreamWriter(writer_transport, writer_protocol, None, loop)
+            
 
 #            reader_err = io.open(stderr_fd, mode='r', encoding=pipe_encoding, closefd=True)
 
@@ -415,35 +459,46 @@ class Shell:
 
             pi = PROCESS_INFORMATION()
 
-            success = CreateProcessA(
+            success = CreateProcessW(
                 None,
-                ctypes.c_char_p(command),
+                ctypes.c_wchar_p(command),
                 None,
                 None,
                 False,
-                0,
+                EXTENDED_STARTUPINFO_PRESENT,
                 None,
                 None,
-                ctypes.byref(si),
-                ctypes.byref(pi)
-            )
+                ctypes.byref(startupinfo),
+                ctypes.byref(pi))
 
-            kernel32.CloseHandle(stdin_read)
-            kernel32.CloseHandle(stdout_write)
+#            kernel32.CloseHandle(stdin_read)
+#            kernel32.CloseHandle(stdout_write)
 #            kernel32.CloseHandle(stderr_write)
+
+            proc = pi
 
             if not success:
                 raise ctypes.WinError(ctypes.get_last_error())
 
+            #print(proc)
+            #print("New proecss: ", proc.hProcess)
+
             async def end_shell():
+                print("end_shell: ", self.proc.hProcess)
                 try:
-                    kernel32.CloseHandle(pi.hProcess)
+                    kernel32.TerminateProcess(self.proc.hProcess, 0)
                 except asyncio.CancelledError:
                     raise
                 except:
                     pass
                 try:
-                    kernel32.CloseHandle(pi.hThread)
+                    kernel32.CloseHandle(self.proc.hProcess)
+                except asyncio.CancelledError:
+                    raise
+                except:
+                    pass
+                try:
+                    kernel32.CloseHandle(self.proc.hThread)
                 except asyncio.CancelledError:
                     raise
                 except:
@@ -454,26 +509,15 @@ class Shell:
                     raise
                 except:
                     pass
-                try:
-                    proc.proc.kill()
-                except asyncio.CancelledError:
-                    raise
-                except:
-                    pass
-                try:
-                    await proc.proc.wait()
-                except asyncio.CancelledError:
-                    raise
-                except:
-                    pass
-
 
         else:
 
             proc = await asyncio.create_subprocess_exec(*cmdargs,
                                                         stdin = asyncio.subprocess.PIPE,
                                                         stdout = asyncio.subprocess.PIPE,
-                                                        stderr = asyncio.subprocess.PIPE) 
+                                                        stderr = asyncio.subprocess.PIPE,
+                                                        limit = 1)
+ 
             reader = proc.stdout
             reader_err = proc.stderr
             writer = proc.stdin
@@ -594,7 +638,7 @@ class Session:
                 try:
                     data = self.get_pending_data(True) + data
                     #d = data.decode('utf-8')
-                    d, remt = find_valid_utf8(data)
+                    d, remt = find_valid_encoded(data)
                     self.add_pending_data(remt)
                     if len(d) > 0:
                         await txq.put(d)
@@ -622,7 +666,7 @@ class Session:
                 except:
                     t = message
                 if t != '':
-                    writer.write(t.encode())
+                    writer.write(t.encode(default_encoding))
                     await writer.drain()
             except asyncio.CancelledError:
                 raise
@@ -713,15 +757,27 @@ class Session:
 
 async def get_files(request, session):
     file_path = request.match_info.get('file_path', DEFAULT_FILE)
+    content = ""
+    mime_type = 'application/octet-stream'
+    fp = file_path
     if not os.path.exists(file_path):
         file_path = "../src/" + file_path
-    if os.path.exists(file_path):
-        with open(file_path, 'rb') as file:
-            content = file.read()
-        mime_type, _ = mimetypes.guess_type(file_path)
-        #print("File ", file_path, " mime-type ", mime_type)
-        if mime_type is None:
-            mime_type = 'application/octet-stream'
+    if not os.path.exists(file_path):
+        file_path = "/examples/" + fp
+    if not os.path.exists(file_path):
+        file_path = "/src/" + fp
+    try:
+        if os.path.exists(file_path):
+            with open(file_path, 'rb') as file:
+                content = file.read()
+            mime_type, _ = mimetypes.guess_type(file_path)
+            #print("File ", file_path, " mime-type ", mime_type)
+    except asyncio.CancelledError:
+        raise
+    except:
+        pass
+    if mime_type is None:
+        mime_type = 'application/octet-stream'
     response = aiohttp.web.Response(body=content, content_type=mime_type)
     return response
 
@@ -756,8 +812,8 @@ async def do_GET(request, session):
                 if t == "":
                     break
                 text += t
-            #text = text.decode('utf-8')
-            #text, remt = find_valid_utf8(text)
+            #text = text.decode(default_encoding)
+            #text, remt = find_valid_encoded(text)
             #session.add_pending_text(remt)
         except asyncio.CancelledError:
             raise

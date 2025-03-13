@@ -3190,8 +3190,6 @@ class AnsiTermDriver
 		this.on_send_done = [];
 		this.on_data_received = on_data_received;
 		this.on_connection_change = on_connection_change;
-		this.pending_tx = "";
-		this.sending = false;
 		this.connection_state = true;
 	}
 
@@ -3202,13 +3200,9 @@ class AnsiTermDriver
 
 	send(text, then)
 	{
-		if (this.sending) {
-			this.pending_tx += text;
-		}
-		else {
-			this.sending = true;
-			this.on_send_done.push(then);
-			this._send(text);
+		this._tx(text);
+		if (then) {
+			then();
 		}
 	}
 
@@ -3232,26 +3226,6 @@ class AnsiTermDriver
 
 	}
 
-	_send(text)
-	{
-		this._tx(text);
-
-		let cb = this.on_send_done.shift();
-		if (cb) {
-			cb();
-			setTimeout(() => {
-				if (this.pending_tx != "") {
-					t = this.pending_tx;
-					this.pending_tx = "";
-					this.sending = true;
-					this._send(t);					
-				}
-				else {
-					this.sending = false;
-				}
-			}, 0);
-		}
-	}
 }
 
 class AnsiTermHttpDriver extends AnsiTermDriver
