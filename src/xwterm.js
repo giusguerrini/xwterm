@@ -1477,9 +1477,6 @@ export class AnsiTerm {
 		this.fullfont = this.fontsize.toString() + "px " + this.font;
 		this.status_fullfont = /* this.fontsize.toString() + "px " + */ this.status_font;
 
-		this.pending_data_to_send = "";
-		this.pending_data_in_transaction = "";
-
 		// Create elements and layout.
 		this._layout();
 		
@@ -1515,8 +1512,28 @@ export class AnsiTerm {
 		this.selection_timer = null;
 
 		this.immedate_refresh_request_count = 1
-		this.timer = setTimeout( (() => { this._setsize(); }), this.immediate_refresh);
 
+		this.driver = new AnsiTermHttpDriver(
+			
+			{
+				immediateRefresh: this.configuration.immediateRefresh,
+				fastRefresh: this.configuration.fastRefresh,
+				slowRefresh: this.configuration.slowRefresh,
+				source: this.configuration.source,
+				dest: this.configuration.dest,
+				config: this.configuration.config,
+			},
+
+			(text) => {
+				this.write(text);
+			},
+
+			(st) => {
+				this._set_status(st);
+			}
+		);
+
+		setTimeout( () => { this._setsize(); }, 0);
 	}
 
 	_flush()
@@ -2556,141 +2573,14 @@ export class AnsiTerm {
 		}
 	}
 
-	_send_request(url)
-	{
-		let xhr = new XMLHttpRequest();
-		
-		xhr.withCredentials = true;
-
-		xhr.onreadystatechange = () => {
-			if (xhr.readyState === XMLHttpRequest.DONE) {
-				if (xhr.status >= 200 && xhr.status < 400) {
-					let t = xhr.responseText;
-					let data = t;
-					try {
-						data = JSON.parse(t);
-						t = data["text"];
-					}
-					catch {
-					}
-					this.write(t);
-					if (t != "") {
-						console.log(data);
-					}			
-					this._schedule_update(this.fast_refresh);
-					this._set_status(true);
-				}
-				else {
-					console.log(xhr.status);
-					this._schedule_update(this.slow_refresh);
-					this._set_status(false);
-				}
-			}
-		}
-				
-		try {
-			xhr.open('GET', url, true);
-			xhr.send();
-		} catch {
-			this._set_status(false);
-		}
-	}
-
-	_schedule_update(timeout)
-	{
-		if (this.immedate_refresh_request_count > 0) {
-			--this.immedate_refresh_request_count;
-			if (this.immedate_refresh_request_count > 0) {
-				timeout = self.immediate_refresh;
-			}
-		}
-		clearTimeout(this.timer);
-		this.timer = setTimeout( (() => { this._update(); }), timeout);
-	}
-
-	_update()
-	{
-		this._send_request(this.url_source);
-	}
-
 	_setsize()
 	{
-		let q = this.url_config.replace("?lines?", this.nlines).replace("?columns?", this.ncolumns);
-		this._send_request(q);
-	}
-
-	_send_data_core(t, success, error)
-	{
-		let xhr = new XMLHttpRequest();
-		xhr.onreadystatechange = () => {
-			if (xhr.readyState === XMLHttpRequest.DONE) {
-				clearTimeout(this.timer);
-				if (xhr.status >= 200 && xhr.status < 400) {
-					console.log(xhr.responseText);
-					success();
-				}
-				else {
-					console.log(xhr.status);
-					error();
-				}
-			}
-		}
-		try {
-			xhr.open("POST", this.url_dest, true);
-			xhr.setRequestHeader('Content-Type', 'text/plain');
-			xhr.send(t);
-		} catch {
-			this._set_status(false);
-		}
+		this.driver.setSize(this.nlines, this.ncolumns);
 	}
 
 	_send_data(t)
 	{
-		/*
-		  Here we are trying to mitigate the outgoing traffic so the receiver has a
-		  chance to update the screen. For example, if a key is kept pressed,
-		  autorepeat would saturate the transmitter, so delaying updates until the burst
-		  of events ends. The visible effect would be the miss of character echoes until
-		  the key is down, and the sudden appearance of all the accumulated characters
-		  when the key is released.
-		  No new POSTs are started until the current one is
-		  completed; meanwhile, characters are stored in the "pending_data_to_send"
-		  variable. Also, the transmitter is kept locked for some tenths of milliseconds
-		  still after the completion of POST, and an update is scheduled.
-		 */
-		this.pending_data_to_send += t;
-		if (this.pending_data_in_transaction == "") {
-			this.pending_data_in_transaction = this.pending_data_to_send;
-			this.pending_data_to_send = "";
-			if (this.pending_data_in_transaction) {
-				this._send_data_core(this.pending_data_in_transaction,
-
-				// On success	
-					() => {
-
-						if (this.immedate_refresh_request_count == 0) {
-							this.immedate_refresh_request_count = 1;
-							this._schedule_update(this.immediate_refresh);
-						}
-						else {
-							this.immedate_refresh_request_count = 2;
-						}
-						this._set_status(true);
-
-						setTimeout(() => {
-							this.pending_data_in_transaction = "";
-							this._send_data("")
-						}, this.immediate_refresh);
-					},
-
-				// On error
-					() => {
-						this._schedule_update(this.slow_refresh);
-						this._set_status(false);
-					}
-				);
-			}
-		}
+		this.driver.send(t, () => {});
 	}
 
 	_send_id()
@@ -3291,23 +3181,249 @@ export class AnsiTerm {
 
 }
 
-/*
+
 class AnsiTermDriver
 {
-	constructor()
+	constructor(params, on_data_received, on_connection_change)
 	{
+		this.params = params;
 		this.on_send_done = [];
-		this.on_receive_done = [];
+		this.on_data_received = on_data_received;
+		this.on_connection_change = on_connection_change;
+		this.pending_tx = "";
+		this.sending = false;
+		this.connection_state = true;
 	}
 
-	send(t, then)
+	getConnectionState()
 	{
-		this.on_send_done.push(then);
+		return this.connection_state;
 	}
 
-	receive(then)
+	send(text, then)
 	{
-		this.on_receive_done.push(then);
+		if (this.sending) {
+			this.pending_tx += text;
+		}
+		else {
+			this.sending = true;
+			this.on_send_done.push(then);
+			this._send(text);
+		}
+	}
+
+
+	_set_connection_state(st)
+	{
+		if (this.connection_state != st) {
+			this.connection_state = st;
+			if (this.on_connection_change) {
+				this.on_connection_change(st);
+			}
+		}
+	}
+
+	_tx(text)
+	{
+	}
+
+	setSize(nlines, ncolumns)
+	{
+
+	}
+
+	_send(text)
+	{
+		this._tx(text);
+
+		let cb = this.on_send_done.shift();
+		if (cb) {
+			cb();
+			setTimeout(() => {
+				if (this.pending_tx != "") {
+					t = this.pending_tx;
+					this.pending_tx = "";
+					this.sending = true;
+					this._send(t);					
+				}
+				else {
+					this.sending = false;
+				}
+			}, 0);
+		}
 	}
 }
-*/
+
+class AnsiTermHttpDriver extends AnsiTermDriver
+{
+	constructor(params, on_data_received, on_connection_change)
+	{
+		super(params, on_data_received, on_connection_change)
+
+		this.pending_data_to_send = "";
+		this.pending_data_in_transaction = "";
+		this.immedate_refresh_request_count = 0;
+		this.timer = null;
+
+	// Fix some defaults that can't be set in the defaults table.
+	
+		this.url_source = params.source;
+		//this.url_source = this.url + this.source;
+		this.url_dest = params.dest;
+		this.url_config = params.config;
+
+		this.url = params.url || window.location.href;
+
+		this._set_connection_state(false);
+		this._start_cycle(this.params.immediateRefresh);
+	}
+
+	_start_cycle(timeout)
+	{
+		if (this.timer) {
+			clearTimeout(this.timer);
+			this.timer = null;
+		}
+		this.timer = setTimeout( () => {
+			this._send_request(this.params.source);
+		}, timeout);
+	}
+
+	_schedule_update(timeout)
+	{
+		if (this.immedate_refresh_request_count > 0) {
+			--this.immedate_refresh_request_count;
+			if (this.immedate_refresh_request_count > 0) {
+				timeout = this.params.immediateRefresh;
+			}
+		}
+		this._start_cycle(timeout);
+	}
+
+	_send_request(url)
+	{
+		let xhr = new XMLHttpRequest();
+		
+		xhr.withCredentials = true;
+
+		xhr.onreadystatechange = () => {
+			if (xhr.readyState === XMLHttpRequest.DONE) {
+				if (xhr.status >= 200 && xhr.status < 400) {
+					let t = xhr.responseText;
+					let data = t;
+					try {
+						data = JSON.parse(t);
+						t = data["text"];
+					}
+					catch {
+					}
+
+					this._set_connection_state(true);
+
+					if (t != "") {
+
+						console.log(data);
+
+						if (this.on_data_received) {
+							this.on_data_received(t);
+						}	
+					}
+
+					this._schedule_update(this.params.fastRefresh);
+				}
+				else {
+					console.log(xhr.status);
+					this._set_connection_state(false);
+					this._schedule_update(this.params.slowRefresh);
+				}
+			}
+		}
+				
+		try {
+			xhr.open('GET', url, true);
+			xhr.send();
+		} catch {
+			this._set_connection_state(false);
+		}
+	}
+
+	setSize(nlines, ncolumns)
+	{
+		let q = this.params.config.replace("?lines?", nlines).replace("?columns?", ncolumns);
+		this._send_request(q);
+	}
+
+	_tx_core(text, success, error)
+	{
+		let xhr = new XMLHttpRequest();
+		xhr.onreadystatechange = () => {
+			if (xhr.readyState === XMLHttpRequest.DONE) {
+				clearTimeout(this.timer);
+				if (xhr.status >= 200 && xhr.status < 400) {
+					console.log(xhr.responseText);
+					success();
+				}
+				else {
+					console.log(xhr.status);
+					error();
+				}
+			}
+		}
+		try {
+			xhr.open("POST", this.params.dest, true);
+			xhr.setRequestHeader('Content-Type', 'text/plain');
+			xhr.send(text)
+		} catch {
+			this._set_connection_state(false);
+		}
+	}
+
+	_tx(text)
+	{
+		/*
+		  Here we are trying to mitigate the outgoing traffic so the receiver has a
+		  chance to update the screen. For example, if a key is kept pressed,
+		  autorepeat would saturate the transmitter, so delaying updates until the burst
+		  of events ends. The visible effect would be the miss of character echoes until
+		  the key is down, and the sudden appearance of all the accumulated characters
+		  when the key is released.
+		  No new POSTs are started until the current one is
+		  completed; meanwhile, characters are stored in the "pending_data_to_send"
+		  variable. Also, the transmitter is kept locked for some tenths of milliseconds
+		  still after the completion of POST, and an update is scheduled.
+		 */
+		this.pending_data_to_send += text;
+		if (this.pending_data_in_transaction == "") {
+			this.pending_data_in_transaction = this.pending_data_to_send;
+			this.pending_data_to_send = "";
+			if (this.pending_data_in_transaction != "") {
+				this._tx_core(this.pending_data_in_transaction,
+
+				// On success	
+					() => {
+
+						if (this.immedate_refresh_request_count == 0) {
+							this.immedate_refresh_request_count = 1;
+							this._schedule_update(this.params.immediateRefresh);
+						}
+						else {
+							this.immedate_refresh_request_count = 2;
+						}
+						this._set_connection_state(true);
+
+						setTimeout(() => {
+							this.pending_data_in_transaction = "";
+							this._tx("")
+						}, this.params.immediateRefresh);
+					},
+
+				// On error
+					() => {
+						this._set_connection_state(false);
+						this._schedule_update(this.params.slowRefresh);
+					}
+				);
+			}
+		}
+	}
+}

@@ -26,7 +26,9 @@
 </head>
 <body>
 <script type="module">
+
 	import { AnsiTerm } from "./xwterm.js";
+
 	window.ansi = new AnsiTerm( 
 		{
 		canvasId: "terminal",
@@ -40,12 +42,15 @@
 	);
 	
 	document.getElementById("version").innerText = AnsiTerm.getVersion();
+
 	ansi.registerOnTitleChange((t) => {
 		document.getElementById("title").innerText = t;
 	});
+
 	ansi.registerOnStatusChange((connected) => {
 		document.getElementById("connected").innerText = connected ? "yes" : "no";
 	});
+
 	ansi.registerOnFreezeChange((frozen, nbytes) => {
 		document.getElementById("frozen").innerText = frozen ? "yes" : "no";
 		document.getElementById("bytes").innerText = nbytes;
@@ -118,6 +123,7 @@
 	window.jack = (new Jack("All work and no play makes Jack a dull boy")).on_button();
 
 </script>
+
 	<div style="display: grid; grid-template-columns: 15% max-content; column-gap: 20px;">
 		<div style="display: grid; grid-template-columns: auto;">
 			<button onclick="ansi.toggleFreezeState()">Freeze/Unfreeze</button>

@@ -16,6 +16,7 @@ import time
 import json
 #import pathlib
 try:
+    import msvcrt
     import subprocess
     import ctypes
     from ctypes import wintypes, Structure
@@ -45,7 +46,7 @@ else:
     SIZE_T = ctypes.c_size_t
 
     PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016
-
+    STARTF_USESTDHANDLES = 0x00000100 
 
     class STARTUPINFOA(Structure):
         _fields_ = [
@@ -69,7 +70,7 @@ else:
             ("hStdError", wintypes.HANDLE)
         ]
 
-    class STARTUPINFOEX(ctypes.Structure):
+    class STARTUPINFOAEX(ctypes.Structure):
         _fields_ = [
             ("StartupInfo", STARTUPINFOA),
             ("lpAttributeList", ctypes.c_void_p)
@@ -79,6 +80,29 @@ else:
         #    ctypes.memmove(ctypes.addressof(new_instance), ctypes.addressof(self), ctypes.sizeof(self))
         #    return new_instance
 
+    class PROCESS_INFORMATION(ctypes.Structure):
+        _fields_ = [
+            ("hProcess", HANDLE),
+            ("hThread", HANDLE),
+            ("dwProcessId", DWORD),
+            ("dwThreadId", DWORD),
+        ]
+    
+
+    CreateProcess = kernel32.CreateProcessA
+    CreateProcess.argtypes = [
+        wintypes.LPSTR,                 # lpApplicationName
+        wintypes.LPSTR,                 # lpCommandLine
+        wintypes.LPVOID,                 # lpProcessAttributes
+        wintypes.LPVOID,                 # lpThreadAttributes
+        BOOL,                   # bInheritHandles
+        DWORD,                  # dwCreationFlags
+        wintypes.LPVOID,                 # lpEnvironment
+        wintypes.LPSTR,                 # lpCurrentDirectory
+        ctypes.POINTER(STARTUPINFOA),  # lpStartupInfo
+        ctypes.POINTER(PROCESS_INFORMATION), # lpProcessInformation
+    ]
+    CreateProcess.restype = BOOL
 
     class COORD(ctypes.Structure):
         _fields_ = [("X", wintypes.SHORT), ("Y", wintypes.SHORT)]
@@ -93,6 +117,14 @@ else:
 
     kernel32.CreatePseudoConsole.restype = HRESULT
 
+    CreatePipe = kernel32.CreatePipe
+    SetHandleInformation = kernel32.SetHandleInformation
+    CreatePipe.argtypes = [ctypes.POINTER(wintypes.HANDLE), ctypes.POINTER(wintypes.HANDLE), ctypes.POINTER(ctypes.c_void_p)]
+    SetHandleInformation.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD]
+
+    HANDLE_FLAG_INHERIT = 0x00000001
+    INVALID_HANDLE_VALUE = -1
+
     class SMALL_RECT(ctypes.Structure):
         _fields_ = [("Left", ctypes.c_short), ("Top", ctypes.c_short),
                     ("Right", ctypes.c_short), ("Bottom", ctypes.c_short)]
@@ -103,6 +135,7 @@ else:
     kernel32.SetConsoleWindowInfo.argtypes = [wintypes.HANDLE, ctypes.wintypes.BOOL, ctypes.POINTER(SMALL_RECT)]
     kernel32.SetConsoleWindowInfo.restype = wintypes.BOOL
 
+##################################################################
 
 DEFAULT_NLINES=40
 DEFAULT_NCOLUMNS=120
@@ -312,13 +345,30 @@ class Shell:
 
     async def run_windows(self):
 
-        cmd = ["cmd.exe", "/a"]
+        command = "cmd.exe"
+        cmdargs = [ command, "/a"]
 
-        if False:
+        if True:
+
+            stdin_read = wintypes.HANDLE()
+            stdin_write = wintypes.HANDLE()
+            stdout_read = wintypes.HANDLE()
+            stdout_write = wintypes.HANDLE()
+
+            if not CreatePipe(ctypes.byref(stdin_read), ctypes.byref(stdin_write), None):
+                raise ctypes.WinError(ctypes.get_last_error())
+            if not CreatePipe(ctypes.byref(stdout_read), ctypes.byref(stdout_write), None):
+                raise ctypes.WinError(ctypes.get_last_error())
+
+            if not SetHandleInformation(stdin_write, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
+                raise ctypes.WinError(ctypes.get_last_error())
+            if not SetHandleInformation(stdout_read, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
+                raise ctypes.WinError(ctypes.get_last_error())
+
+            kernel32.CreatePseudoConsole(size, stdin_read, stdout_write, 0, ctypes.byref(self.pty))
 
             self.pty = ctypes.c_void_p()
             size = COORD(DEFAULT_NCOLUMNS, DEFAULT_NLINES)
-            kernel32.CreatePseudoConsole(size, ctypes.c_void_p(), ctypes.c_void_p(), 0, ctypes.byref(self.pty))
 
             attr_size = SIZE_T()
             kernel32.InitializeProcThreadAttributeList(None, 1, 0, ctypes.byref(attr_size))
@@ -335,20 +385,69 @@ class Shell:
                 None
             )
 
-            startupinfo = STARTUPINFOEX()
+            startupinfo = STARTUPINFOAEX()
             startupinfo.StartupInfo.cb = ctypes.sizeof(startupinfo)
             startupinfo.lpAttributeList = ctypes.cast(ctypes.addressof(attr_list), ctypes.c_void_p)
 
-            proc = await asyncio.create_subprocess_exec(*cmd,
-                                                        startupinfo = startupinfo,
-                                                        stdin = asyncio.subprocess.PIPE,
-                                                        stdout = asyncio.subprocess.PIPE,
-                                                        stderr = asyncio.subprocess.PIPE) 
-            reader = proc.stdout
-            reader_err = proc.stderr
-            writer = proc.stdin
+#            startupinfo.StartupInfo.dwFlags = STARTF_USESTDHANDLES
+#            startupinfo.StartupInfo.hStdInput = stdin_read
+#            startupinfo.StartupInfo.hStdOutput = stdout_write
+ 
+            stdin_fd = msvcrt.open_osfhandle(stdin_write, os.O_WRONLY)
+            stdout_fd = msvcrt.open_osfhandle(stdout_read, os.O_RDONLY)
+ 
+            #pipe_encoding = 'utf-8'
+            pipe_encoding = 'cp1252'
+
+            writer = io.open(stdin_fd, mode='w', encoding=pipe_encoding, closefd=True)
+            reader = io.open(stdout_fd, mode='r', encoding=pipe_encoding, closefd=True)
+
+#            reader_err = io.open(stderr_fd, mode='r', encoding=pipe_encoding, closefd=True)
+
+#            proc = await asyncio.create_subprocess_exec(*cmd,
+#                                                        startupinfo = startupinfo,
+#                                                        stdin = asyncio.subprocess.PIPE,
+#                                                        stdout = asyncio.subprocess.PIPE,
+#                                                        stderr = asyncio.subprocess.PIPE) 
+#            reader = proc.stdout
+#            reader_err = proc.stderr
+#            writer = proc.stdin
+
+            pi = PROCESS_INFORMATION()
+
+            success = CreateProcessA(
+                None,
+                ctypes.c_char_p(command),
+                None,
+                None,
+                False,
+                0,
+                None,
+                None,
+                ctypes.byref(si),
+                ctypes.byref(pi)
+            )
+
+            kernel32.CloseHandle(stdin_read)
+            kernel32.CloseHandle(stdout_write)
+#            kernel32.CloseHandle(stderr_write)
+
+            if not success:
+                raise ctypes.WinError(ctypes.get_last_error())
 
             async def end_shell():
+                try:
+                    kernel32.CloseHandle(pi.hProcess)
+                except asyncio.CancelledError:
+                    raise
+                except:
+                    pass
+                try:
+                    kernel32.CloseHandle(pi.hThread)
+                except asyncio.CancelledError:
+                    raise
+                except:
+                    pass
                 try:
                     kernel32.ClosePseudoConsole(self.pty)
                 except asyncio.CancelledError:
@@ -371,7 +470,7 @@ class Shell:
 
         else:
 
-            proc = await asyncio.create_subprocess_exec(*cmd,
+            proc = await asyncio.create_subprocess_exec(*cmdargs,
                                                         stdin = asyncio.subprocess.PIPE,
                                                         stdout = asyncio.subprocess.PIPE,
                                                         stderr = asyncio.subprocess.PIPE) 
