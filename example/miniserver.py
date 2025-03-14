@@ -1,6 +1,18 @@
 #!/usr/bin/python3
-
-# Miniserver. Requires aiohttp (pip install aiohttp)
+#
+# miniserver.py
+#
+# This program implements a very basic HTTP and WebSocket server.
+# It is meant for testing the xwterm package and familiarizing with it.
+# It is NOT intended to be used in real applications. In particular,
+# its usage as a public, exposed to the internet, terminal server
+# is strongly discouraged.
+#
+# Requirements:
+#  python >= 3.12
+#  pip (if you miss some packages)
+#  aiohttp (pip install aiohttp)
+#  websockets (pip install websockets)
 
 import os
 import sys
@@ -14,6 +26,7 @@ import aiohttp.web
 import mimetypes
 import time
 import json
+import websockets
 #import pathlib
 try:
     import io
@@ -138,10 +151,13 @@ else:
 DEFAULT_NLINES=40
 DEFAULT_NCOLUMNS=120
 
+DEFAULT_HTTP_PORT = 8000
 CONSOLE_URL="/"
 DATA_REQUEST_PARAM="console"
 SET_SIZE_PARAM="size" # e.g. size=25x80
 DEFAULT_FILE="index.html"
+
+DEFAULT_WEBSOCKET_PORT = 8001
 
 #DEBUG_FLAGS = {"async", "process", "session", "http", "websocket"}
 DEBUG_FLAGS = {"async", "process", "session", "websocket"}
@@ -596,10 +612,9 @@ class Session:
     def  __init__(self, sid):
         self.sid = sid
         self.shell = None
-        self.visited =  False
         self.rxq = asyncio.Queue()
         self.txq = asyncio.Queue()
-        self.last_visited = time.time()
+        self.visited = time.time()
         self.task = None
         self.job = None
         self.pending_data = b""
@@ -655,7 +670,6 @@ class Session:
     async def read_from_process(self, reader):
         #print("self=", self, " reader=", reader)
         try:
-            txq = self.txq
             while True:
                 data = await reader.read(1000)
                 if not data:
@@ -666,7 +680,7 @@ class Session:
                     d, remt = find_valid_encoded(data)
                     self.add_pending_data(remt)
                     if len(d) > 0:
-                        await txq.put(d)
+                        await self.txq.put(d)
                 except asyncio.CancelledError:
                     raise
                 except Exception as e:
@@ -678,9 +692,8 @@ class Session:
         #print("Session ", self.sid, ": stdout/stderr closing...")
 
     async def write_to_process(self, writer):
-        rxq = self.rxq
         while True:
-            message = await rxq.get()
+            message = await self.rxq.get()
             try:
                 t = ''
                 try:
@@ -699,6 +712,12 @@ class Session:
                 print(e)
                 break
         #print("Session ", self.sid, ": stdin closing...")
+    
+    async def new_session():
+        sid = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+        session = await Session.create(sid)
+        await Session.manager.add(session.job.main)
+        return session
 
     async def request_handler(request):
 
@@ -723,11 +742,9 @@ class Session:
             session = Session.sessions[sid]
         else:
             # New session
-            sid = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
-            session = await Session.create(sid)
-            await Session.manager.add(session.job.main)
+            session = await Session.new_session()      
 
-        session.last_visited = time.time()
+        session.visited = time.time()
 
         return session
 
@@ -743,7 +760,7 @@ class Session:
             s = Session.sessions.copy()
             for sid in s:
                 session = Session.sessions[sid]
-                if (time.time() - session.last_visited > SESSION_IDLE_TIMEOUT):
+                if (time.time() - session.visited > SESSION_IDLE_TIMEOUT):
                     #print("Session ", session.sid, ": timeout -- closing...")
                     await session.terminate()
                     print("Session ", session.sid, ": timeout -- closed")
@@ -825,10 +842,7 @@ async def do_GET(request, session):
             except Exception as e:
                 print(e)
 
-        text = "";
-        if not session.visited:
-            text = "Session ID = " + session.sid + "\r\n"
-            session.visited = True;
+        text = ""
         #response = aiohttp.web.Response(text=f'Visits: {session_data["visits"]}')
         #text += session.get_pending_text(True)
         try:
@@ -879,6 +893,46 @@ async def do_PUT(request, session):
     response = aiohttp.web.Response(text='Bad request', status = 400)
     return response
 
+async def websocket_server():
+
+    async def read_from_websocket(ws, session):
+        async for data in ws:
+            try:
+                await session.rxq.put(data)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                print(e)
+
+    async def write_to_websocket(ws, session):
+        while True:
+            try:
+                d = await session.txq.get()
+                await ws.send(json.dumps({ 'text': d }))
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                print(e)
+                break
+
+
+    async def websocket_connection(ws):
+        session = await Session.new_session()
+        tasks = list()
+
+        tasks.append(asyncio.create_task(read_from_websocket(ws, session)))
+        tasks.append(asyncio.create_task(write_to_websocket(ws, session)))
+
+        async def on_close(ws):
+            await ws.close()
+
+        job = AsyncJob(*tasks, name="WS " + json.dumps(ws.remote_address), on_task_termination=on_close, terminate_on_first_competed=True)
+
+        await job.main
+
+    async with websockets.serve(websocket_connection, "127.0.0.1", DEFAULT_WEBSOCKET_PORT):
+        await asyncio.Future()
+
 async def init_app():
 
     session_manager = Session.setup()
@@ -895,10 +949,15 @@ async def init_app():
 
     app.on_startup.append(run_session_manager)
 
+    async def run_websocket_server(app):
+        asyncio.create_task(websocket_server())
+
+    app.on_startup.append(run_websocket_server)
+
     return app
 
 mimetypes.add_type('application/javascript', '.js')
 
 if __name__ == '__main__':
-    aiohttp.web.run_app(init_app(), host='127.0.0.1', port=8000)
+    aiohttp.web.run_app(init_app(), host='127.0.0.1', port=DEFAULT_HTTP_PORT)
 

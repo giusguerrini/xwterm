@@ -143,41 +143,28 @@ const ANSITERM_DEFAULTS = {
 	// Protocol parameters:
 
 	channelType: "rest", // Type of transport. Possible values are:
-	// "rest": use HTTP/HTTPS GET to get characters and POST to send key and resize events.
+	// "rest" or "http": use HTTP/HTTPS GET to get characters and POST to send key and resize events.
 	//         "source", "config" and "dest" parameters configure the requests (see below).
 	// "websocket": use websocket. Data are sent and received as JSON structures.
 	//         "wsEndpoint" il the server address:port, "wsDataTag" is the name of the JSON
 	//         field containing characters (both send and received), "wsSizeTag" is the
 	//         name of the JSON tag containing the size (see below).
-	// "poll": user-provided send and receive methods. "customSend" and "customReceive"
-	//         parameters contains the callbacks the program will invoke to ask the server for new
-	//         character to display and to send keybord and resize evets respectively (see below).
-	//         "rest" is implemented this way.
-	// "listen": user-provided send and receive methods. It is similar to poll, but the custom
-	//         receive callback is expected to block waiting for new data.
-	//         "websocket" is implemented this way.
-	//url:  window.location.href, // URL of the server. This usually is the same as the URL of the page.
+	// "dummy": a channel that does nothing.
 
 	// Parameters for "rest" channel type:
 	source:  "/?console", // GET request to receive characters from the server.
 	config:  "/?size=?lines?x?columns?", // GET request to set the size of the terminal.
 	dest:  "/", // POST request to send characters to the server.
 	timeout:  0, //10000; // Timeout for all request. 0 means no timeout. If timeout is reached, the ESC sequence is aborted.
-
-	// Parameters for "rest" and "poll" channel types:
 	immediateRefresh:  70, // Time in milliseconds to send an update request aftertheen nextding an event.
 	fastRefresh:  500, // Time in milliseconds to send the next update request after receiving a response.
 	slowRefresh:  2000, // Time in milliseconds to send the next update request after a protocol failure.
 
 	// Parameters for "websocket" channel type
-	wsEndpoint: "127.0.0.1:8765", // Websocket endpoint
+	wsEndpoint: "127.0.0.1:8001", // Websocket endpoint
 	wsDataTag: "text", // name of the JSON field containing characters (both send and received),
 	wsSizeTag: "size", // name of the JSON tag containing the sreen size.
-	wsSizeData: "lines?x?columns?", // format of the JSON tag containing the sreen size.
-
-	// Paramters for "poll" and "listen" channel type
-	customSend: null,
-	customReceive: null,
+	wsSizeData: "lines?x?columns?", // format of the JSON tag containing the screen size.
 
 	// Colors and appearance:
 
@@ -291,8 +278,6 @@ class AnsiTermScreen {
  * @param {string} [params.wsDataTag=""] - WebSocket data tag for the terminal.
  * @param {string} [params.wsSizeTag=""] - WebSocket size tag for the terminal.
  * @param {string} [params.wsSizeData=""] - WebSocket size data for the terminal.
- * @param {function} [params.customSend=null] - Custom function for sending data.
- * @param {function} [params.customReceive=null] - Custom function for receiving data.
  * @param {string} [params.foreground="rgb(255,255,255)"] - Default foreground color.
  * @param {string} [params.background="rgb(0,0,0)"] - Default background color.
  * @param {string} [params.statusForegroundOk="rgb(0,255,0)"] - Status bar foreground color for OK status.
@@ -1373,8 +1358,6 @@ export class AnsiTerm {
 		wsDataTag: "ws_data_tag",
 		wsSizeTag: "ws_size_tag",
 		wsSizeData: "ws_size_data",
-		customSend: "custom_send",
-		customReceive: "custom_receive",
 		foreground: "foreground",
 		background: "background",
 		statusForegroundOk: "status_foreground_ok",
@@ -1521,18 +1504,40 @@ export class AnsiTerm {
 		this.immedate_refresh_request_count = 1
 
 		if (this.driver == null) {
-			this.driver = new AnsiTermHttpDriver(
+			switch (this.channel_type) {
 				
-				{
-					immediateRefresh: this.configuration.immediateRefresh,
-					fastRefresh: this.configuration.fastRefresh,
-					slowRefresh: this.configuration.slowRefresh,
-					source: this.configuration.source,
-					dest: this.configuration.dest,
-					config: this.configuration.config,
-				},
-				null, null
-			);
+			case "rest":
+			case "http":
+				this.driver = new AnsiTermHttpDriver(
+					{
+						immediateRefresh: this.configuration.immediateRefresh,
+						fastRefresh: this.configuration.fastRefresh,
+						slowRefresh: this.configuration.slowRefresh,
+						source: this.configuration.source,
+						dest: this.configuration.dest,
+						config: this.configuration.config,
+					},
+					null, null
+				);
+				break;
+
+			case "websocket":
+				this.driver = new AnsiTermWebSocketDriver(
+					{
+						wsEndpoint: this.configuration.wsEndpoint,
+						wsDataTag: this.configuration.wsDataTag,
+						wsSizeTag: this.configuration.wsSizeTag,
+						wsSizeData: this.configuration.wsSizeData,
+					},
+					null, null
+				);
+				break;
+
+			case "dummy":
+			default:
+				this.driver = new AnsiTermDriver({}, null, null);
+				break;
+			}
 		}
 
 		this.driver.registerOnDataReceived(
@@ -2596,7 +2601,7 @@ export class AnsiTerm {
 
 	_send_data(t)
 	{
-		this.driver.send(t, () => {});
+		this.driver.send(t);
 	}
 
 	_send_id()
@@ -3217,13 +3222,6 @@ export class AnsiTermDriver
 		}
 	}
 
-	_new_connection_state(st)
-	{
-		if (this.on_connection_change) {
-			this.on_connection_change(st);
-		}
-	}
-
 	registerOnDataReceived(on_data_received)
 	{
 			this.on_data_received = on_data_received;
@@ -3249,12 +3247,9 @@ export class AnsiTermDriver
 		this.started = false;
 	}
 
-	send(text, then)
+	send(text)
 	{
 		this._tx(text);
-		if (then) {
-			then();
-		}
 	}
 
 
@@ -3262,17 +3257,25 @@ export class AnsiTermDriver
 	{
 		if (this.connection_state != st) {
 			this.connection_state = st;
-			this._new_connection_state(st);
+			if (this.on_connection_change) {
+				this.on_connection_change(st);
+			}
 		}
 	}
 
 	_tx(text)
 	{
+		// Echo, for testing
+		text = text.replace("\r", "\r\n");
+		text = text.replace("\x7f", "\x08");
+		text = text.replace("\x08", "\x08 \x08");
+		this._new_data(text);
 	}
 
 	setSize(nlines, ncolumns)
 	{
-
+		// Notify, for testing
+		this._new_data("\x1b[95mSceen size = " + nlines + "x" + ncolumns + "\r\n\r\n\x1b[0m");
 	}
 
 }
@@ -3298,7 +3301,7 @@ class AnsiTermHttpDriver extends AnsiTermDriver
 		this.url = params.url || window.location.href;
 
 		this._set_connection_state(false);
-		this._start_cycle(this.params.immediateRefresh);
+		//this._start_cycle(this.params.immediateRefresh);
 	}
 	
 	start()
@@ -3453,4 +3456,104 @@ class AnsiTermHttpDriver extends AnsiTermDriver
 			}
 		}
 	}
+}
+
+class AnsiTermWebSocketDriver extends AnsiTermDriver
+{
+	constructor(params, on_data_received, on_connection_change)
+	{
+		super(params, on_data_received, on_connection_change);
+		this.params = params;
+		this.connection_state = false;
+		this.pending_objs = [];
+	}
+
+	start()
+	{
+		super.start();
+
+		this.socket = new WebSocket('ws://' + this.params.wsEndpoint);
+
+		this.socket.addEventListener('open', (event) => {
+			console.log('WS Connection open');
+			this._set_connection_state(true);
+			while (this.pending_objs.length > 0) {
+				this._send_obj(this.pending_objs.shift());
+			}
+		});
+
+		this.socket.addEventListener('message', (event) => {
+
+//			console.log('WS Messagge from server:', event.data);
+			let t = event.data;
+			let data = t;
+
+			try {
+				data = JSON.parse(t);
+			}
+			catch {
+			}
+
+			if (this.params.wsDataTag in data) {
+				t = data[this.params.wsDataTag];
+			}
+			else {
+				//t = "";
+			}
+
+			if (t != "") {
+				console.log(data);
+
+				this._new_data(t);
+			}
+		});
+
+		this.socket.addEventListener('close', (event) => {
+			console.log('WS Connection closed');
+			this._set_connection_state(false);
+			try {
+				socket.close();
+			} catch {}
+			this.socket = null;
+		});
+
+		this.socket.addEventListener('error', (event) => {
+			console.error('Error in WebSocket:', event);
+			this._set_connection_state(false);
+			try {
+				socket.close();
+			} catch {}
+			this.socket = null;
+		});
+	}
+
+	_send_obj(obj)
+	{
+		if (this.connection_state) {
+			let s = JSON.stringify(obj);
+	    	this.socket.send(s);
+		}
+		else {
+			this.pending_objs.push(obj);
+		}
+	}
+
+	_send_obj_data(data, tag)
+	{
+		let obj = {};
+		obj[tag] = data;
+		this._send_obj(obj);
+	}
+
+	_tx(text)
+	{
+		this._send_obj_data(text, this.params.wsDataTag);
+	}
+
+	setSize(nlines, ncolumns)
+	{
+		let q = this.params.wsSizeData.replace("?lines?", nlines).replace("?columns?", ncolumns);
+		this._send_obj_data(q, this.params.wsSizeTag);
+	}
+
 }
