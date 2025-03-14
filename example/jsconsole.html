@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style type="text/css">
+</style>
+</head>
+<body>
+<script type="module">
+
+	import { AnsiTerm, AnsiTermDriver } from "./xwterm.js";
+
+	class JSConsole extends AnsiTermDriver {
+
+
+		constructor(params, on_data_received, on_connection_change)
+		{
+			super(params, on_data_received, on_connection_change);
+
+			this.pending_line = "";
+			this.started = false;
+			this.welcome = "\r\n\x1b[35mWelcome to JSConsole\r\nEnter a valid Javascript line\r\n\r\n";
+
+			this.jsprompt = "\x1b[32m> ";
+			this.jsanswer = "\x1b[94m== ";
+			this.jserror = "\x1b[91m!! ";
+		}
+
+		start()
+		{
+			super.start();
+			this._new_data(this.welcome);
+			this._new_data(this.jsprompt);
+			this.started = true;
+		}
+
+		_tx(text, then)
+		{
+			for (let i = 0; i < text.length; ++i) {
+				let c = text[i];
+				let answer = "";
+				if (c == '\r' || c == '\n') {
+					this._new_data(c + '\n');
+					if (this.pending_line != "") {
+						try {
+							answer = this.jsanswer + JSON.stringify(eval(this.pending_line));
+						} catch (err) {
+							answer = this.jserror + JSON.stringify(err);
+						}
+					}
+					this.pending_line = "";
+					this._new_data(answer + '\r\n' + this.jsprompt);
+				}
+				else if (c == '\x08' || c == '\x7f') {
+					if (this.pendig_line != "") {
+						this._new_data('\x08 \x08');
+						this.pending_line = this.pending_line.substring(0, this.pending_line.length - 1);
+					}
+				}
+				else {
+					this.pending_line += c;
+					this._new_data(c);
+				}
+			}
+		}
+	}
+	
+	window.ansi = new AnsiTerm( 
+		{
+		driver: new JSConsole(),
+
+		nLines : 30,
+		nColumns : 100,
+		fontSize : 12,
+		background : "rgb(245,245,235)",
+		foreground : "black",
+		hasTitleBar: false,
+		hasStatusBar: true,
+		hasSoftFKeys: false,
+		}
+	);
+	
+</script>
+<h3>JavaScript Terminal</h3>
+</body>
+</html>

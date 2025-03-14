@@ -209,6 +209,12 @@ const ANSITERM_DEFAULTS = {
 	hasStatusBar: true, // If true, the standard status bar is added
 	hasSoftKeyboard: true, // If true, the soft keyboard is added
 	hasSoftFKeys: true, // If true, the soft keyboard contains function keys F1...F12
+
+	driver: null, // An user-provided object to use as communication driver
+	              // instead of HTTP channel.
+	              // The object must be an instance of a class that 
+				  // implements (extends) AnsiTermDriver
+				  // interface (see below).
 };
 
 function getAbsolutePosition(element)
@@ -1390,6 +1396,7 @@ export class AnsiTerm {
 		hasStatusBar: "has_status_bar",
 		hasSoftKeyboard: "has_soft_keyboard",
 		hasSoftFKeys: "has_soft_fkeys",
+		driver: "driver",
 	};
 
 
@@ -1513,25 +1520,34 @@ export class AnsiTerm {
 
 		this.immedate_refresh_request_count = 1
 
-		this.driver = new AnsiTermHttpDriver(
+		if (this.driver == null) {
+			this.driver = new AnsiTermHttpDriver(
+				
+				{
+					immediateRefresh: this.configuration.immediateRefresh,
+					fastRefresh: this.configuration.fastRefresh,
+					slowRefresh: this.configuration.slowRefresh,
+					source: this.configuration.source,
+					dest: this.configuration.dest,
+					config: this.configuration.config,
+				},
+				null, null
+			);
+		}
+
+		this.driver.registerOnDataReceived(
+				(text) => {
+					this.write(text);
+				}
+			);
 			
-			{
-				immediateRefresh: this.configuration.immediateRefresh,
-				fastRefresh: this.configuration.fastRefresh,
-				slowRefresh: this.configuration.slowRefresh,
-				source: this.configuration.source,
-				dest: this.configuration.dest,
-				config: this.configuration.config,
-			},
+		this.driver.registerOnConnectionChange(
+				(st) => {
+					this._set_status(st);
+				}
+			);
 
-			(text) => {
-				this.write(text);
-			},
-
-			(st) => {
-				this._set_status(st);
-			}
-		);
+		this.driver.start();
 
 		setTimeout( () => { this._setsize(); }, 0);
 	}
@@ -3182,7 +3198,7 @@ export class AnsiTerm {
 }
 
 
-class AnsiTermDriver
+export class AnsiTermDriver
 {
 	constructor(params, on_data_received, on_connection_change)
 	{
@@ -3191,11 +3207,46 @@ class AnsiTermDriver
 		this.on_data_received = on_data_received;
 		this.on_connection_change = on_connection_change;
 		this.connection_state = true;
+		this.started = false;
+	}
+
+	_new_data(text)
+	{
+		if (this.on_data_received) {
+			this.on_data_received(text);
+		}
+	}
+
+	_new_connection_state(st)
+	{
+		if (this.on_connection_change) {
+			this.on_connection_change(st);
+		}
+	}
+
+	registerOnDataReceived(on_data_received)
+	{
+			this.on_data_received = on_data_received;
+	}
+
+	registerOnConnectionChange(on_connection_change)
+	{
+			this.on_connection_change = on_connection_change;
 	}
 
 	getConnectionState()
 	{
 		return this.connection_state;
+	}
+
+	start()
+	{
+		this.started = true;
+	}
+
+	stop()
+	{
+		this.started = false;
 	}
 
 	send(text, then)
@@ -3211,9 +3262,7 @@ class AnsiTermDriver
 	{
 		if (this.connection_state != st) {
 			this.connection_state = st;
-			if (this.on_connection_change) {
-				this.on_connection_change(st);
-			}
+			this._new_connection_state(st);
 		}
 	}
 
@@ -3232,7 +3281,7 @@ class AnsiTermHttpDriver extends AnsiTermDriver
 {
 	constructor(params, on_data_received, on_connection_change)
 	{
-		super(params, on_data_received, on_connection_change)
+		super(params, on_data_received, on_connection_change);
 
 		this.pending_data_to_send = "";
 		this.pending_data_in_transaction = "";
@@ -3249,6 +3298,12 @@ class AnsiTermHttpDriver extends AnsiTermDriver
 		this.url = params.url || window.location.href;
 
 		this._set_connection_state(false);
+		this._start_cycle(this.params.immediateRefresh);
+	}
+	
+	start()
+	{
+		super.start();
 		this._start_cycle(this.params.immediateRefresh);
 	}
 
@@ -3298,9 +3353,7 @@ class AnsiTermHttpDriver extends AnsiTermDriver
 
 						console.log(data);
 
-						if (this.on_data_received) {
-							this.on_data_received(t);
-						}	
+						this._new_data(t);
 					}
 
 					this._schedule_update(this.params.fastRefresh);
