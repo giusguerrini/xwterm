@@ -132,13 +132,10 @@ const ANSITERM_DEFAULTS = {
 	statusFont:  "Helvetica bold", //"Arial bold", // Font for the status line and the title.
 	
 	// Custom layout control:
-
-	divId:  "", // Id of the div element that contains the terminal. If empty, a new div is created.
+	containerId: "", // Id of the container in which the while terminal, incuding its main div,
+	                 //  will take place. If empty, document.body is assumed as container.
 	canvasId:  "", // Id of the canvas element. If empty, a new canvas is created.
-	titlesId:  "", // Id of the title element. If empty, a new title is created.
-	//statusId:  "", // TODO: Id of the status element. If empty, a new status is created.
-	//keyboardId:  "", // TODO: Id of the keyboard element. If empty, a new keyboard is created.
-	//buttonsId:  "", // TODO: Id of the button container element. If empty, a new container is created.
+	autocenter: true, // If true, the terminal takes place at center of its container.
 
 	// Protocol parameters:
 
@@ -164,7 +161,7 @@ const ANSITERM_DEFAULTS = {
 	wsEndpoint: "127.0.0.1:8001", // Websocket endpoint
 	wsDataTag: "text", // name of the JSON field containing characters (both send and received),
 	wsSizeTag: "size", // name of the JSON tag containing the sreen size.
-	wsSizeData: "lines?x?columns?", // format of the JSON tag containing the screen size.
+	wsSizeData: "?lines?x?columns?", // format of the JSON tag containing the screen size.
 
 	// Colors and appearance:
 
@@ -263,9 +260,8 @@ class AnsiTermScreen {
  * @param {number} [params.fontSize=14] - Font size for the terminal text.
  * @param {string} [params.font="monospace"] - Font family for the terminal text.
  * @param {string} [params.statusFont="monospace"] - Font family for the status bar text.
- * @param {string} [params.divId=""] - ID of the div element to create the terminal in.
+ * @param {string} [params.containerId=""] - ID of the container element to create the terminal in.
  * @param {string} [params.canvasId=""] - ID of the canvas element to use for the terminal.
- * @param {string} [params.titlesId=""] - ID of the element to use for the terminal title.
  * @param {string} [params.url=""] - URL for the terminal's data source.
  * @param {string} [params.channelType=""] - Type of channel for communication.
  * @param {string} [params.source=""] - Source for the terminal's data.
@@ -969,26 +965,28 @@ export class AnsiTerm {
 		this.paste_button = null;
 		this.select_all_button = null;
 
+		this.container = null;
+
+		if (this.containerid != "") {
+			this.container = document.getElementById(this.containerid);
+		}
+		if (! this.container) {
+			this.container = document.body;
+		}
 
 		if (this.canvasid != "") {
 			this.canvas = document.getElementById(this.canvasid);
-			if (this.titleid != "") {
-				this.title = document.getElementById(this.titleid);
-			}
 		}
 		else {
-			if (this.divid == "") {
-				this.div = document.createElement("div");
-				this.div.style.width = "max-content";
-				this.div.style.position = "absolute";
+			this.div = document.createElement("div");
+			this.div.style.width = "max-content";
+			if (this.autocenter) {
+				//this.div.style.position = "absolute";
 				this.div.style.top = "50%";
 				this.div.style.left = "50%";
 				this.div.style.transform = "translate(-50%,-50%)";
-				document.body.appendChild(this.div);
 			}
-			else {
-				this.div = document.getElementById(this.divid);
-			}
+			this.container.appendChild(this.div);
 			this.div.classList.add("ansi-terminal");
 			this.div.style.display = "grid";
 			this.div.style.gridTemplateColumns = "auto";
@@ -1168,9 +1166,6 @@ export class AnsiTerm {
 	
 		}
 
-
-		if (true) {
-		// TODO / WIP: Copy/Paste popup menu
 		this.menu = document.createElement("dialog");
 		//this.menu.open = false;
 		//this.menu.style.position = "absolute";
@@ -1214,11 +1209,11 @@ export class AnsiTerm {
 					}
 				},
 			copy_as_rich_text: {
-				text: "Rich Text",
-				fn: () => {
-					this.clipboardCopyAsRichText();
-				}
-			},
+					text: "Rich Text",
+					fn: () => {
+						this.clipboardCopyAsRichText();
+					}
+				},
 			quit: {
 					text: "Quit",
 					fn: () => {
@@ -1270,8 +1265,6 @@ export class AnsiTerm {
 		}
 
 		document.body.appendChild(this.menu);
-
-		}
 		
 		// Set up canvas' sensitivity to mouse events.
 		this.canvas.addEventListener("click", (event) => {
@@ -1332,6 +1325,7 @@ export class AnsiTerm {
 
 		//this.scrollbar = new GenericScrollBarAdder(this.canvas);
 
+		this.canvas.focus();
 
 	}
 
@@ -1343,9 +1337,9 @@ export class AnsiTerm {
 		fontSize: "fontsize",
 		font: "font",
 		statusFont: "status_font",
-		divId: "divid",
+		containerId: "containerid",
 		canvasId: "canvasid",
-		titlesId: "titleid",
+		autocenter: "autocenter",
 		url: "url",
 		channelType: "channel_type",
 		source: "source",
@@ -1395,7 +1389,7 @@ export class AnsiTerm {
 			params = "";
 		}
 		if (typeof params == 'string') {
-			params = { divId: params };
+			params = { containerId: params };
 		}
 
 		// Apply defaults, overwrite with actual parameters
@@ -1444,7 +1438,7 @@ export class AnsiTerm {
 		this.enable_cursor = true;
 		this.force_blink_cursor = true;
 
-		this.status_ok = false;
+		this.status_ok = -1; // It means "not defined"
 
 		this.bold = false;
 		this.italic = false;
@@ -1475,7 +1469,10 @@ export class AnsiTerm {
 
 		this._reset();
 
-		document.onkeydown = ((e) => { this._on_keydown(e); });
+		//document.onkeydown = ((e) => { this._on_keydown(e); });
+		this.canvas.setAttribute('tabindex', '0');
+		this.canvas.onkeydown = ((e) => { this._on_keydown(e); });
+		this.canvas.focus();
 
 		this.blink_timer = setTimeout( (() => { this._blink_timeout(); }), this.blink_period);
 
@@ -1500,8 +1497,6 @@ export class AnsiTerm {
 		this._create_sm();
 
 		this.selection_timer = null;
-
-		this.immedate_refresh_request_count = 1
 
 		if (this.driver == null) {
 			switch (this.channel_type) {
@@ -1555,6 +1550,16 @@ export class AnsiTerm {
 		this.driver.start();
 
 		setTimeout( () => { this._setsize(); }, 0);
+	}
+
+	close()
+	{
+		this._clear_selection();
+		this.driver.close();
+		this._clear_timer();
+		if (this.div) {
+			this.div.remove();
+		}
 	}
 
 	_flush()
@@ -3237,14 +3242,24 @@ export class AnsiTermDriver
 		return this.connection_state;
 	}
 
+	close()
+	{
+		this.tarted = false;
+	}
+
 	start()
 	{
 		this.started = true;
-	}
+		if (this.on_connection_change) {
+			this.on_connection_change(this.connection_state);
+		}
+}
 
 	stop()
 	{
 		this.started = false;
+		this._set_connection_state(false);
+
 	}
 
 	send(text)
@@ -3308,6 +3323,15 @@ class AnsiTermHttpDriver extends AnsiTermDriver
 	{
 		super.start();
 		this._start_cycle(this.params.immediateRefresh);
+	}
+
+	close()
+	{
+		super.close();
+		if (this.timer) {
+			clearTimeout(this.timer);
+			this.timer = null;
+		}
 	}
 
 	_start_cycle(timeout)
@@ -3464,15 +3488,20 @@ class AnsiTermWebSocketDriver extends AnsiTermDriver
 	{
 		super(params, on_data_received, on_connection_change);
 		this.params = params;
-		this.connection_state = false;
 		this.pending_objs = [];
+		this._set_connection_state(false);
 	}
 
 	start()
 	{
 		super.start();
 
-		this.socket = new WebSocket('ws://' + this.params.wsEndpoint);
+		try {
+			this.socket = new WebSocket('ws://' + this.params.wsEndpoint);
+		} catch {
+			super.stop();
+			return;
+		}
 
 		this.socket.addEventListener('open', (event) => {
 			console.log('WS Connection open');
@@ -3509,22 +3538,25 @@ class AnsiTermWebSocketDriver extends AnsiTermDriver
 		});
 
 		this.socket.addEventListener('close', (event) => {
-			console.log('WS Connection closed');
 			this._set_connection_state(false);
-			try {
-				socket.close();
-			} catch {}
-			this.socket = null;
+			this.close();
 		});
 
 		this.socket.addEventListener('error', (event) => {
-			console.error('Error in WebSocket:', event);
+			console.log('Error in WebSocket:', event);
 			this._set_connection_state(false);
-			try {
-				socket.close();
-			} catch {}
-			this.socket = null;
+			this.close();
 		});
+	}
+
+	close()
+	{
+		super.close();
+		console.log('WS Connection closed');
+		try {
+			socket.close();
+		} catch {}
+		this.socket = null;
 	}
 
 	_send_obj(obj)

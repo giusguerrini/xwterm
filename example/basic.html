@@ -15,7 +15,7 @@
 		background-color: #f2f2e0; 
 	}
 	div.basic-example {
-		display: inline-block;
+		width: auto;
 		padding: 40px auto;
 		margin: 40px auto;
 	}
@@ -26,14 +26,15 @@
 </style>
 </head>
 <body>
-	<div class="basic-example">
-		<p><h3>Basic terminal example</h3></p>
-		<button onclick="start_terminal('http')">Start terminal using HTTP channel</button>
-		<button onclick="start_terminal('websocket')">Start terminal using WebSocket channel</button>
-		<button onclick="start_terminal('dummy')">Start terminal using Dunny channel</button>
-	</div>
-	<div id="console">
-
+	<div id="main-div" class="basic-example" style="display: grid; grid-template-columns: auto; place-items: center;"">
+		<p>Basic terminal example</p>
+		<div style="display: grid; grid-template-columns: auto auto auto; padding: 20px; gap: 20px;">
+			<button onclick="start_terminal('http')">Start terminal using HTTP channel</button>
+			<button onclick="start_terminal('websocket')">Start terminal using WebSocket channel</button>
+			<button onclick="start_terminal('dummy')">Start terminal using Dunny channel</button>
+		</div>
+		<hr>
+		<div id="terminal-div"></div>
 	</div>
 
 	<script type="module">
@@ -44,6 +45,10 @@
 
 		export function start_terminal(channel_type)
 		{
+			if (ansi) {
+				ansi.close();
+			}
+			
 			ansi = new AnsiTerm( 
 			/* Zero-effort: Nothing at all, if you want the program to create a div for you  and apply default properties*/
 		
@@ -52,7 +57,8 @@
 					*/
 					
 					{
-					divId: "console",
+					containerId: "terminal-div",
+					autocenter: false,
 
 					channelType: channel_type,
 					/* Changing size:

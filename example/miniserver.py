@@ -170,6 +170,8 @@ if platform.system() == "Linux":
 else:
     default_encoding = 'cp1252'
 
+home_dir = os.path.dirname(os.path.abspath(__file__))
+
 def find_valid_encoded(text):
     for i in range(len(text), 0, -1):
         try:
@@ -241,7 +243,7 @@ class AsyncJob:
                     # Hell, cancellation exception is propagated up to the current task...
                     #
                         await task            
-                    except asyncio.CancelledError:
+                    except (asyncio.CancelledError, GeneratorExit):
                         pass
                     except:
                         pass
@@ -342,13 +344,13 @@ class Shell:
         async def end_shell():
             try:
                 os.kill(pid, signal.SIGKILL)
-            except asyncio.CancelledError:
+            except (asyncio.CancelledError, GeneratorExit):
                 raise
             except:
                 pass
             try:
                 os.close(fd)
-            except asyncio.CancelledError:
+            except (asyncio.CancelledError, GeneratorExit):
                 raise
             except:
                 pass
@@ -503,25 +505,25 @@ class Shell:
                 print("end_shell: ", self.proc.hProcess)
                 try:
                     kernel32.TerminateProcess(self.proc.hProcess, 0)
-                except asyncio.CancelledError:
+                except (asyncio.CancelledError, GeneratorExit):
                     raise
                 except:
                     pass
                 try:
                     kernel32.CloseHandle(self.proc.hProcess)
-                except asyncio.CancelledError:
+                except (asyncio.CancelledError, GeneratorExit):
                     raise
                 except:
                     pass
                 try:
                     kernel32.CloseHandle(self.proc.hThread)
-                except asyncio.CancelledError:
+                except (asyncio.CancelledError, GeneratorExit):
                     raise
                 except:
                     pass
                 try:
                     kernel32.ClosePseudoConsole(self.pty)
-                except asyncio.CancelledError:
+                except (asyncio.CancelledError, GeneratorExit):
                     raise
                 except:
                     pass
@@ -566,13 +568,13 @@ class Shell:
             async def end_shell():
                 try:
                     proc.proc.kill()
-                except asyncio.CancelledError:
+                except (asyncio.CancelledError, GeneratorExit):
                     raise
                 except:
                     pass
                 try:
                     await proc.proc.wait()
-                except asyncio.CancelledError:
+                except (asyncio.CancelledError, GeneratorExit):
                     raise
                 except:
                     pass
@@ -600,7 +602,7 @@ class Shell:
     async def terminate(self):
         try:
             await self.kill()
-        except asyncio.CancelledError:
+        except (asyncio.CancelledError, GeneratorExit):
             raise
         except:
             pass
@@ -620,40 +622,39 @@ class Session:
         self.pending_data = b""
         Session.sessions[self.sid] = self
 
+    async def activate(self):
 
-    async def create(sid):
+        if self.shell:
+            return
         
-        session = Session(sid)
-        
-        session.shell = await Shell.create(sid)
+        self.shell = await Shell.create(self.sid)
 
         #print("Session ", session.sid, ": starting I/O tasks")
 
         tasks = list()
 
-        tasks.append(asyncio.create_task(session.read_from_process(session.shell.rd)))
-        tasks.append(asyncio.create_task(session.write_to_process(session.shell.wr)))
-        if session.shell.err:
-            tasks.append(asyncio.create_task(session.read_from_process(session.shell.err)))
+        tasks.append(asyncio.create_task(self.read_from_process(self.shell.rd)))
+        tasks.append(asyncio.create_task(self.write_to_process(self.shell.wr)))
+        if self.shell.err:
+            tasks.append(asyncio.create_task(self.read_from_process(self.shell.err)))
 
         async def on_close(task):
-            await session.shell.terminate()
-            del Session.sessions[session.sid]
+            await self.shell.terminate()
+            del Session.sessions[self.sid]
             #print("Session ", session.sid, ": exiting")
 
 
-        session.job = AsyncJob(*tasks, name = session.sid,
+        self.job = AsyncJob(*tasks, name = self.sid,
                                on_task_termination = on_close,
                                terminate_on_first_competed = True)
         
-        return session
-
+        await Session.manager.add(self.job.main)
 
 
     async def terminate(self):
         try:
             await self.job.cancel()
-        except asyncio.CancelledError:
+        except (asyncio.CancelledError, GeneratorExit):
             raise
         except:
             pass
@@ -681,11 +682,11 @@ class Session:
                     self.add_pending_data(remt)
                     if len(d) > 0:
                         await self.txq.put(d)
-                except asyncio.CancelledError:
+                except (asyncio.CancelledError, GeneratorExit):
                     raise
                 except Exception as e:
                     print(e)
-        except asyncio.CancelledError:
+        except (asyncio.CancelledError, GeneratorExit):
             raise
         except Exception as e:
             print(e)
@@ -698,25 +699,39 @@ class Session:
                 t = ''
                 try:
                     d = json.loads(message)
-                    t = d['text']
-                except asyncio.CancelledError:
+                    if 'text' in d:
+                        t = d['text']
+                    if 'size' in d:
+                        self.set_size_from_text(d['size'])                        
+                except (asyncio.CancelledError, GeneratorExit):
                     raise
                 except:
                     t = message
                 if t != '':
                     writer.write(t.encode(default_encoding))
                     await writer.drain()
-            except asyncio.CancelledError:
+            except (asyncio.CancelledError, GeneratorExit):
                 raise
             except Exception as e:
                 print(e)
                 break
         #print("Session ", self.sid, ": stdin closing...")
-    
+
+    def set_size_from_text(self,text):
+        try:
+            sz = text.split("x")
+            if len(sz) >= 2:
+                li = int(sz[0])
+                co = int(sz[1])
+                self.shell.set_size(li, co)
+        except Exception as e:
+            print(e)
+
+            
     async def new_session():
         sid = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
-        session = await Session.create(sid)
-        await Session.manager.add(session.job.main)
+        session = Session(sid)
+        #await Session.manager.add(session.job.main)
         return session
 
     async def request_handler(request):
@@ -800,27 +815,20 @@ class Session:
 async def get_files(request, session):
     file_path = request.match_info.get('file_path', DEFAULT_FILE)
     content = ""
-    mime_type = 'application/octet-stream'
-    fp = file_path
-    if not os.path.exists(file_path):
-        file_path = "../src/" + file_path
-    if not os.path.exists(file_path):
-        file_path = "/examples/" + fp
-    if not os.path.exists(file_path):
-        file_path = "/src/" + fp
+    fp = os.path.join(home_dir, file_path)
+    if not os.path.exists(fp):
+        fp = os.path.join(os.path.dirname(home_dir), "src", file_path)
     try:
-        if os.path.exists(file_path):
-            with open(file_path, 'rb') as file:
-                content = file.read()
-            mime_type, _ = mimetypes.guess_type(file_path)
-            #print("File ", file_path, " mime-type ", mime_type)
-    except asyncio.CancelledError:
+        with open(fp, 'rb') as file:
+            content = file.read()
+        mime_type, _ = mimetypes.guess_type(fp)
+        if mime_type is None:
+            mime_type = 'application/octet-stream'
+        response = aiohttp.web.Response(body=content, content_type=mime_type)
+    except (asyncio.CancelledError, GeneratorExit):
         raise
     except:
-        pass
-    if mime_type is None:
-        mime_type = 'application/octet-stream'
-    response = aiohttp.web.Response(body=content, content_type=mime_type)
+        response = aiohttp.web.Response(text='Not found', status = 404)
     return response
 
 @Session.decorator
@@ -830,17 +838,10 @@ async def do_GET(request, session):
 
     if (SET_SIZE_PARAM in params) or (DATA_REQUEST_PARAM in params): 
 
+        await session.activate()
+
         if (SET_SIZE_PARAM in params): 
-            try:
-                sz = params[SET_SIZE_PARAM].split("x")
-                if len(sz) >= 2:
-                    li = int(sz[0])
-                    co = int(sz[1])
-                    session.shell.set_size(li, co)
-            except asyncio.CancelledError:
-                raise
-            except Exception as e:
-                print(e)
+            session.set_size_from_text(params[SET_SIZE_PARAM])
 
         text = ""
         #response = aiohttp.web.Response(text=f'Visits: {session_data["visits"]}')
@@ -854,7 +855,7 @@ async def do_GET(request, session):
             #text = text.decode(default_encoding)
             #text, remt = find_valid_encoded(text)
             #session.add_pending_text(remt)
-        except asyncio.CancelledError:
+        except (asyncio.CancelledError, GeneratorExit):
             raise
         except:
             pass
@@ -875,13 +876,14 @@ async def do_GET_files(request, session):
 async def do_POST(request, session):
     #print("POST: Session=", session.sid);
     try:
+        await session.activate()
         data = await request.text()
         #
         # data = data.decode("UTF-8")
         #print("POST: Data=", data)
         await session.rxq.put(data)
         response = aiohttp.web.Response(text='', status = 200)
-    except asyncio.CancelledError:
+    except (asyncio.CancelledError, GeneratorExit):
         raise
     except Exception as e:
         print("POST: error", e)
@@ -899,36 +901,50 @@ async def websocket_server():
         async for data in ws:
             try:
                 await session.rxq.put(data)
-            except asyncio.CancelledError:
+            except (asyncio.CancelledError, GeneratorExit):
                 raise
             except Exception as e:
-                print(e)
+                print("WS recv: ", e)
+                break
 
     async def write_to_websocket(ws, session):
         while True:
             try:
                 d = await session.txq.get()
                 await ws.send(json.dumps({ 'text': d }))
-            except asyncio.CancelledError:
+            except (asyncio.CancelledError, GeneratorExit):
                 raise
             except Exception as e:
-                print(e)
+                print("WS send: ", e)
                 break
 
-
     async def websocket_connection(ws):
+
+        print("WS connection, peer = ", json.dumps(ws.remote_address))
         session = await Session.new_session()
+        await session.activate()
         tasks = list()
+
+        print("WS connection, shell running, peer = ", json.dumps(ws.remote_address))
 
         tasks.append(asyncio.create_task(read_from_websocket(ws, session)))
         tasks.append(asyncio.create_task(write_to_websocket(ws, session)))
 
-        async def on_close(ws):
-            await ws.close()
+        async def on_close(task):
+            print("WS connection closed, peer = ", json.dumps(ws.remote_address))
+            try:
+                await ws.close()
+            except (asyncio.CancelledError, GeneratorExit):
+                raise
+            except:
+                pass
 
         job = AsyncJob(*tasks, name="WS " + json.dumps(ws.remote_address), on_task_termination=on_close, terminate_on_first_competed=True)
 
         await job.main
+
+        print("WS connection exiting, peer = ", json.dumps(ws.remote_address))
+
 
     async with websockets.serve(websocket_connection, "127.0.0.1", DEFAULT_WEBSOCKET_PORT):
         await asyncio.Future()

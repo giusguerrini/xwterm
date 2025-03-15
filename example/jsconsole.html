@@ -3,9 +3,32 @@
 <head>
 <meta charset="UTF-8">
 <style type="text/css">
+	canvas {
+		border: 2px solid #8080ff;
+		margin: 0px auto;
+		text-align: left;
+	}
+	.basic-example {
+		border: 2px solid #8080FF;
+		border-radius: 20px;
+		margin: 20px auto;
+		background-color: #f2f2e0; 
+	}
+	div.basic-example {
+		width: auto;
+		padding: 40px auto;
+		margin: 40px auto;
+	}
+	button.basic-example  {
+		margin: 40px auto;
+		padding: 40px auto;
+	}
 </style>
 </head>
 <body>
+	<div id="main-div" class="basic-example" style="display: grid; grid-template-columns: auto; place-items: center;">
+		<h3>JavaScript Terminal</h3>
+	</div>
 <script type="module">
 
 	import { AnsiTerm, AnsiTermDriver } from "./xwterm.js";
@@ -69,6 +92,9 @@
 		{
 		driver: new JSConsole(),
 
+		containerId: "main-div",
+		autocenter: false,
+		
 		nLines : 30,
 		nColumns : 100,
 		fontSize : 12,
@@ -81,6 +107,5 @@
 	);
 	
 </script>
-<h3>JavaScript Terminal</h3>
 </body>
 </html>
