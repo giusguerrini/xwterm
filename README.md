@@ -195,15 +195,12 @@ More sophisticated encodings are expected to be problematic.
 ## TODO
 Many things to do:
 - Clean up code and add comments.
-- Add WebSockets: at the moment, the only available channel to the backend is HTTP GET/POST.
 - Add better support for server-side sessions (e.g., cookies, access tokens...)
 - Add custom CSS properties to configure the terminal. Currently, the configuration comes
   from a set of parameters passed to the constructor.
 - Add a configuration item to choose the terminal mode (e.g., "pure ANSI", "xterm", "xterm-256"...).
 - Improve the soft keyboard. The current implementation reflects my particular need: Italian 
   keyboards don't have "Tilde" nor "Backquote" keys...
-- Improve clipboard management. "Copy" only selects a range marked by the mouse, "Paste" does 
-  not work. Also, "Copy as rich text" and rectangular selection would be useful.
 - Add management of alternate character set (see "G0/G1" character set selection sequences).
 - Add history buffer (and scroll bar, of course).
 - Responsiveness.
