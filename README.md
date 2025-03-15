@@ -118,7 +118,7 @@ Default settings can be changed by specifying these parameters:
 - "wsSizeData": the format of scren sie string, as n "config" HTTP parameter described above.
 
 ### Dummy protocol
-This is a pseudo-protocol that just send back to the termial the data it receives.
+This is a pseudo-protocol that just sends back to the terminal the data it receives.
 
 ### Custom protocol
 The programmer has the ability to write its own communication driver for xwterm. Here are the
