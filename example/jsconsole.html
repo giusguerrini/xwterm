@@ -36,9 +36,9 @@
 	class JSConsole extends AnsiTermDriver {
 
 
-		constructor(params, on_data_received, on_connection_change)
+		constructor(params)
 		{
-			super(params, on_data_received, on_connection_change);
+			super(params);
 
 			this.pending_line = "";
 			this.started = false;
@@ -57,7 +57,7 @@
 			this.started = true;
 		}
 
-		_tx(text, then)
+		_tx(text)
 		{
 			for (let i = 0; i < text.length; ++i) {
 				let c = text[i];

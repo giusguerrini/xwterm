@@ -1,5 +1,3 @@
-
-	
 const ANSITERM_VERSION = "0.9.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
@@ -966,11 +964,14 @@ export class AnsiTerm {
 		this.select_all_button = null;
 
 		this.container = null;
+		this.no_container = false;
 
 		if (this.containerid != "") {
 			this.container = document.getElementById(this.containerid);
 		}
 		if (! this.container) {
+			this.no_container = true;
+			this.autocenter = true;
 			this.container = document.body;
 		}
 
@@ -981,7 +982,9 @@ export class AnsiTerm {
 			this.div = document.createElement("div");
 			this.div.style.width = "max-content";
 			if (this.autocenter) {
-				//this.div.style.position = "absolute";
+				if (this.no_container) {
+					this.div.style.position = "absolute";
+				}
 				this.div.style.top = "50%";
 				this.div.style.left = "50%";
 				this.div.style.transform = "translate(-50%,-50%)";
@@ -1511,8 +1514,7 @@ export class AnsiTerm {
 						source: this.configuration.source,
 						dest: this.configuration.dest,
 						config: this.configuration.config,
-					},
-					null, null
+					}
 				);
 				break;
 
@@ -1523,14 +1525,13 @@ export class AnsiTerm {
 						wsDataTag: this.configuration.wsDataTag,
 						wsSizeTag: this.configuration.wsSizeTag,
 						wsSizeData: this.configuration.wsSizeData,
-					},
-					null, null
+					}
 				);
 				break;
 
 			case "dummy":
 			default:
-				this.driver = new AnsiTermDriver({}, null, null);
+				this.driver = new AnsiTermDriver({});
 				break;
 			}
 		}
@@ -3210,12 +3211,12 @@ export class AnsiTerm {
 
 export class AnsiTermDriver
 {
-	constructor(params, on_data_received, on_connection_change)
+	constructor(params)
 	{
 		this.params = params;
 		this.on_send_done = [];
-		this.on_data_received = on_data_received;
-		this.on_connection_change = on_connection_change;
+		this.on_data_received = null;
+		this.on_connection_change = null;
 		this.connection_state = true;
 		this.started = false;
 	}
@@ -3297,9 +3298,9 @@ export class AnsiTermDriver
 
 class AnsiTermHttpDriver extends AnsiTermDriver
 {
-	constructor(params, on_data_received, on_connection_change)
+	constructor(params)
 	{
-		super(params, on_data_received, on_connection_change);
+		super(params);
 
 		this.pending_data_to_send = "";
 		this.pending_data_in_transaction = "";
@@ -3484,9 +3485,9 @@ class AnsiTermHttpDriver extends AnsiTermDriver
 
 class AnsiTermWebSocketDriver extends AnsiTermDriver
 {
-	constructor(params, on_data_received, on_connection_change)
+	constructor(params)
 	{
-		super(params, on_data_received, on_connection_change);
+		super(params);
 		this.params = params;
 		this.pending_objs = [];
 		this._set_connection_state(false);
@@ -3497,7 +3498,11 @@ class AnsiTermWebSocketDriver extends AnsiTermDriver
 		super.start();
 
 		try {
-			this.socket = new WebSocket('ws://' + this.params.wsEndpoint);
+			let ep = this.params.wsEndpoint;
+			if (ep.substring(0,5) != "ws://") {
+				ep = "ws://" + ep;
+			}
+			this.socket = new WebSocket(ep);
 		} catch {
 			super.stop();
 			return;

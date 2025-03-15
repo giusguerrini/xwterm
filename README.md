@@ -22,14 +22,17 @@ by cloning the repository), it is ready to use. To produce a minified version,
 run **make** from the project's root directory. **[terser](https://terser.org/)** is
 required to do this. The minified file is **dist/xwterm.min.js**. You can also download
 the minified file directly from the [GitHub releases page](https://github.com/giusguerrini/xwterm/releases).
+**It is recommended to use release versions, unless your goal is to contribute to this project,
+as the latest commit may contain experimental or incomplete code.**
 
 ## Usage
 The following HTML code shows a minimal example of use. It generates a page containing
 only a terminal with default properties:
 
-	<html>
+	<html lang="en">
 	  <head>
-	    <style type="text/css"> </style>
+	    <meta charset="UTF-8">
+	    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 	  </head>
 	  <body>
 	  </body>
@@ -40,8 +43,8 @@ only a terminal with default properties:
 	</html>
 
 The only thing the programmer has to do is to create an instance of the "AnsiTerm" class.
-By default, AnsiTerm's constructor generates a private "div" container, but you can
-put a terminal inside a "div" of your choice by specifying its ID:
+By default, AnsiTerm's constructor connect its main "div" container to the document body,
+but you can put a terminal inside a container of your choice by specifying its ID:
 
 	...
 	<div id="myterminal"></div>
@@ -53,20 +56,36 @@ array of key/value pairs. The most important keys are:
 
 - nLines : number of text lines (default 25)
 - nColumns : number of characters in a line (default 80)
-- divId : the ID of the div where you want the terminal to be placed (default "", which
-means that the constructor will create a div by itself)
+- containerId : the ID of the container where you want the terminal to be placed (default "", which
+means that the constructor will use the document's body)
+- channelType : the type of channel by which the terminal gets the sream of characters
+to display and sends events. "http" (alias "rest", default), "websocket", "dummy" or "custom"
+are recognized (see below for details).
 
 Example:
 
-	    var ansi = new AnsiTerm( { nLines: 40, nColumns: 120 } );
+	    var ansi = new AnsiTerm( { nLines: 40, nColumns: 120, containerId: "myterminal" } );
 
-For testing purposes, you can find a minimal terminal server written in Python in the
-"example" folder. It works on Linux only, since it needs "pty" support. To try it, just
-go to the "example" folder and launch "./example.py", then open your browser at the URL
-http://127.0.0.1:8000 . **Do not use the example as if it were a real terminal server**; it
+For testing purposes, you can find a minimal terminal server written in Python3 in the
+"example" folder. It works well on Linux only, since it needs "pty" support. To try it, just
+go to the "example" folder and launch "./miniserver.py", then open your browser at the URL
+http://127.0.0.1:8000 . Miniserver can be launched also on Windows 10, but a reliable integration
+with Windows' virtual console system requires much more effort.
+Miniserver also implements an experimental WebSocket support as endpoint ws://127.0.0.1:8001.
+**Do not use the example as if it were a real terminal server**; it
 is meant only to familiarize with the AnsiTerm class and ease its development.
 
-The terminal gets the stream of characters to display by periodically sending HTTP GET
+The terminal can use these kinds of channels to communicate with the server
+(*NOTE: Here we use the term "server" in an extensive sense, to indicate any form of data source and destination that is suitable to be managed by a terminal.*)
+
+- HTTP
+- WebSocket
+- Dummy
+- Custom protocol
+
+### HTTP
+This is the default.
+The terminal obtains the stream of charactersby periodically sending HTTP GET
 requests, and sends terminal events (e.g., key events) to the host by sending HTTP POST
 requests. Also, the terminal needs to communicate its initial size to the host through
 an additional parameter in GET request. By default, the terminal generates these
@@ -83,6 +102,71 @@ These defaults can be changed by specifying these parameters:
 lines and columns. The default is "/?size=?lines?x?columns?".
 - "source": The request to get the stream of pending characters. Default is "/?console".
 - "dest": The POST request to send terminal events. Default is "/".
+
+### WebSocket
+The terminal receive characters and sends events through a WebSocket connection. Data are encoded
+as JSON objects. By default these JSON tagg are used:
+
+- "text" for both incoming and outgoing characters,
+- "size" for screen size settings.
+
+Default settings can be changed by specifying these parameters:
+
+- "wsEndpoint": the server endpoint in the form *host:port*,
+- "wsDataTag": the JSON field for characters in both directions,
+- "wsSizeTag": the JSON field containing the screen size,
+- "wsSizeData": the format of scren sie string, as n "config" HTTP parameter described above.
+
+### Dummy protocol
+This is a pseudo-protocol that just send back to the termial the data it receives.
+
+### Custom protocol
+The programmer has the ability to write its own communication driver for xwterm. Here are the
+required steps:
+
+- Write a JavaScript class containing the code that implements the protocol. The class must
+extend **AnsiTermDriver** (it is the "dummy" protocol described above).
+- Instantiate an object of the class.
+- Assign the object to AnsiTerm's configuration parameter "driver".
+
+If the parameter "driver" is not null, the terminal ignores "channelType" and all
+protocol-specific parameters (but you can set "channelType" to "custom" for clarity).
+
+
+Example (minimal):
+
+	<script type="module">
+
+	import { AnsiTerm, AnsiTermDriver } from "./xwterm.js";
+
+	class CustomDriver extends AnsiTermDriver 
+	{
+
+		constructor(params)
+		{
+			super(params);
+		}
+
+		start()
+		{ 
+			super.start();
+			this._set_connection_state(true); // Signal "connected" to the terminal
+			this._new_data("Hello!\r\n"); // Send data to the terminal
+		}
+
+		_tx(text)
+		{
+			console.log("From xwterm: " + text);
+		}
+	}
+	
+	var ansi = new AnsiTerm( { nLines: 40, nColumns: 120, driver: new CustomDriver() } );
+	
+	</script>
+
+A simple but more interesting example is in "example/jsconsole.html".
+Also, you can study "xwterm.js" itself, where HTTP and WebSocket driver are defined (AnsiTermHttpDriver
+and AnsiTermWeSocketDriver respectively).
 
 ## Screenshots
 Here are some images taken while running the shell and some applications that require
