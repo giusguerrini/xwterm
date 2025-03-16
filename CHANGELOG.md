@@ -1,4 +1,21 @@
 # Changelog
+
+## [0.10.0] - 2025-03-16
+- Added WebSocket support, and parameters to configure it.
+- Added the parameter "channelType" to select the type of
+communication ("http", "websocket", "dummy", "custom").
+- Test server is now "miniserver.py", that tmplements
+ WebSockets (still esperimental) and a simple session management
+ (based on cookies).
+- The communication part has been abstracted in a separate class,
+ the programmer can use that interface to write a specialized
+ backend. Custom driver can be passed in "driver" parameter.
+- Added examples for WebSocket and custom driver.
+- removed "divId" parameter. The terminal always generates its
+main div container (unless an external "canvasId" is defined).
+The user can choose the container where the terminal must take
+place by specifying the new parameter "containerId".
+
 ## [0.9.0] - 2025-03-06
 - Fixed bound checks in redraw
 - Added "selet all" button in status bar
