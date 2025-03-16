@@ -43,7 +43,7 @@ only a terminal with default properties:
 	</html>
 
 The only thing the programmer has to do is to create an instance of the "AnsiTerm" class.
-By default, AnsiTerm's constructor connect its main "div" container to the document body,
+By default, AnsiTerm's constructor connects its main "div" container to the document body,
 but you can put a terminal inside a container of your choice by specifying its ID:
 
 	...
@@ -85,7 +85,7 @@ The terminal can use these kinds of channels to communicate with the server
 
 ### HTTP
 This is the default.
-The terminal obtains the stream of charactersby periodically sending HTTP GET
+The terminal obtains the stream of characters by periodically sending HTTP GET
 requests, and sends terminal events (e.g., key events) to the host by sending HTTP POST
 requests. Also, the terminal needs to communicate its initial size to the host through
 an additional parameter in GET request. By default, the terminal generates these
@@ -104,8 +104,8 @@ lines and columns. The default is "/?size=?lines?x?columns?".
 - "dest": The POST request to send terminal events. Default is "/".
 
 ### WebSocket
-The terminal receive characters and sends events through a WebSocket connection. Data are encoded
-as JSON objects. By default these JSON tagg are used:
+The terminal receives characters and sends events through a WebSocket connection. Data are encoded
+as JSON objects. By default these JSON tags are used:
 
 - "text" for both incoming and outgoing characters,
 - "size" for screen size settings.
@@ -115,7 +115,7 @@ Default settings can be changed by specifying these parameters:
 - "wsEndpoint": the server endpoint in the form *host:port*,
 - "wsDataTag": the JSON field for characters in both directions,
 - "wsSizeTag": the JSON field containing the screen size,
-- "wsSizeData": the format of scren sie string, as n "config" HTTP parameter described above.
+- "wsSizeData": the format of scren sie string, as in "config" HTTP parameter described above.
 
 ### Dummy protocol
 This is a pseudo-protocol that just sends back to the terminal the data it receives.
@@ -141,7 +141,6 @@ Example (minimal):
 
 	class CustomDriver extends AnsiTermDriver 
 	{
-
 		constructor(params)
 		{
 			super(params);
