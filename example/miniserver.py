@@ -13,6 +13,14 @@
 #  pip (if you miss some packages)
 #  aiohttp (pip install aiohttp)
 #  websockets (pip install websockets)
+#
+# Warning! aiohttp has a known issue (https://github.com/aio-libs/aiohttp/issues/6978).
+# In this application, it causes an excepion after the very first WebSocket connection.
+# I am experiencing this issue in aiohttp 3.9.l (the one available by default in my Linux Mint)
+# but not (yet) in 3.11.13 (tested on Windows 10 only).
+# As far as I know, the issue has never been solved officially. At least, I couldn't
+# find any citation in aiohttp's changelog.
+#
 
 import os
 import sys
