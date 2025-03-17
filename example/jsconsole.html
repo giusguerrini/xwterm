@@ -47,6 +47,7 @@
 			this.jsprompt = "\x1b[32m> ";
 			this.jsanswer = "\x1b[94m== ";
 			this.jserror = "\x1b[91m!! ";
+			this.context = {};
 		}
 
 		start()
@@ -55,6 +56,22 @@
 			this._new_data(this.welcome);
 			this._new_data(this.jsprompt);
 			this.started = true;
+		}
+
+		_eval(code)
+		{
+		    const keys = Object.keys(this.context);
+		    const values = Object.values(this.context);
+
+		    const functionBody = `
+			${keys.map((key, index) => `let ${key} = values[${index}];`).join('\n')};
+			_rv_ = ${code};
+			${keys.map(key => `context['${key}'] = ${key};`).join('\n')};
+			return _rv_;
+		    `;
+
+		    const func = new Function(JSON.stringify(this.context), 'values', functionBody);
+		    return func(this.context, values);
 		}
 
 		_tx(text)
@@ -66,13 +83,16 @@
 					this._new_data(c + '\n');
 					if (this.pending_line != "") {
 						try {
-							answer = this.jsanswer + JSON.stringify(eval(this.pending_line));
+							answer = this.jsanswer + JSON.stringify(this._eval(this.pending_line));
 						} catch (err) {
 							answer = this.jserror + JSON.stringify(err);
 						}
 					}
 					this.pending_line = "";
-					this._new_data(answer + '\r\n' + this.jsprompt);
+					if (answer != "") {
+						answer += "\r\n";
+					}
+					this._new_data(answer + this.jsprompt);
 				}
 				else if (c == '\x08' || c == '\x7f') {
 					if (this.pendig_line != "") {
