@@ -570,14 +570,18 @@ class Shell:
             class QueueStreamWriter:
                 def __init__(self, queue):
                     self.queue = queue
+                    self.buffer = b''
 
-                async def write(self, data):
+                def write(self, data):
                     #print("IN>> ", data)
-                    await self.queue.put(data)
+                    self.buffer += data
+                    #await self.queue.put(data)
                     #print("IN<<")
 
                 async def drain(self):
-                    pass
+                    await self.queue.put(self.buffer)
+                    self.buffer = b''
+
 
             writer = QueueStreamWriter(stdin_queue)
 
@@ -780,7 +784,7 @@ class Session:
                 except:
                     t = message
                 if t != '':
-                    await writer.write(t.encode(default_encoding))
+                    writer.write(t.encode(default_encoding))
                     await writer.drain()
             except (asyncio.CancelledError, GeneratorExit):
                 raise
