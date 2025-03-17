@@ -158,7 +158,7 @@ else:
 
     CreatePipe = kernel32.CreatePipe
     SetHandleInformation = kernel32.SetHandleInformation
-    CreatePipe.argtypes = [ctypes.POINTER(wintypes.HANDLE), ctypes.POINTER(wintypes.HANDLE), ctypes.POINTER(ctypes.c_void_p), wintypes.DWORD,]
+    CreatePipe.argtypes = [ctypes.POINTER(wintypes.HANDLE), ctypes.POINTER(wintypes.HANDLE), ctypes.POINTER(ctypes.c_void_p)]
     SetHandleInformation.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD]
 
     EXTENDED_STARTUPINFO_PRESENT = 0x00080000
@@ -175,9 +175,6 @@ else:
 
     kernel32.SetConsoleWindowInfo.argtypes = [wintypes.HANDLE, ctypes.wintypes.BOOL, ctypes.POINTER(SMALL_RECT)]
     kernel32.SetConsoleWindowInfo.restype = wintypes.BOOL
-
-    kernel32.ResizePseudoConsole.argtypes = [wintypes.HANDLE, COORD]
-    kernel32.ResizePseudoConsole.restype = HRESULT
 
 ##################################################################
 
@@ -327,15 +324,16 @@ class Shell:
  
     def set_size_windows(self, li, co):
         print("Process ", self.name, ": Size=", li, ",", co)
+
         new_buffer_size = COORD(co, li)
-        #result = kernel32.SetConsoleScreenBufferSize(self.pty, new_buffer_size)
-        result = kernel32.ResizePseudoConsole(self.pty, new_buffer_size)
+        result = kernel32.SetConsoleScreenBufferSize(self.pty, new_buffer_size)
         if not result:
             raise ctypes.WinError(ctypes.get_last_error())
-        #new_window_size = SMALL_RECT(0, 0, co - 1, li - 1)
-        #result = kernel32.SetConsoleWindowInfo(self.pty, True, ctypes.byref(new_window_size))
-        #if not result:
-        #    raise ctypes.WinError(ctypes.get_last_error())
+
+        new_window_size = SMALL_RECT(0, 0, co - 1, li - 1)
+        result = kernel32.SetConsoleWindowInfo(self.pty, True, ctypes.byref(new_window_size))
+        if not result:
+            raise ctypes.WinError(ctypes.get_last_error())
 
     def set_size(self, li, co):
         print("Process ", self.name, ": Size=", li, ",", co)
@@ -409,15 +407,15 @@ class Shell:
             stdout_read = wintypes.HANDLE()
             stdout_write = wintypes.HANDLE()
 
-            if not CreatePipe(ctypes.byref(stdin_read), ctypes.byref(stdin_write), None, 1):
+            if not CreatePipe(ctypes.byref(stdin_read), ctypes.byref(stdin_write), None):
                 raise ctypes.WinError(ctypes.get_last_error())
-            if not CreatePipe(ctypes.byref(stdout_read), ctypes.byref(stdout_write), None, 1):
+            if not CreatePipe(ctypes.byref(stdout_read), ctypes.byref(stdout_write), None):
                 raise ctypes.WinError(ctypes.get_last_error())
 
-            if not SetHandleInformation(stdin_write, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
-                raise ctypes.WinError(ctypes.get_last_error())
-            if not SetHandleInformation(stdout_read, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
-                raise ctypes.WinError(ctypes.get_last_error())
+            #if not SetHandleInformation(stdin_write, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
+            #    raise ctypes.WinError(ctypes.get_last_error())
+            #if not SetHandleInformation(stdout_read, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
+            #    raise ctypes.WinError(ctypes.get_last_error())
 
             self.pty = ctypes.c_void_p()
             size = COORD(DEFAULT_NCOLUMNS, DEFAULT_NLINES)
@@ -483,105 +481,175 @@ class Shell:
             if not success:
                 raise ctypes.WinError(ctypes.get_last_error())
 
-            #
             # Since ConPty only implements synchronous I/O, we have to create a pair of threads
             # to integrate the pseudoterminal in asyncio :-(
-            # Not handy.
-            #
-            # Ok, let's try (NO, I WILL NOT USE POLLING, even though this is just a test program).
-            #
-            # asyncio provides an "run_coroutine_threadsafe"... the oly thing that can make thareds
-            # and coroutines interoperate.
-            #
 
-            stdin_queue = asyncio.Queue()
-            stdout_queue = asyncio.Queue()
+            if False:
+                
+                #
+                # No way to make Windows anonymous pipes work with asyncio.
+                # ProactorEventLoop is hopelessly broken. See comments below.
+                #
 
-            loop = asyncio.get_running_loop()
+                pipe_read_in, pipe_write_in = os.pipe()
+                pipe_read_out, pipe_write_out = os.pipe()
 
-            def read_from_process_thr():
-                try:
-                    while True:
-                        data = stdout_pipe.read(1)
-                        #print("R>> ", data)
-                        asyncio.run_coroutine_threadsafe(stdout_queue.put(data), loop).result()
-                        #print("R<<")
-                except (asyncio.CancelledError, GeneratorExit):
-                    raise
-                except Exception as e:
-                    print(e)
-                    pass
+                def read_from_process_thr():
+                    try:
+                        with os.fdopen(pipe_write_out, 'wb') as f:
+                            for data in stdout_pipe:
+                                f.write(data)
+                                f.flush()
+                    except:
+                        pass
 
-            th_read = threading.Thread(target=read_from_process_thr)
-            th_read.start()
+                th_read = threading.Thread(target=read_from_process_thr)
+                th_read.start()
+                #th_read.join()
+                def write_to_process_thr():
+                    try:
+                        with os.fdopen(pipe_read_in, 'rb') as f:
+                            for data in f:
+                                stdin_pipe.write(data)
+                                stdin_pipe.flush()
+                    except:
+                        pass
 
-            class QueueStreamReader:
-                def __init__(self, queue):
-                    self.queue = queue
-                    self.buffer = b''
+                th_write = threading.Thread(target=write_to_process_thr)
+                th_write.start()
+                #th_write.join()
 
-                async def read(self, n=-1):
-                    while len(self.buffer) < n or n == -1:
-                        if len(self.buffer) > 0:
-                            try:
-                                data = await self.queue.get_nowait()
-                            except asyncio.QueueEmpty:
+                #pipe_encoding = 'utf-8'
+                #pipe_encoding = 'cp1252'
+                pipe_encoding = default_encoding
+
+                # This should be the default on Windows
+                #
+                #loop = asyncio.ProactorEventLoop()
+                #asyncio.set_event_loop(loop)
+                loop = asyncio.get_running_loop()
+                
+                
+    ##############
+                # Desperation: trying to convince the proactor to use the pipe's Windows handle.
+                # We will try to fake the "fileno" method.
+                # But it's not enough: pipe's handle is not OVERLAPPED. We can try to reopen it
+                # in overlapped mode, but then we get int another problem: the pipe's handle number
+                # has been limited to 1... Hell!!!
+
+                #pipe_write_in_h_ov = wintypes.HANDLE()
+                pipe_write_in_h_ov = ReOpenFile(msvcrt.get_osfhandle(pipe_write_in), FILE_WRITE_DATA, 0, FILE_FLAG_OVERLAPPED)
+                if pipe_write_in_h_ov == INVALID_HANDLE_VALUE:
+                    raise ctypes.WinError(ctypes.get_last_error())
+
+                pipe_write_in_ov = msvcrt.open_osfhandle(pipe_write_in_h_ov, os.O_WRONLY)
+                pipe_write_in_stream = os.fdopen(pipe_write_in_ov, 'wb')
+                pipe_write_in_stream.real_windows_handle = msvcrt.get_osfhandle(pipe_write_in)
+
+                def fake_fileno():
+                    return pipe_write_in_stream.real_windows_handle
+                pipe_write_in_stream.fileno = fake_fileno
+    ##############
+                
+                # ...to do...
+                wr = await loop.connect_write_pipe(asyncio.streams.FlowControlMixin, pipe_write_in_stream)
+                writer_transport, writer_protocol = wr
+                writer = asyncio.StreamWriter(writer_transport, writer_protocol, None, loop)
+
+                reader = asyncio.StreamReader()
+                protocol = asyncio.StreamReaderProtocol(reader)
+                await loop.connect_read_pipe(lambda: protocol, os.fdopen(pipe_read_out, 'rb'))
+            
+            else:
+
+                #
+                # Ok, trying it in another way (NO, I WILL NOT USE POLLING, even though it's just a test program).
+                #
+                # asyncio provides an "run_coroutine_threadsafe", 
+                #
+
+                stdin_queue = asyncio.Queue()
+                stdout_queue = asyncio.Queue()
+
+                loop = asyncio.get_running_loop()
+
+                def read_from_process_thr():
+                    try:
+                        for data in stdout_pipe:
+                            #print("R>> ", data)
+                            asyncio.run_coroutine_threadsafe(stdout_queue.put(data), loop).result()
+                            #print("R<<")
+                    except (asyncio.CancelledError, GeneratorExit):
+                        raise
+                    except Exception as e:
+                        print(e)
+                        pass
+
+                th_read = threading.Thread(target=read_from_process_thr)
+                th_read.start()
+
+                def write_to_process_thr():
+                    try:
+                        async def queue_get():
+                            #print("W>>")
+                            data = await stdin_queue.get()
+                            #print("W<< ", data)
+                            return data
+                        while True:
+                            data = asyncio.run_coroutine_threadsafe(queue_get(), loop).result()
+                            if data is None:
                                 break
-                            except:
-                                raise
-                        else:    
-                            data = await self.queue.get()
-                        if data is None:
-                            break
-                        self.buffer += data
-                    if n == -1:
-                        result, self.buffer = self.buffer, b''
-                    else:
-                        result, self.buffer = self.buffer[:n], self.buffer[n:]
-                    return result
+                            stdin_pipe.write(data)
+                            stdin_pipe.flush()
+                    except (asyncio.CancelledError, GeneratorExit):
+                        raise
+                    except Exception as e:
+                        print(e)
+                        pass
 
-            reader = QueueStreamReader(stdout_queue)
+                th_write = threading.Thread(target=write_to_process_thr)
+                th_write.start()
 
+                class QueueStreamReader:
+                    def __init__(self, queue):
+                        self.queue = queue
+                        self.buffer = b''
 
-            def write_to_process_thr():
-                try:
-                    async def queue_get():
-                        #print("W>>")
-                        data = await stdin_queue.get()
-                        #print("W<< ", data)
-                        return data
-                    while True:
-                        #print("OUT>>")
-                        data = asyncio.run_coroutine_threadsafe(queue_get(), loop).result()
-                        if data is None:
-                            break
-                        #print("OUT<< ", data)
-                        stdin_pipe.write(data)
-                        stdin_pipe.flush()
-                except (asyncio.CancelledError, GeneratorExit):
-                    raise
-                except Exception as e:
-                    print(e)
-                    pass
+                    async def read(self, n=-1):
+                        while len(self.buffer) < n or n == -1:
+                            if len(self.buffer) > 0:
+                                try:
+                                    data = await self.queue.get_nowait()
+                                except asyncio.QueueEmpty:
+                                    break
+                                except:
+                                    raise
+                            else:    
+                                data = await self.queue.get()
+                            if data is None:
+                                break
+                            self.buffer += data
+                        if n == -1:
+                            result, self.buffer = c, b''
+                        else:
+                            result, self.buffer = self.buffer[:n], self.buffer[n:]
+                        return result
 
-            th_write = threading.Thread(target=write_to_process_thr)
-            th_write.start()
+                reader = QueueStreamReader(stdout_queue)
 
-            class QueueStreamWriter:
-                def __init__(self, queue):
-                    self.queue = queue
+                class QueueStreamWriter:
+                    def __init__(self, queue):
+                        self.queue = queue
 
-                async def write(self, data):
-                    #print("IN>> ", data)
-                    await self.queue.put(data)
-                    #print("IN<<")
+                    async def write(self, data):
+                        await self.queue.put(data)
 
-                async def drain(self):
-                    pass
+                    async def drain(self):
+                        pass
 
-            writer = QueueStreamWriter(stdin_queue)
+                writer = QueueStreamWriter(stdin_queue)
 
-            reader_err = None
+                reader_err = None
 
             proc = {
                     "pi": pi,
@@ -593,6 +661,9 @@ class Shell:
                     "stdout_pipe": stdout_pipe
                     }
             
+            #print(proc)
+            #print("New proecss: ", proc.hProcess)
+
             async def end_shell():
                 print("end_shell: ", self.proc.hProcess)
                 try:
@@ -650,6 +721,56 @@ class Shell:
                 except:
                     pass
 
+        else:
+
+            proc = await asyncio.create_subprocess_exec(*cmdargs,
+                                                        stdin = asyncio.subprocess.PIPE,
+                                                        stdout = asyncio.subprocess.PIPE,
+                                                        stderr = asyncio.subprocess.PIPE,
+                                                        limit = 1)
+            class FilteredStreamWriter:
+                def __init__(self, writer, filter_func):
+                    self.writer = writer
+                    self.filter_func = filter_func
+
+                def write(self, data):
+                    filtered_data = self.filter_func(data)
+                    self.writer.write(filtered_data)
+
+                def close(self):
+                    self.writer.close()
+
+                async def drain(self):
+                    await self.writer.drain()
+
+
+            reader = proc.stdout
+            reader_err = proc.stderr
+            #writer = proc.stdin
+
+            def crlf(text):
+                r = b''
+                for b in text:
+                    by = bytes([b])
+                    r = r + by
+                    if by == b'\r':
+                        r = r + b'\n'
+                return r
+            writer = FilteredStreamWriter(proc.stdin, crlf)
+
+            async def end_shell():
+                try:
+                    proc.proc.kill()
+                except (asyncio.CancelledError, GeneratorExit):
+                    raise
+                except:
+                    pass
+                try:
+                    await proc.proc.wait()
+                except (asyncio.CancelledError, GeneratorExit):
+                    raise
+                except:
+                    pass
 
         self.pid = None
         self.proc = proc
