@@ -328,14 +328,9 @@ class Shell:
     def set_size_windows(self, li, co):
         print("Process ", self.name, ": Size=", li, ",", co)
         new_buffer_size = COORD(co, li)
-        #result = kernel32.SetConsoleScreenBufferSize(self.pty, new_buffer_size)
         result = kernel32.ResizePseudoConsole(self.pty, new_buffer_size)
-        if not result:
+        if result == 0:
             raise ctypes.WinError(ctypes.get_last_error())
-        #new_window_size = SMALL_RECT(0, 0, co - 1, li - 1)
-        #result = kernel32.SetConsoleWindowInfo(self.pty, True, ctypes.byref(new_window_size))
-        #if not result:
-        #    raise ctypes.WinError(ctypes.get_last_error())
 
     def set_size(self, li, co):
         print("Process ", self.name, ": Size=", li, ",", co)
@@ -490,7 +485,7 @@ class Shell:
             #
             # Ok, let's try (NO, I WILL NOT USE POLLING, even though this is just a test program).
             #
-            # asyncio provides an "run_coroutine_threadsafe"... the oly thing that can make thareds
+            # asyncio provides an "run_coroutine_threadsafe"... the only thing that can make thareds
             # and coroutines interoperate.
             #
 
@@ -546,16 +541,12 @@ class Shell:
             def write_to_process_thr():
                 try:
                     async def queue_get():
-                        #print("W>>")
                         data = await stdin_queue.get()
-                        #print("W<< ", data)
                         return data
                     while True:
-                        #print("OUT>>")
                         data = asyncio.run_coroutine_threadsafe(queue_get(), loop).result()
                         if data is None:
                             break
-                        #print("OUT<< ", data)
                         stdin_pipe.write(data)
                         stdin_pipe.flush()
                 except (asyncio.CancelledError, GeneratorExit):
@@ -573,10 +564,7 @@ class Shell:
                     self.buffer = b''
 
                 def write(self, data):
-                    #print("IN>> ", data)
                     self.buffer += data
-                    #await self.queue.put(data)
-                    #print("IN<<")
 
                 async def drain(self):
                     await self.queue.put(self.buffer)
@@ -920,17 +908,10 @@ async def do_GET(request, session):
             session.set_size_from_text(params[SET_SIZE_PARAM])
 
         text = ""
-        #response = aiohttp.web.Response(text=f'Visits: {session_data["visits"]}')
-        #text += session.get_pending_text(True)
         try:
             while True:
                 t = session.txq.get_nowait()
-                if t == "":
-                    break
                 text += t
-            #text = text.decode(default_encoding)
-            #text, remt = find_valid_encoded(text)
-            #session.add_pending_text(remt)
         except (asyncio.CancelledError, GeneratorExit):
             raise
         except:
@@ -954,9 +935,6 @@ async def do_POST(request, session):
     try:
         await session.activate()
         data = await request.text()
-        #
-        # data = data.decode("UTF-8")
-        #print("POST: Data=", data)
         await session.rxq.put(data)
         response = aiohttp.web.Response(text='', status = 200)
     except (asyncio.CancelledError, GeneratorExit):

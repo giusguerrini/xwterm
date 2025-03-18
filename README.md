@@ -97,11 +97,11 @@ requests:
 
 These defaults can be changed by specifying these parameters:
 
-- "config": specifies the request by which the terminal sends the screen size. The strings
+- "httpSize": specifies the request by which the terminal sends the screen size. The strings
 "?lines?" and "?columns?" here are used as placeholders for the actual number of
 lines and columns. The default is "/?size=?lines?x?columns?".
-- "source": The request to get the stream of pending characters. Default is "/?console".
-- "dest": The POST request to send terminal events. Default is "/".
+- "httpSource": The request to get the stream of pending characters. Default is "/?console".
+- "httpDest": The POST request to send terminal events. Default is "/".
 
 ### WebSocket
 The terminal receives characters and sends events through a WebSocket connection. Data are encoded
@@ -179,6 +179,8 @@ full support of graphics functions (Midnight Commander, htop, vim):
 Please remember that this project is in its early stage.
 The project was born out of a specific need of mine in a controlled environment; to make it
 fully usable, a certain effort of generalization is still required.
+
+As the project grows, some details in the public interface (e.g., parameter names) may change. This may happen at least until the first "non-beta" release (v1.0.0) is published.
 
 Development and test have been done mainly on recent versions of Chrome and Firefox.
 Safari has been tested very superficially. No other browsers have been tested at this time.

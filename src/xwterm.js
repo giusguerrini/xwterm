@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "0.11.0";
+const ANSITERM_VERSION = "0.12.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -28,15 +28,11 @@ const ANSITERM_VERSION = "0.11.0";
  it's handy to have direct access to "this" inside the functions that
  define the state machine.
  
- At the moment, the class uses HTTP GET requests to receive data from
- the server. HTTP POST is used to send data to the server.
- The class is designed to be used with a server that
- implements a simple protocol to send and receive data. An important
- feature to be added is the ability to use WebSockets to communicate
- with the server. This would allow the server to send data to the
- client without the need for the client to poll the server as it
- does now.
-
+ The communication layer is modeled by the "abstract" class
+ AnsiTermDriver, whose derivations implement HTTP and WebSocket
+ protocols. It is also possible to write custom drivers and
+ pass an instance to AnsiTerm constructor.
+ 
  The screen is implemented as a two-dimensional array of objects.
  Each object is a character. The character object has the following
  members:
@@ -56,12 +52,6 @@ const ANSITERM_VERSION = "0.11.0";
  during scroll operations. A "drawImage" to move a whole rectangle
  is used instead.
 
- The cursor is drawn as a blinking rectangle. To optimize the
- rendering, the cursor is drawn only at the end of a block of
- characters from the server, so cursor is not visible during
- rendering of a block of characters. This is a few unaesthetic,
- but in my opinion it's worth the performance gain.
-
  Blinking is controlled by a timer that toggles the state
  every "blink_period" milliseconds. The same timer is used
  for both the cursor and blinking characters. Blinking characters
@@ -69,7 +59,6 @@ const ANSITERM_VERSION = "0.11.0";
  its blinking state.
 
 
- 
 ----------------------
 
 
@@ -86,8 +75,9 @@ const ANSITERM_VERSION = "0.11.0";
  - Constants are UPPERCASE.
  NOTE: I'm not sure if this is a good idea. I may change it in
  the future. I am not an enthusiast of rigid coding conventions
- (and there are some that I hate, e.g, useless prefixes like
- "m_" for members, "C" for classes... Furthermore, I hate horrors like this:
+ (and there are some that I dislike, e.g, useless prefixes like
+ "m_" for members, "C" for classes... Furthermore, I dislike
+ horrors like this:
  
 	for (iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere = 0;
 	     iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere < fArrayOfThingsIAmLookingFor.length;
@@ -147,9 +137,9 @@ const ANSITERM_DEFAULTS = {
 	// "dummy": a channel that does nothing.
 
 	// Parameters for "rest" channel type:
-	source:  "/?console", // GET request to receive characters from the server.
-	config:  "/?size=?lines?x?columns?", // GET request to set the size of the terminal.
-	dest:  "/", // POST request to send characters to the server.
+	httpSource:  "/?console", // GET request to receive characters from the server.
+	httpSize:  "/?size=?lines?x?columns?", // GET request to set the size of the terminal.
+	httpDest:  "/", // POST request to send characters to the server.
 	timeout:  0, //10000; // Timeout for all request. 0 means no timeout. If timeout is reached, the ESC sequence is aborted.
 	immediateRefresh:  70, // Time in milliseconds to send an update request aftertheen nextding an event.
 	fastRefresh:  500, // Time in milliseconds to send the next update request after receiving a response.
@@ -195,8 +185,8 @@ const ANSITERM_DEFAULTS = {
 	driver: null, // An user-provided object to use as communication driver
 	              // instead of HTTP channel.
 	              // The object must be an instance of a class that 
-				  // implements (extends) AnsiTermDriver
-				  // interface (see below).
+	              // implements (extends) AnsiTermDriver
+	              // interface (see below).
 };
 
 function getAbsolutePosition(element)
@@ -235,10 +225,10 @@ class AnsiTermScreenCell {
 class AnsiTermScreen {
 
 	constructor(nlines, ncolumns, fontsize, font, gc) {
-		this.nlines = nlines;
-		this.ncolumns = ncolumns;
-		this.fontsize = fontsize;
-		this.font = font;
+		this.params.nLines = nlines;
+		this.params.nColumns = ncolumns;
+		this.params.fontSize = fontsize;
+		this.params.font = font;
 		this.gc = gc;
 		this._reset();
 	}
@@ -262,9 +252,9 @@ class AnsiTermScreen {
  * @param {string} [params.canvasId=""] - ID of the canvas element to use for the terminal.
  * @param {string} [params.url=""] - URL for the terminal's data source.
  * @param {string} [params.channelType=""] - Type of channel for communication.
- * @param {string} [params.source=""] - Source for the terminal's data.
- * @param {string} [params.config=""] - Configuration URL for the terminal.
- * @param {string} [params.dest=""] - Destination URL for sending terminal data.
+ * @param {string} [params.httpSource=""] - Source for the terminal's data.
+ * @param {string} [params.httpSize=""] - Configuration URL for the terminal.
+ * @param {string} [params.httpDest=""] - Destination URL for sending terminal data.
  * @param {number} [params.immediateRefresh=100] - Immediate refresh interval in milliseconds.
  * @param {number} [params.fastRefresh=500] - Fast refresh interval in milliseconds.
  * @param {number} [params.slowRefresh=2000] - Slow refresh interval in milliseconds.
@@ -308,20 +298,20 @@ export class AnsiTerm {
 
 	_reset()
 	{
-		this.background = this.palette[0];
-		this.foreground = this.palette[7];
+		this.params.background = this.palette[0];
+		this.params.foreground = this.palette[7];
 
-		this.gc.fillStyle = this.background;
+		this.gc.fillStyle = this.params.background;
 		this.gc.fillRect(0,0,this.gc.canvas.width,this.gc.canvas.height);
-		this.gc.fillStyle = this.foreground;
+		this.gc.fillStyle = this.params.foreground;
 
 		this.screens = [[],[]];
-		for (let i = 0; i < this.nlines; ++i) {
+		for (let i = 0; i < this.params.nLines; ++i) {
 			this.screens[0][i] = [];
 			this.screens[1][i] = [];
 		}
-		this.scr_background = [ this.background, this.background ];
-		this.scr_foreground = [ this.foreground, this.foreground ];
+		this.scr_background = [ this.params.background, this.params.background ];
+		this.scr_foreground = [ this.params.foreground, this.params.foreground ];
 		this.screen = this.screens[0];
 		this._clearscreen();
 		this.screen = this.screens[1];
@@ -336,7 +326,7 @@ export class AnsiTerm {
 		this.screen = this.screens[this.currscreen];
 
 		this.scrollregion_l = 0;
-		this.scrollregion_h = this.nlines - 1;
+		this.scrollregion_h = this.params.nLines - 1;
 
 		this.grstate = {};
 		this.blink_state = false;
@@ -352,12 +342,12 @@ export class AnsiTerm {
 	{
 		if (f != this.alternate_screen) {
 			let scr = f ? 1 : 0;
-			this.scr_background[1 - scr] = this.background;
-			this.scr_foreground[1 - scr] = this.foreground;
+			this.scr_background[1 - scr] = this.params.background;
+			this.scr_foreground[1 - scr] = this.params.foreground;
 			this.screen = this.screens[scr];
 			this.blink_list = this.blink_lists[scr];
-			this.background = this.scr_background[scr];
-			this.foreground = this.scr_foreground[scr];
+			this.params.background = this.scr_background[scr];
+			this.params.foreground = this.scr_foreground[scr];
 			this._redraw();
 		}
 		this.alternate_screen = f;
@@ -367,8 +357,8 @@ export class AnsiTerm {
 	{
 		this.grstate = {
 			screen: this.currscreen,
-			foreground: this.foreground,
-			background: this.background,
+			foreground: this.params.foreground,
+			background: this.params.background,
 			posx: this.posx,
 			posy: this.posy,
 			bold: this.bold,
@@ -384,8 +374,8 @@ export class AnsiTerm {
 	_restorestate()
 	{
 		this.currscreen = this.grstate.screen;
-		this.foreground = this.grstate.foreground;
-		this.background = this.grstate.background;
+		this.params.foreground = this.grstate.foreground;
+		this.params.background = this.grstate.background;
 		this.blink = this.grstate.blink;
 		this.underline = this.grstate.underline;
 		this.reverse = this.grstate.reverse;
@@ -446,7 +436,7 @@ export class AnsiTerm {
 				"\x08": () => {
 						this._flush();
 						if (this.posx == 0) {
-							this._setpos(this.ncolumns - 1, this.posy - 1);
+							this._setpos(this.params.nColumns - 1, this.posy - 1);
 						}
 						else {
 							this._incpos(-1, 0);
@@ -614,7 +604,7 @@ export class AnsiTerm {
 						// ESC [ 3 q: set Caps Lock LED
 				"r": this._ti(() => {
 					this.scrollregion_l = this._getarg(0,1) - 1;
-					this.scrollregion_h = this._getarg(1,this.nlines) - 1;
+					this.scrollregion_h = this._getarg(1,this.params.nLines) - 1;
 				}), // DECSTBM	Set scrolling region; parameters are top and bottom row.
 				"s": this._ti(() => {
 					this.save_posx = this.posx;
@@ -680,8 +670,8 @@ export class AnsiTerm {
 			// TESTS
 			5: {
 				"8": this._ti(() => {
-					for (let y = 0; y < this.nlines; ++y) {
-						for (let x = 0; x < this.ncolumns; ++x) {
+					for (let y = 0; y < this.params.nLines; ++y) {
+						for (let x = 0; x < this.params.nColumns; ++x) {
 							let ch = (x+y) % 10;
 							this.screen[y][x].ch = ch;
 							this._printchar_in_place(ch, x, y);
@@ -898,8 +888,8 @@ export class AnsiTerm {
 		// (Almost) standard base palette.
 		// Apply configured background and foreground.
 		// TODO: make it fully configurable.
-		this.palette = [ this.background,    "rgb(192,0,0)",   "rgb(0,192,0)",   "rgb(160,160,0)",
-		                 "rgb(65,65,192)",  "rgb(160,0,160)", "rgb(0,128,160)", this.foreground,
+		this.palette = [ this.params.background,    "rgb(192,0,0)",   "rgb(0,192,0)",   "rgb(160,160,0)",
+		                 "rgb(65,65,192)",  "rgb(160,0,160)", "rgb(0,128,160)", this.params.foreground,
 		                 "rgb(65,65,65)", "rgb(255,0,0)",   "rgb(0,255,0)",   "rgb(255,255,0)",
 		                 "rgb(65,65,255)",  "rgb(255,0,255)", "rgb(0,128,255)", "rgb(255,255,255)" ];
 
@@ -966,22 +956,22 @@ export class AnsiTerm {
 		this.container = null;
 		this.no_container = false;
 
-		if (this.containerid != "") {
-			this.container = document.getElementById(this.containerid);
+		if (this.params.containerId != "") {
+			this.container = document.getElementById(this.params.containerId);
 		}
 		if (! this.container) {
 			this.no_container = true;
-			this.autocenter = true;
+			this.params.autocenter = true;
 			this.container = document.body;
 		}
 
-		if (this.canvasid != "") {
-			this.canvas = document.getElementById(this.canvasid);
+		if (this.params.canvasId != "") {
+			this.canvas = document.getElementById(this.params.canvasId);
 		}
 		else {
 			this.div = document.createElement("div");
 			this.div.style.width = "max-content";
-			if (this.autocenter) {
+			if (this.params.autocenter) {
 				if (this.no_container) {
 					this.div.style.position = "absolute";
 				}
@@ -994,10 +984,10 @@ export class AnsiTerm {
 			this.div.style.display = "grid";
 			this.div.style.gridTemplateColumns = "auto";
 			this.title = document.createElement("div");
-			if (this.has_title_bar) {
+			if (this.params.hasTitleBar) {
 				this.title.style.border = "2px solid black";
-				this.title.style.backgroundColor = this.title_background;
-				this.title.style.color = this.title_foreground;
+				this.title.style.backgroundColor = this.params.titleBackground;
+				this.title.style.color = this.params.titleForeground;
 				this.title.style.font = this.status_fullfont;
 				this.div.appendChild(this.title);
 			}
@@ -1007,7 +997,7 @@ export class AnsiTerm {
 			this.canvas = document.createElement("canvas");
 			this.canvas.tabIndex = 0;
 			this.div.appendChild(this.canvas);
-			if (this.has_status_bar) {
+			if (this.params.hasStatusBar) {
 				this.status_div_container = document.createElement("div");
 				this.status_div_container.style.font = this.status_fullfont;
 				this.status_div_container.style.border = "1px solid black";
@@ -1016,14 +1006,14 @@ export class AnsiTerm {
 				= "fit-content(10%) fit-content(30%) auto fit-content(15%) fit-content(10%) fit-content(10%) fit-content(10%) fit-content(10%)";
 				this.div.appendChild(this.status_div_container);
 				this.freeze_button = document.createElement("button");
-				this.freeze_button.style.backgroundColor = this.keyboard_background;
-				this.freeze_button.style.color = this.keyboard_foreground;
+				this.freeze_button.style.backgroundColor = this.params.keyboardBackground;
+				this.freeze_button.style.color = this.params.keyboardForeground;
 				this.freeze_button.innerText = "Freeze";
 				this.status_div_container.appendChild(this.freeze_button);
 				this.freeze_div = document.createElement("div");
 				this.freeze_div.style.font = this.status_fullfont;
-				this.freeze_div.style.backgroundColor = this.status_background_ok;
-				this.freeze_div.style.color = this.status_foreground_ok;
+				this.freeze_div.style.backgroundColor = this.params.statusBackgroundOk;
+				this.freeze_div.style.color = this.params.statusForegroundOk;
 				this.freeze_div.style.border = "1px solid black";
 				this.freeze_div.style.paddingLeft = "6px";
 				this.freeze_div.style.paddingRight = "6px";
@@ -1037,31 +1027,31 @@ export class AnsiTerm {
 				this.status_div_container.appendChild(this.status_div);
 				this.version_div = document.createElement("div");
 				this.version_div.style.font = this.status_fullfont;
-				this.version_div.style.backgroundColor = this.status_background_ok;
-				this.version_div.style.color = this.status_foreground_ok;
+				this.version_div.style.backgroundColor = this.params.statusBackgroundOk;
+				this.version_div.style.color = this.params.statusForegroundOk;
 				this.version_div.style.border = "1px solid black";
 				this.version_div.style.paddingLeft = "6px";
 				this.version_div.style.paddingRight = "6px";
 				this.version_div.innerText = "xwterm " + ANSITERM_VERSION;
 				this.status_div_container.appendChild(this.version_div);
 				this.select_all_button = document.createElement("button");
-				this.select_all_button.style.backgroundColor = this.keyboard_background;
-				this.select_all_button.style.color = this.keyboard_foreground;
+				this.select_all_button.style.backgroundColor = this.params.keyboardBackground;
+				this.select_all_button.style.color = this.params.keyboardForeground;
 				this.select_all_button.innerText = "Select all";
 				this.status_div_container.appendChild(this.select_all_button);
 				this.copy_button = document.createElement("button");
-				this.copy_button.style.backgroundColor = this.keyboard_background;
-				this.copy_button.style.color = this.keyboard_foreground;
+				this.copy_button.style.backgroundColor = this.params.keyboardBackground;
+				this.copy_button.style.color = this.params.keyboardForeground;
 				this.copy_button.innerText = "Copy";
 				this.status_div_container.appendChild(this.copy_button);
 				this.copy_as_button = document.createElement("button");
-				this.copy_as_button.style.backgroundColor = this.keyboard_background;
-				this.copy_as_button.style.color = this.keyboard_foreground;
+				this.copy_as_button.style.backgroundColor = this.params.keyboardBackground;
+				this.copy_as_button.style.color = this.params.keyboardForeground;
 				this.copy_as_button.innerText = "Copy as...";
 				this.status_div_container.appendChild(this.copy_as_button);
 				this.paste_button = document.createElement("button");
-				this.paste_button.style.backgroundColor = this.keyboard_background;
-				this.paste_button.style.color = this.keyboard_foreground;
+				this.paste_button.style.backgroundColor = this.params.keyboardBackground;
+				this.paste_button.style.color = this.params.keyboardForeground;
 				this.paste_button.innerText = "Paste";
 				this.status_div_container.appendChild(this.paste_button);
 			}
@@ -1077,7 +1067,7 @@ export class AnsiTerm {
 				this.select_all_button = null;
 			}
 
-			if (this.has_soft_keyboard) {
+			if (this.params.hasSoftKeyboard) {
 				this.keyboard_div = document.createElement("div");
 				this.keyboard_div.style.display = "grid";
 				this.keyboard_div.style.gridTemplateColumns = "auto auto auto auto auto auto auto auto auto auto auto auto";
@@ -1114,10 +1104,10 @@ export class AnsiTerm {
 				
 				for (let i = 0; i < button_properties.length; ++i) {
 					let e = null;
-					if (i >= 12 || this.has_soft_fkeys) {
+					if (i >= 12 || this.params.hasSoftFKeys) {
 						e = document.createElement("button");
-						e.style.backgroundColor = this.keyboard_background;
-						e.style.color = this.keyboard_foreground;
+						e.style.backgroundColor = this.params.keyboardBackground;
+						e.style.color = this.params.keyboardForeground;
 						e.innerText = button_properties[i].text;
 						e.addEventListener("click", (event) => {
 								this.sendKeyByKeyEvent(button_properties[i].key);
@@ -1134,7 +1124,7 @@ export class AnsiTerm {
 				this.keyboard_div = null;
 			}
 
-			if (this.has_status_bar) {
+			if (this.params.hasStatusBar) {
 				this.select_all_button.addEventListener("click",
 					(event) => {
 						this.selectAll();
@@ -1176,11 +1166,11 @@ export class AnsiTerm {
 		//this.menu.style.visibility = "hidden";
 		this.menu.style.height = "max-content"; //"auto";
 		this.menu.style.width = "max-content"; //"auto";
-		this.menu.style.border = "3px solid " + this.title_foreground;
+		this.menu.style.border = "3px solid " + this.params.titleForeground;
 		this.menu.style.margin = "0px";
 		this.menu.style.padding = "0px";
-		this.menu.style.backgroundColor = this.title_background;
-		this.menu.style.color = this.title_foreground;
+		this.menu.style.backgroundColor = this.params.titleBackground;
+		this.menu.style.color = this.params.titleForeground;
 		//this.menu.style.font = this.status_fullfont;
 			
 		this.menu.innerText = "Copy as...";
@@ -1239,28 +1229,28 @@ export class AnsiTerm {
 
 		for (let key in this.menu_items) {
 			let e = document.createElement("button");
-			e.style.border = "1px solid " + this.title_foreground;;
+			e.style.border = "1px solid " + this.params.titleForeground;;
 			e.style.margin = "0px";
 			e.style.padding = "0px";
-			e.style.backgroundColor = this.title_background;
-			e.style.color = this.title_foreground;
+			e.style.backgroundColor = this.params.titleBackground;
+			e.style.color = this.params.titleForeground;
 			e.innerText = this.menu_items[key].text; 
 			e.addEventListener("click", (event) => {
 				this.menu_items[key].fn();
-				e.style.color = this.title_foreground;
-				e.style.backgroundColor = this.title_background;
+				e.style.color = this.params.titleForeground;
+				e.style.backgroundColor = this.params.titleBackground;
 				this.menu.close();
 			});
 			e.addEventListener("mouseenter",
 				(event) => {
-					e.style.color = this.title_background;
-					e.style.backgroundColor = this.title_foreground;
+					e.style.color = this.params.titleBackground;
+					e.style.backgroundColor = this.params.titleForeground;
 				}
 			);
 			e.addEventListener("mouseleave",
 				(event) => {
-					e.style.color = this.title_foreground;
-					e.style.backgroundColor = this.title_background;
+					e.style.color = this.params.titleForeground;
+					e.style.backgroundColor = this.params.titleBackground;
 				}
 			);
 			this.menu_items[key].element = e;
@@ -1315,8 +1305,8 @@ export class AnsiTerm {
 		if (this.underline_off < 1) {
 			this.underline_off = 1;
 		}
-		this.width = this.charwidth * this.ncolumns;
-		this.height = this.charheight * this.nlines;
+		this.width = this.charwidth * this.params.nColumns;
+		this.height = this.charheight * this.params.nLines;
 		//this.gc.canvas.width = this.width;
 		//this.gc.canvas.height = this.height;
 		this.gc.canvas.width = this.width;
@@ -1331,54 +1321,6 @@ export class AnsiTerm {
 		this.canvas.focus();
 
 	}
-
-	// Table to convert public configuration keys to internal members.
-	// (Yes, I am too lazy to rename all the public keys to match the internal ones).
-	static config_to_members = {
-		nLines: "nlines",
-		nColumns: "ncolumns",
-		fontSize: "fontsize",
-		font: "font",
-		statusFont: "status_font",
-		containerId: "containerid",
-		canvasId: "canvasid",
-		autocenter: "autocenter",
-		url: "url",
-		channelType: "channel_type",
-		source: "source",
-		config: "config",
-		dest: "dest",
-		immediateRefresh: "immediate_refresh",
-		fastRefresh: "fast_refresh",
-		slowRefresh: "slow_refresh",
-		wsEndpoint: "ws_endpoint",
-		wsDataTag: "ws_data_tag",
-		wsSizeTag: "ws_size_tag",
-		wsSizeData: "ws_size_data",
-		foreground: "foreground",
-		background: "background",
-		statusForegroundOk: "status_foreground_ok",
-		statusBackgroundOk: "status_background_ok",
-		statusForegroundKo: "status_foreground_ko",
-		statusBackgroundKo: "status_background_ko",
-		titleBackground: "title_background",
-		titleForeground: "title_foreground",
-		keyboardBackground: "keyboard_background",
-		keyboardForeground: "keyboard_foreground",
-		selectionBackground: "selection_foreground",
-		selectionForeground: "selection_background",
-		blinkIsBold: "blink_is_bold",
-		blinkPeriod: "blink_period",
-		timeout: "timeout",
-		titleText: "title_text",
-		cursorUpdateStyle: "cursor_update_style",
-		hasTitleBar: "has_title_bar",
-		hasStatusBar: "has_status_bar",
-		hasSoftKeyboard: "has_soft_keyboard",
-		hasSoftFKeys: "has_soft_fkeys",
-		driver: "driver",
-	};
-
 
 	constructor(params)
 	{
@@ -1396,21 +1338,14 @@ export class AnsiTerm {
 		}
 
 		// Apply defaults, overwrite with actual parameters
-		this.configuration = { ...ANSITERM_DEFAULTS, ...params };
-
-		// Convert public configuration keys to internal members.
-		for (let key in this.configuration) {
-			if (AnsiTerm.config_to_members[key]) {
-				this[AnsiTerm.config_to_members[key]] = this.configuration[key];
-			}
-		}
+		this.params = { ...ANSITERM_DEFAULTS, ...params };
 
 		// Fix some defaults that can't be set in the defaults table.
-		this.url = this.url || window.location.href;
-		this.keyboard_background = this.keyboard_background || this.title_background;
-		this.keyboard_foreground = this.keyboard_foreground || this.title_foreground;
+		this.params.url = this.params.url || window.location.href;
+		this.params.keyboardBackground = this.params.keyboardBackground || this.params.titleBackground;
+		this.params.keyboardForeground = this.params.keyboardForeground || this.params.titleForeground;
 
-		switch (this.cursor_update_style) {
+		switch (this.params.cursorUpdateStyle) {
 			case "lazy":
 				this.cursor_update_on_keypress = false;
 				this.cursor_precise = false;
@@ -1437,7 +1372,7 @@ export class AnsiTerm {
 		this.reverse = false;
 		this.highlight = false;
 		this.blink_cursor = true;
-		this.blink_period = 500;
+		this.params.blinkPeriod = 500;
 		this.enable_cursor = true;
 		this.force_blink_cursor = true;
 
@@ -1456,13 +1391,13 @@ export class AnsiTerm {
 
 		this.output_frozen_by_user = false;
 
-		this.url_source = this.source;
-		//this.url_source = this.url + this.source;
-		this.url_dest = this.dest;
-		this.url_config = this.config;
-		//this.url_dest = this.url + this.dest;
-		this.fullfont = this.fontsize.toString() + "px " + this.font;
-		this.status_fullfont = /* this.fontsize.toString() + "px " + */ this.status_font;
+		this.url_source = this.params.httpSource;
+		//this.url_source = this.params.url + this.params.httpSource;
+		this.url_dest = this.params.httpDest;
+		this.url_config = this.params.httpSize;
+		//this.url_dest = this.params.url + this.params.httpDest;
+		this.fullfont = this.params.fontSize.toString() + "px " + this.params.font;
+		this.status_fullfont = /* this.params.fontSize.toString() + "px " + */ this.params.statusFont;
 
 		// Create elements and layout.
 		this._layout();
@@ -1477,7 +1412,7 @@ export class AnsiTerm {
 		this.canvas.onkeydown = ((e) => { this._on_keydown(e); });
 		this.canvas.focus();
 
-		this.blink_timer = setTimeout( (() => { this._blink_timeout(); }), this.blink_period);
+		this.blink_timer = setTimeout( (() => { this._blink_timeout(); }), this.params.blinkPeriod);
 
 		this.save_posx = this.posx;
 		this.save_posy = this.posy;
@@ -1485,7 +1420,7 @@ export class AnsiTerm {
 		this.save_posy_2 = this.posy;
 		this._savestate();
 
-		this._set_title(this.title_text);
+		this._set_title(this.params.titleText);
 		this._set_status(false);
 
 		this.app_cursor_keys = false;
@@ -1501,54 +1436,54 @@ export class AnsiTerm {
 
 		this.selection_timer = null;
 
-		if (this.driver == null) {
-			switch (this.channel_type) {
+		if (this.params.driver == null) {
+			switch (this.params.channelType) {
 				
 			case "rest":
 			case "http":
-				this.driver = new AnsiTermHttpDriver(
+				this.params.driver = new AnsiTermHttpDriver(
 					{
-						immediateRefresh: this.configuration.immediateRefresh,
-						fastRefresh: this.configuration.fastRefresh,
-						slowRefresh: this.configuration.slowRefresh,
-						source: this.configuration.source,
-						dest: this.configuration.dest,
-						config: this.configuration.config,
+						immediateRefresh: this.params.immediateRefresh,
+						fastRefresh: this.params.fastRefresh,
+						slowRefresh: this.params.slowRefresh,
+						httpSource: this.params.httpSource,
+						httpDest: this.params.httpDest,
+						httpSize: this.params.httpSize,
 					}
 				);
 				break;
 
 			case "websocket":
-				this.driver = new AnsiTermWebSocketDriver(
+				this.params.driver = new AnsiTermWebSocketDriver(
 					{
-						wsEndpoint: this.configuration.wsEndpoint,
-						wsDataTag: this.configuration.wsDataTag,
-						wsSizeTag: this.configuration.wsSizeTag,
-						wsSizeData: this.configuration.wsSizeData,
+						wsEndpoint: this.params.wsEndpoint,
+						wsDataTag: this.params.wsDataTag,
+						wsSizeTag: this.params.wsSizeTag,
+						wsSizeData: this.params.wsSizeData,
 					}
 				);
 				break;
 
 			case "dummy":
 			default:
-				this.driver = new AnsiTermDriver({});
+				this.params.driver = new AnsiTermDriver({});
 				break;
 			}
 		}
 
-		this.driver.registerOnDataReceived(
+		this.params.driver.registerOnDataReceived(
 				(text) => {
 					this.write(text);
 				}
 			);
 			
-		this.driver.registerOnConnectionChange(
+		this.params.driver.registerOnConnectionChange(
 				(st) => {
 					this._set_status(st);
 				}
 			);
 
-		this.driver.start();
+		this.params.driver.start();
 
 		setTimeout( () => { this._setsize(); }, 0);
 	}
@@ -1556,7 +1491,7 @@ export class AnsiTerm {
 	close()
 	{
 		this._clear_selection();
-		this.driver.close();
+		this.params.driver.close();
 		this._clear_timer();
 		if (this.div) {
 			this.div.remove();
@@ -1569,7 +1504,7 @@ export class AnsiTerm {
 			// TODO: optimize
 			for (let i = 0; i < this.pending_text.length; ++i) {
 							this._printchar(this.pending_text[i]);
-							if (this.posx >= this.ncolumns - 1) {
+							if (this.posx >= this.params.nColumns - 1) {
 								this._setpos(0, this.posy);
 								this._nextline();
 							}
@@ -1606,7 +1541,7 @@ export class AnsiTerm {
 
 	_clear_timer()
 	{
-		if (this.timeout > 0 && this.timer) {
+		if (this.params.timeout > 0 && this.timer) {
 			clearTimeout(this.timer);
 			this.timer = null;
 		}
@@ -1616,10 +1551,10 @@ export class AnsiTerm {
 	_reset_timer()
 	{
 		this._clear_timer();
-		if (this.timeout > 0) {
+		if (this.params.timeout > 0) {
 			this.timer = setTimeout(() => {
 				this._sm("", true);
-			}, this.timeout);
+			}, this.params.timeout);
 		}
 	}
 
@@ -1699,12 +1634,12 @@ export class AnsiTerm {
 	{
 		let y;
 		let x;
-		for (y = 0; y < this.nlines; ++y) {
-			for (x = 0; x < this.ncolumns; ++x) {
+		for (y = 0; y < this.params.nLines; ++y) {
+			for (x = 0; x < this.params.nColumns; ++x) {
 				this.screen[y][x] = {
 					ch: " ",
-					background: this.background,
-					foreground: this.foreground,
+					background: this.params.background,
+					foreground: this.params.foreground,
 					blink: this.blink,
 					underline: this.underline,
 					reverse: this.reverse,
@@ -1718,13 +1653,13 @@ export class AnsiTerm {
 	_update_status_element(el, ok, text_ok, text_ko)
 	{
 		if (ok) {
-			el.style.color = this.status_foreground_ok;
-			el.style.backgroundColor = this.status_background_ok;
+			el.style.color = this.params.statusForegroundOk;
+			el.style.backgroundColor = this.params.statusBackgroundOk;
 			el.innerText = text_ok;
 		}
 		else {
-			el.style.color = this.status_foreground_ko;
-			el.style.backgroundColor = this.status_background_ko;
+			el.style.color = this.params.statusForegroundKo;
+			el.style.backgroundColor = this.params.statusBackgroundKo;
 			el.innerText = text_ko;
 		}
 	}
@@ -1870,8 +1805,8 @@ export class AnsiTerm {
 
 	_redraw_box(x0, y0, width, height)
 	{
-		let bg = this.background;
-		let fg = this.foreground;
+		let bg = this.params.background;
+		let fg = this.params.foreground;
 		let ul = this.underline;
 		let bold = this.bold;
 		let italic = this.italic;
@@ -1881,26 +1816,26 @@ export class AnsiTerm {
 		if (width < 0) {
 			width = 0;
 		}
-		else if (width > this.ncolumns) {
-			width = this.ncolumns;
+		else if (width > this.params.nColumns) {
+			width = this.params.nColumns;
 		}
 		if (height < 0) {
 			height = 0;
 		}
-		else if (height > this.nlines) {
-			height = this.nlines;
+		else if (height > this.params.nLines) {
+			height = this.params.nLines;
 		}
 		if (x0 < 0) {
 			x0 = 0;
 		}
-		if (x0 + width >= this.ncolumns) {
-			x0 = this.ncolumns - width;
+		if (x0 + width >= this.params.nColumns) {
+			x0 = this.params.nColumns - width;
 		}
 		if (y0 < 0) {
 			y0 = 0;
 		}
-		if (y0 + height >= this.nlines) {
-			y0 = this.nlines - height;
+		if (y0 + height >= this.params.nLines) {
+			y0 = this.params.nLines - height;
 		}
 
 		//console.log("redraw",x0, y0, width, height);
@@ -1909,8 +1844,8 @@ export class AnsiTerm {
 			for (let x = x0; x < x0 + width; ++x) {
 
 				let ch = this.screen[y][x];
-				this.background = ch.background;
-				this.foreground = ch.foreground;
+				this.params.background = ch.background;
+				this.params.foreground = ch.foreground;
 				this._setbold(ch.bold);
 				this._setitalic(ch.italic);
 				this.underline = ch.underline;
@@ -1922,8 +1857,8 @@ export class AnsiTerm {
 			}
 		}
 
-		this.background = bg;
-		this.foreground = fg;
+		this.params.background = bg;
+		this.params.foreground = fg;
 		this._setbold(bold);
 		this._setitalic(italic);
 		this.underline = ul;
@@ -1934,7 +1869,7 @@ export class AnsiTerm {
 
 	_redraw()
 	{
-		this._redraw_box(0, 0, this.ncolumns, this.nlines);
+		this._redraw_box(0, 0, this.params.nColumns, this.params.nLines);
 	}
 
 	_setfeature(a, f)
@@ -1994,7 +1929,7 @@ export class AnsiTerm {
 			this.y_lastblink = this.posy;
 			let op = this.gc.globalCompositeOperation;
 			this.gc.globalCompositeOperation = "xor";
-			this._clearcharbb(this.foreground);
+			this._clearcharbb(this.params.foreground);
 			this.gc.globalCompositeOperation = op;
 		}
 		this.cursor_off = false;
@@ -2033,20 +1968,20 @@ export class AnsiTerm {
 	_blink_timeout()
 	{
 		this._do_blink();
-		this.blink_timer = setTimeout( (() => { this._blink_timeout(); }), this.blink_period);
+		this.blink_timer = setTimeout( (() => { this._blink_timeout(); }), this.params.blinkPeriod);
 	}
 
 	_unblink_cursor()
 	{
 		if (this.x_lastblink >= 0 && this.y_lastblink >= 0) {
-			let bg = this.background;
-			let fg = this.foreground;
+			let bg = this.params.background;
+			let fg = this.params.foreground;
 			let ch = this.screen[this.y_lastblink][this.x_lastblink];
-			this.background = ch.background;
-			this.foreground = ch.foreground;
+			this.params.background = ch.background;
+			this.params.foreground = ch.foreground;
 			this._printchar_in_place(ch.ch, this.x_lastblink, this.y_lastblink);
-			this.background = bg;
-			this.foreground = fg;
+			this.params.background = bg;
+			this.params.foreground = fg;
 		}
 		this.cursor_off = true;
 	}
@@ -2059,11 +1994,11 @@ export class AnsiTerm {
 		if (y < 0) {
 			y = 0;
 		}
-		if (x >= this.ncolumns) {
-			x = this.ncolumns - 1;
+		if (x >= this.params.nColumns) {
+			x = this.params.nColumns - 1;
 		}
-		if (y >= this.nlines) {
-			y = this.nlines - 1;
+		if (y >= this.params.nLines) {
+			y = this.params.nLines - 1;
 		}
 		this.posx = x;
 		this.posy = y
@@ -2140,19 +2075,19 @@ export class AnsiTerm {
 			}
 		}
 
-		this.gc.fillStyle = this.background;
+		this.gc.fillStyle = this.params.background;
 		this.gc.fillRect(0, py_clr, this.gc.canvas.width, jumppx);
-		this.gc.fillStyle = this.foreground;
+		this.gc.fillStyle = this.params.foreground;
 
 		for (let y = ymove_start; (y * ymove_step) < ymove_end; y += ymove_step) {
-			for (let x = 0; x < this.ncolumns; ++x) {
+			for (let x = 0; x < this.params.nColumns; ++x) {
 				this._setcell(x, y, { ...this.screen[y + jump][x] });
 			}
 		}
 
 		//this.dump();
 		for (let y = y_to_erase; (y * ymove_step) >= ymove_end; y -= ymove_step) {
-			for (let x = 0; x < this.ncolumns; ++x) {
+			for (let x = 0; x < this.params.nColumns; ++x) {
 				this._clearcharscr(x, y);
 			}
 		}
@@ -2163,8 +2098,8 @@ export class AnsiTerm {
 			if (this.y_lastblink < 0) {
 				this.y_lastblink = 0;
 			}
-			else if (this.y_lastblink >= this.nlines) {
-				this.y_lastblink = this.nlines - 1;
+			else if (this.y_lastblink >= this.params.nLines) {
+				this.y_lastblink = this.params.nLines - 1;
 			}
 		}
 	}
@@ -2199,7 +2134,7 @@ export class AnsiTerm {
 		let l = 8 - this.posx % 8;
 		for (let i = 0; i < l ; ++i) {
 			this.pending_text += " ";
-			if (this.posx + i >= this.ncolumns - 1) {
+			if (this.posx + i >= this.params.nColumns - 1) {
 				this._flush();
 			}
 		}
@@ -2261,8 +2196,8 @@ export class AnsiTerm {
 
 	_resetattr()
 	{
-		this.background = this.palette[0];
-		this.foreground = this.palette[7];
+		this.params.background = this.palette[0];
+		this.params.foreground = this.palette[7];
 		this.blink = false;
 		this.underline = false;
 		this.reverse = false;
@@ -2291,16 +2226,16 @@ export class AnsiTerm {
 				this._resetattr();
 				break;
 			case 30: case 31: case 32: case 33: case 34: case 35: case 36: case 37:	
-				this.foreground = this.palette[a - 30];
+				this.params.foreground = this.palette[a - 30];
 				break;
 			case 90: case 91: case 92: case 93: case 94: case 95: case 96: case 97:	
-				this.foreground = this.palette[a - 90 + 8];
+				this.params.foreground = this.palette[a - 90 + 8];
 				break;
 			case 40: case 41: case 42: case 43: case 44: case 45: case 46: case 47:	
-				this.background = this.palette[a - 40];
+				this.params.background = this.palette[a - 40];
 				break;
 			case 100: case 101: case 102: case 103: case 1010: case 105: case 106: case 107:	
-				this.background = this.palette[a - 100 + 8];
+				this.params.background = this.palette[a - 100 + 8];
 				break;
 			case 38:
 			case 48:
@@ -2309,29 +2244,29 @@ export class AnsiTerm {
 					if ((e == 2) && (args.length - j >= 6)) {
 						let c = "rgb(" + Number(args[j+3]) + "," + Number(args[j+4]) + "," + Number(args[j+5]) + ")";
 						if (a == 38) {
-							this.foreground = c;
+							this.params.foreground = c;
 						}
 						else {
-							this.background = c;
+							this.params.background = c;
 						}
 						j += 5;
 					}
 					else if (e == 5) {
 						let c = Number(args[j + 2]);
 						if (a == 38) {
-							this.foreground = this.xpalette[c];
+							this.params.foreground = this.xpalette[c];
 						}
 						else {
-							this.background = this.xpalette[c];
+							this.params.background = this.xpalette[c];
 						}
 						j += 2;
 					}
 				}
 			case 39:
-				this.foreground = this.palette[7];
+				this.params.foreground = this.palette[7];
 				break;
 			case 49:
-				this.background = this.palette[0];
+				this.params.background = this.palette[0];
 				break;
 			case 1:
 				this._setbold(true);
@@ -2363,7 +2298,7 @@ export class AnsiTerm {
 				this.underline = false;
 				break;
 			case 5:
-				if (this.blink_is_bold) {
+				if (this.params.blinkIsBold) {
 					this._setbold(true);
 				}
 				else {
@@ -2371,7 +2306,7 @@ export class AnsiTerm {
 				}
 				break;
 			case 25:
-				if (this.blink_is_bold) {
+				if (this.params.blinkIsBold) {
 					this._setbold(false);
 				}
 				else {
@@ -2404,14 +2339,14 @@ export class AnsiTerm {
 			break;
 		case 14:
 		case 15:
-			r = "\x1B[" + (a - 10) + ";" + (this.charheight * this.nlines) + ";" + (this.charwidth * this.ncolumns) + "t";
+			r = "\x1B[" + (a - 10) + ";" + (this.charheight * this.params.nLines) + ";" + (this.charwidth * this.params.nColumns) + "t";
 			break;
 		case 16:
 			r = "\x1B[6;" + this.charheight + ";" + this.charwidth + "t";
 			break;
 		case 18:
 		case 19:
-			r = "\x1B[" + (a - 10) + ";" + this.nlines + ";" + this.ncolumns + "t";
+			r = "\x1B[" + (a - 10) + ";" + this.params.nLines + ";" + this.params.nColumns + "t";
 			break;
 		default:
 			break;
@@ -2431,10 +2366,10 @@ export class AnsiTerm {
 			this._erase_line(a);
 		}
 		let start = (a == 0) ? (y + 1) : 0;
-		let end = (a == 1) ? y : this.nlines;
+		let end = (a == 1) ? y : this.params.nLines;
 		// TODO: optimize
 		for (let i = start; i < end; ++i) {
-			for (let j = 0; j < this.ncolumns; ++j) {
+			for (let j = 0; j < this.params.nColumns; ++j) {
 				this._setpos(j, i);
 				this._clearchar();
 			}
@@ -2457,7 +2392,7 @@ export class AnsiTerm {
 	{
 		let x = this.posx;
 		let start = (a == 0) ? x : 0;
-		let end = (a == 1) ? (x + 1) : this.ncolumns;
+		let end = (a == 1) ? (x + 1) : this.params.nColumns;
 		this._erase(start, end);
 	}
 
@@ -2483,17 +2418,17 @@ export class AnsiTerm {
 
 	_delete_chars(n)
 	{
-		if (n + this.posx >= this.ncolumns) {
-			n = this.ncolumns - this.posx - 1;
+		if (n + this.posx >= this.params.nColumns) {
+			n = this.params.nColumns - this.posx - 1;
 		}
 
-		for (let i = this.posx; i < this.ncolumns - n; ++i) {
+		for (let i = this.posx; i < this.params.nColumns - n; ++i) {
 			this._setcell(i, this.posy, { ...this.screen[this.posy][i + n] });
 		}
 
-		this._redraw_box(this.posx, this.posy, this.ncolumns - this.posx - n, 1)
+		this._redraw_box(this.posx, this.posy, this.params.nColumns - this.posx - n, 1)
 
-		this._erase(this.ncolumns - n, this.ncolumns);
+		this._erase(this.params.nColumns - n, this.params.nColumns);
 	}
 
 	_clearcharbbxy(bg, x, y)
@@ -2511,8 +2446,8 @@ export class AnsiTerm {
 	{
 		this._setcell(x, y,  {
 			ch: " ",
-			background: this.background, // this.palette[0],
-			foreground: this.foreground, // this.palette[7],
+			background: this.params.background, // this.palette[0],
+			foreground: this.params.foreground, // this.palette[7],
 			blink: false,
 			reverse: false,
 			bold: false,
@@ -2524,7 +2459,7 @@ export class AnsiTerm {
 	_clearchar()
 	{
 		this._clearcharscr(this.posx, this.posy);
-		this._clearcharbb(this.background /*this.palette[0] */);
+		this._clearcharbb(this.params.background /*this.palette[0] */);
 	}
 
 	_drawchar(ch, px, py, fg, bg, ul)
@@ -2539,15 +2474,15 @@ export class AnsiTerm {
 
 	_printchar_in_place_pix(ch, x, y, px, py)
 	{
-		let fg = this.foreground;
-		let bg = this.background;
+		let fg = this.params.foreground;
+		let bg = this.params.background;
 		if (this.reverse) {
-			bg = this.foreground;
-			fg = this.background;
+			bg = this.params.foreground;
+			fg = this.params.background;
 		}
 		if (this.highlight) {
-			fg = this.selection_foreground;
-			bg = this.selection_background;
+			fg = this.params.seletionForeground;
+			bg = this.params.selectionBackground;
 		}
 		this._drawchar(ch, px, py, fg, bg, this.underline);
 	}
@@ -2561,8 +2496,8 @@ export class AnsiTerm {
 	{
 		this._setcell(this.posx, this.posy, {
 			ch: ch,
-			background: this.background,
-			foreground: this.foreground,
+			background: this.params.background,
+			foreground: this.params.foreground,
 			blink: this.blink,
 			reverse: this.reverse,
 			bold: this.bold,
@@ -2602,12 +2537,12 @@ export class AnsiTerm {
 
 	_setsize()
 	{
-		this.driver.setSize(this.nlines, this.ncolumns);
+		this.params.driver.setSize(this.params.nLines, this.params.nColumns);
 	}
 
 	_send_data(t)
 	{
-		this.driver.send(t);
+		this.params.driver.send(t);
 	}
 
 	_send_id()
@@ -2720,8 +2655,8 @@ export class AnsiTerm {
 	_dump()
 	{
 		let l = "";
-		for (let y = 0; y < this.nlines; ++y) {
-			for (let x = 0; x < this.ncolumns; ++x) {
+		for (let y = 0; y < this.params.nLines; ++y) {
+			for (let x = 0; x < this.params.nColumns; ++x) {
 				l += this.screen[y][x].ch;
 			}
 			l = l + "\n";
@@ -2751,18 +2686,18 @@ export class AnsiTerm {
 
 		this.highlight = active;
 		let ncell = i2 - i1 + 1;
-		let x1 = i1 % this.ncolumns;
-		let y1 = Math.floor(i1 / this.ncolumns);
-		let w = this.ncolumns - x1;
+		let x1 = i1 % this.params.nColumns;
+		let y1 = Math.floor(i1 / this.params.nColumns);
+		let w = this.params.nColumns - x1;
 		if (w > ncell) {
 			w = ncell;
 		}
 		this._redraw_box(x1, y1, w, 1);
 		ncell -= w;
 		if (ncell > 0) {
-			let nlines = Math.floor(ncell / this.ncolumns);
-			this._redraw_box(0, y1 + 1, this.ncolumns, nlines);
-			ncell -= nlines * this.ncolumns;
+			let nlines = Math.floor(ncell / this.params.nColumns);
+			this._redraw_box(0, y1 + 1, this.params.nColumns, nlines);
+			ncell -= nlines * this.params.nColumns;
 			if (ncell > 0) {
 				this._redraw_box(0, y1 + nlines + 1, ncell, 1);
 			}
@@ -2772,7 +2707,7 @@ export class AnsiTerm {
 
 	_update_selection(x, y)
 	{
-		let sel = x + y * this.ncolumns;
+		let sel = x + y * this.params.nColumns;
 
 		//console.log(x,y,sel);
 
@@ -2873,13 +2808,13 @@ export class AnsiTerm {
 		}
 
 		try {
-			let xi = this.selection_start % this.ncolumns;
-			let yi = Math.floor(this.selection_start / this.ncolumns);
+			let xi = this.selection_start % this.params.nColumns;
+			let yi = Math.floor(this.selection_start / this.params.nColumns);
 			let l = "";
 			for (let i = this.selection_start; i <= this.selection_end; ++i) {
 				l += character_handler(this.screen[yi][xi]);
 				++xi;
-				if (xi >= this.ncolumns) {
+				if (xi >= this.params.nColumns) {
 					t += lf(l);
 					l = "";
 					xi = 0;
@@ -3082,7 +3017,7 @@ export class AnsiTerm {
 	{
 		this._clear_selection();
 		this._start_selection(0,0);
-		this._update_selection(this.ncolumns-1, this.nlines -1);
+		this._update_selection(this.params.nColumns-1, this.params.nLines -1);
 		this._end_selection();
 	}
 
@@ -3245,7 +3180,7 @@ export class AnsiTermDriver
 
 	close()
 	{
-		this.tarted = false;
+		this.started = false;
 	}
 
 	start()
@@ -3254,7 +3189,7 @@ export class AnsiTermDriver
 		if (this.on_connection_change) {
 			this.on_connection_change(this.connection_state);
 		}
-}
+	}
 
 	stop()
 	{
@@ -3291,7 +3226,7 @@ export class AnsiTermDriver
 	setSize(nlines, ncolumns)
 	{
 		// Notify, for testing
-		this._new_data("\x1b[95mSceen size = " + nlines + "x" + ncolumns + "\r\n\r\n\x1b[0m");
+		//this._new_data("\x1b[95mSceen size = " + nlines + "x" + ncolumns + "\r\n\r\n\x1b[0m");
 	}
 
 }
@@ -3309,10 +3244,10 @@ class AnsiTermHttpDriver extends AnsiTermDriver
 
 	// Fix some defaults that can't be set in the defaults table.
 	
-		this.url_source = params.source;
-		//this.url_source = this.url + this.source;
-		this.url_dest = params.dest;
-		this.url_config = params.config;
+		this.url_source = params.httpSource;
+		//this.url_source = this.url + this.httpSource;
+		this.url_dest = params.httpDest;
+		this.url_config = params.httpSize;
 
 		this.url = params.url || window.location.href;
 
@@ -3342,7 +3277,7 @@ class AnsiTermHttpDriver extends AnsiTermDriver
 			this.timer = null;
 		}
 		this.timer = setTimeout( () => {
-			this._send_request(this.params.source);
+			this._send_request(this.params.httpSource);
 		}, timeout);
 	}
 
@@ -3404,7 +3339,7 @@ class AnsiTermHttpDriver extends AnsiTermDriver
 
 	setSize(nlines, ncolumns)
 	{
-		let q = this.params.config.replace("?lines?", nlines).replace("?columns?", ncolumns);
+		let q = this.params.httpSize.replace("?lines?", nlines).replace("?columns?", ncolumns);
 		this._send_request(q);
 	}
 
@@ -3425,7 +3360,7 @@ class AnsiTermHttpDriver extends AnsiTermDriver
 			}
 		}
 		try {
-			xhr.open("POST", this.params.dest, true);
+			xhr.open("POST", this.params.httpDest, true);
 			xhr.setRequestHeader('Content-Type', 'text/plain');
 			xhr.send(text)
 		} catch {
