@@ -1,4 +1,8 @@
 # Changelog
+## [0.11.0] - 2025-03-18
+- miniserver.py + ConPTY working (still missing Resize service, TODO)
+- Fixed typos in comments and documentation.
+- Removed dead code.
 
 ## [0.10.0] - 2025-03-16
 - Added WebSocket support, and parameters to configure it.
