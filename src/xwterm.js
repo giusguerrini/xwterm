@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "0.9.0";
+const ANSITERM_VERSION = "0.11.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
