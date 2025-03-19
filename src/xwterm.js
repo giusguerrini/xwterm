@@ -2481,7 +2481,7 @@ export class AnsiTerm {
 			fg = this.params.background;
 		}
 		if (this.highlight) {
-			fg = this.params.seletionForeground;
+			fg = this.params.selectionForeground;
 			bg = this.params.selectionBackground;
 		}
 		this._drawchar(ch, px, py, fg, bg, this.underline);
