@@ -163,8 +163,8 @@ const ANSITERM_DEFAULTS = {
 	titleForeground:  "rgb(0,0,128)", // Title foreground color.
 	//keyboardBackground:  this.title_background, // Keyboard background color. Usually the same as the title.
 	//keyboardForeground:  this.title_foreground, // Keyboard foreground color. Usually the same as the title.
-	selectionBackground:  "rgb(0,0,0)", // Selection background color.
-	selectionForeground:  "rgb(255,192,192)", // Selection foreground color.
+	selectionBackground:  "rgb(255,192,192)", // Selection background color.
+	selectionForeground:  "rgb(0,0,0)", // Selection foreground color.
 
 	blinkIsBold:  true, // If true, blinking characters are drawn bold.
 	blinkPeriod:  500, // Blink period in milliseconds for both cursor an blinking characters.
