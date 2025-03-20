@@ -5,7 +5,7 @@
 - [Introduction](#introduction)
 - [Setup](#setup)
 - [Usage](#usage)
-- [Full documentation](#Full documentation)
+- [Full documentation](#fulldocumentation)
 - [Screenshots](#screenshots)
 - [Caveats](#caveats)
 - [TODO](#todo)
