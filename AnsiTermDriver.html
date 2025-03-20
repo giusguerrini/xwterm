@@ -32,23 +32,29 @@
         
             <div class="class-description">This is the base class from which AnsiTerm's communication
 drivers inherit the interface.
+
 Internal drivers <a href="AnsiTermHttpDriver.html">AnsiTermHttpDriver</a> and <a href="AnsiTermWebSocketDriver.html">AnsiTermWebSocketDriver</a>
 are derivations of this class.
+
 The programmer can write their own driver to connect the terminal to the
 backend that implements the specific application.
+
 AnsiTerm uses public methods of this interface to communicate with the
 backend.
+
 Programmers who need to write a custom driver are not required to
 implement all the methods provided by this interface. In particular,
 it is unlikely that it is ever necessary to rewrite the callback registration
 methods, since the base class already implements a sufficiently general mechanism.
+
 A typical driver will redefine these methods:
-_tx
-_set_connection_state
-start
-_stop
-close
-setSize</div>
+
+- _tx
+- _set_connection_state
+- start
+- _stop
+- close
+- setSize</div>
         
     
 </header>
@@ -166,7 +172,7 @@ as its first instruction ("super(params)").
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3218">line 3218</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3246">line 3246</a>
     </li></ul></dd>
     
 
@@ -332,7 +338,7 @@ If you are thinking of overriding it, think again.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3242">line 3242</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3270">line 3270</a>
     </li></ul></dd>
     
 
@@ -422,7 +428,7 @@ Never override it.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3341">line 3341</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3369">line 3369</a>
     </li></ul></dd>
     
 
@@ -511,7 +517,7 @@ in a consistent state after an error. Do not override it.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3319">line 3319</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3347">line 3347</a>
     </li></ul></dd>
     
 
@@ -651,7 +657,7 @@ it sends characters back to the terminal (after some manipulation).
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3358">line 3358</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3386">line 3386</a>
     </li></ul></dd>
     
 
@@ -741,7 +747,7 @@ at some point in the override ("super.close()").
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3296">line 3296</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3324">line 3324</a>
     </li></ul></dd>
     
 
@@ -833,7 +839,7 @@ method.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3285">line 3285</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3313">line 3313</a>
     </li></ul></dd>
     
 
@@ -997,7 +1003,7 @@ method.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3271">line 3271</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3299">line 3299</a>
     </li></ul></dd>
     
 
@@ -1139,7 +1145,7 @@ method.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3258">line 3258</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3286">line 3286</a>
     </li></ul></dd>
     
 
@@ -1229,7 +1235,7 @@ Never override it.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3331">line 3331</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3359">line 3359</a>
     </li></ul></dd>
     
 
@@ -1391,7 +1397,7 @@ operation.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3374">line 3374</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3402">line 3402</a>
     </li></ul></dd>
     
 
@@ -1482,7 +1488,7 @@ to the client.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3307">line 3307</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3335">line 3335</a>
     </li></ul></dd>
     
 
@@ -1534,7 +1540,7 @@ to the client.
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Thu Mar 20 2025 11:36:07 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Thu Mar 20 2025 12:08:54 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>
