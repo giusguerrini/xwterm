@@ -1,4 +1,9 @@
 # Changelog
+## [0.12.0] - 2025-03-19
+- Fixed typos in a function name.
+- Restyled the code.
+- Added JSdoc comments and automated documntation build.
+
 ## [0.11.0] - 2025-03-18
 - miniserver.py + ConPTY working (still missing Resize service, TODO)
 - Fixed typos in comments and documentation.

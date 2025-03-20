@@ -19,11 +19,17 @@ jobs:
         with:
           node-version: '14'
 
-      - name: Install dependencies
+      - name: Install terser
         run: npm install terser -g
 
       - name: Minify JavaScript
         run: terser src/xwterm.js -o dist/xwterm.min.js
+
+      - name: Install JSdoc
+        run: npm install jsdoc -g
+      
+      - name: Create documentation
+        run: npx jsdoc -c jsdoc.json
 
       - name: Create release
         id: create_release

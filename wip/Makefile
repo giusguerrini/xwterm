@@ -26,6 +26,7 @@ package.json:
 	npm install --save-dev webpack webpack-cli
 	npm install --save-dev babel-loader
 	npm install --save-dev core-js@3 
+	npm install --save-dev jsdoc
 	
 clean:
 	-del /f /q package.json

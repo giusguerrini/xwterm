@@ -6,6 +6,7 @@ MIN_JS_FILE = xwterm.min.js
 $(DIST_DIR)/$(MIN_JS_FILE): $(SRC_DIR)/$(JS_FILE)
 	@mkdir -p $(DIST_DIR)
 	terser $(SRC_DIR)/$(JS_FILE) -o $(DIST_DIR)/$(MIN_JS_FILE)
+	npx jsdoc -c jsdoc.json
 
 clean:
 	rm -rf $(DIST_DIR)
