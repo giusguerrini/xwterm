@@ -52,3 +52,13 @@ jobs:
           asset_name: xwterm.min.js
           asset_content_type: application/javascript
 
+      - name: Generate JSDoc
+        run: npx jsdoc -c jsdoc.json
+  
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.XWTERM_TOKEN }}
+        with:
+          publish_dir: ./docs
+
