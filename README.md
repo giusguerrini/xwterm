@@ -5,7 +5,7 @@
 - [Introduction](#introduction)
 - [Setup](#setup)
 - [Usage](#usage)
-- [Full documentation](#fulldocumentation)
+- [Documentation](#documentation)
 - [Screenshots](#screenshots)
 - [Caveats](#caveats)
 - [TODO](#todo)
@@ -168,9 +168,9 @@ A simple but more interesting example is in "example/jsconsole.html".
 Also, you can study "xwterm.js" itself, where HTTP and WebSocket driver are defined (AnsiTermHttpDriver
 and AnsiTermWeSocketDriver respectively).
 
-## Full documentation
+## Documentation
 A (still incomplete) documentation of the package, in particulare classes and their methods, is here:
-![API Documentation](https://giusguerrini.github.io/xwterm/)
+![API Documentation](https://giusguerrini.github.io/xwterm/index.html)
 
 ## Screenshots
 Here are some images taken while running the shell and some applications that require
