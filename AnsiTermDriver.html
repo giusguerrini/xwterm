@@ -30,31 +30,27 @@
     
         <h2><span class="attribs"><span class="type-signature"></span></span>AnsiTermDriver<span class="signature">(params)</span><span class="type-signature"></span></h2>
         
-            <div class="class-description">This is the base class from which AnsiTerm's communication
-drivers inherit the interface.
-
-Internal drivers <a href="AnsiTermHttpDriver.html">AnsiTermHttpDriver</a> and <a href="AnsiTermWebSocketDriver.html">AnsiTermWebSocketDriver</a>
-are derivations of this class.
-
-The programmer can write their own driver to connect the terminal to the
-backend that implements the specific application.
-
-AnsiTerm uses public methods of this interface to communicate with the
-backend.
-
-Programmers who need to write a custom driver are not required to
+            <div class="class-description"><p>This is the base class from which AnsiTerm's communication
+drivers inherit the interface.</p>
+<p>Internal drivers <a href="AnsiTermHttpDriver.html">AnsiTermHttpDriver</a> and <a href="AnsiTermWebSocketDriver.html">AnsiTermWebSocketDriver</a>
+are derivations of this class.</p>
+<p>The programmer can write their own driver to connect the terminal to the
+backend that implements the specific application.</p>
+<p>AnsiTerm uses public methods of this interface to communicate with the
+backend.</p>
+<p>Programmers who need to write a custom driver are not required to
 implement all the methods provided by this interface. In particular,
 it is unlikely that it is ever necessary to rewrite the callback registration
-methods, since the base class already implements a sufficiently general mechanism.
-
-A typical driver will redefine these methods:
-
-- _tx
-- _set_connection_state
-- start
-- _stop
-- close
-- setSize</div>
+methods, since the base class already implements a sufficiently general mechanism.</p>
+<p>A typical driver will redefine these methods:</p>
+<ul>
+<li>_tx</li>
+<li>_set_connection_state</li>
+<li>start</li>
+<li>_stop</li>
+<li>close</li>
+<li>setSize</li>
+</ul></div>
         
     
 </header>
@@ -77,9 +73,9 @@ A typical driver will redefine these methods:
 
 
 <div class="description">
-    This is the base constructor. It is strongly recommended that
+    <p>This is the base constructor. It is strongly recommended that
 the constructor of derived classes invokes the base constructor
-as its first instruction ("super(params)").
+as its first instruction (&quot;super(params)&quot;).</p>
 </div>
 
 
@@ -131,7 +127,7 @@ as its first instruction ("super(params)").
 
             
 
-            <td class="description last">parameters, not used by the base, but stored.</td>
+            <td class="description last"><p>parameters, not used by the base, but stored.</p></td>
         </tr>
 
     
@@ -243,9 +239,9 @@ as its first instruction ("super(params)").
 
 
 <div class="description">
-    This method is used by specialized drivers (extensions) to notify the client
-(i.e., the terminal) that there are new characters to process. 
-If you are thinking of overriding it, think again.
+    <p>This method is used by specialized drivers (extensions) to notify the client
+(i.e., the terminal) that there are new characters to process.
+If you are thinking of overriding it, think again.</p>
 </div>
 
 
@@ -297,7 +293,7 @@ If you are thinking of overriding it, think again.
 
             
 
-            <td class="description last">the new sequence of characters</td>
+            <td class="description last"><p>the new sequence of characters</p></td>
         </tr>
 
     
@@ -382,9 +378,9 @@ If you are thinking of overriding it, think again.
 
 
 <div class="description">
-    This method may be used by extensions to notify a change
+    <p>This method may be used by extensions to notify a change
 in the connection state.
-Never override it.
+Never override it.</p>
 </div>
 
 
@@ -472,8 +468,8 @@ Never override it.
 
 
 <div class="description">
-    This method may be used by extensions to put the base object
-in a consistent state after an error. Do not override it.
+    <p>This method may be used by extensions to put the base object
+in a consistent state after an error. Do not override it.</p>
 </div>
 
 
@@ -561,10 +557,10 @@ in a consistent state after an error. Do not override it.
 
 
 <div class="description">
-    This method must be overridden by the extension to implement
+    <p>This method must be overridden by the extension to implement
 the protocol-specific transmitter.
 In its base version (defined only for debugging purposes),
-it sends characters back to the terminal (after some manipulation).
+it sends characters back to the terminal (after some manipulation).</p>
 </div>
 
 
@@ -616,7 +612,7 @@ it sends characters back to the terminal (after some manipulation).
 
             
 
-            <td class="description last">The sequence of chracters to send</td>
+            <td class="description last"><p>The sequence of chracters to send</p></td>
         </tr>
 
     
@@ -701,9 +697,9 @@ it sends characters back to the terminal (after some manipulation).
 
 
 <div class="description">
-    This method closes the communication and releases the resources.
+    <p>This method closes the communication and releases the resources.
 Extensions may override it, but it is advised to call the base method
-at some point in the override ("super.close()").
+at some point in the override (&quot;super.close()&quot;).</p>
 </div>
 
 
@@ -791,11 +787,10 @@ at some point in the override ("super.close()").
 
 
 <div class="description">
-    Used by AnsiTerm to read the current connection state.
-Extensions can set the connection state by invoking the _set_connection_state base method.
-  
-It is unlikely that a custom driver will ever need to override this
-method.
+    <p>Used by AnsiTerm to read the current connection state.
+Extensions can set the connection state by invoking the _set_connection_state base method.</p>
+<p>It is unlikely that a custom driver will ever need to override this
+method.</p>
 </div>
 
 
@@ -868,7 +863,7 @@ method.
 
         
 <div class="param-desc">
-    The current connection state.
+    <p>The current connection state.</p>
 </div>
 
 
@@ -905,12 +900,11 @@ method.
 
 
 <div class="description">
-    Used by AnsiTerm to register a notification callback
+    <p>Used by AnsiTerm to register a notification callback
 to be notified of connection state changes.
-The callback is invoked when an extension calls the _set_connection_state base method.
-  
-It is unlikely that a custom driver will ever need to override this
-method.
+The callback is invoked when an extension calls the _set_connection_state base method.</p>
+<p>It is unlikely that a custom driver will ever need to override this
+method.</p>
 </div>
 
 
@@ -962,7 +956,7 @@ method.
 
             
 
-            <td class="description last">The callback function</td>
+            <td class="description last"><p>The callback function</p></td>
         </tr>
 
     
@@ -1047,12 +1041,11 @@ method.
 
 
 <div class="description">
-    Used by AnsiTerm to register a notification callback
+    <p>Used by AnsiTerm to register a notification callback
 to be notified of new incoming data.
-The callback is invoked when an extension calls the _new_data base method.
-  
-It is unlikely that a custom driver will ever need to override this
-method.
+The callback is invoked when an extension calls the _new_data base method.</p>
+<p>It is unlikely that a custom driver will ever need to override this
+method.</p>
 </div>
 
 
@@ -1104,7 +1097,7 @@ method.
 
             
 
-            <td class="description last">The callback function</td>
+            <td class="description last"><p>The callback function</p></td>
         </tr>
 
     
@@ -1189,9 +1182,9 @@ method.
 
 
 <div class="description">
-    This method may be used by the terminal to send data (e.g.,
+    <p>This method may be used by the terminal to send data (e.g.,
 keyboard events).
-Never override it.
+Never override it.</p>
 </div>
 
 
@@ -1279,9 +1272,9 @@ Never override it.
 
 
 <div class="description">
-    This method is used by the terminal to set the terminal size.
+    <p>This method is used by the terminal to set the terminal size.
 Extensions can override it to implement the corresponding protocol-specific
-operation.
+operation.</p>
 </div>
 
 
@@ -1333,7 +1326,7 @@ operation.
 
             
 
-            <td class="description last">Number of lines</td>
+            <td class="description last"><p>Number of lines</p></td>
         </tr>
 
     
@@ -1356,7 +1349,7 @@ operation.
 
             
 
-            <td class="description last">Number of columns</td>
+            <td class="description last"><p>Number of columns</p></td>
         </tr>
 
     
@@ -1441,10 +1434,10 @@ operation.
 
 
 <div class="description">
-    This method opens the communication.
+    <p>This method opens the communication.
 Extensions may override it, but it is recommended to call the base method
-at some point in the override ("super.start()"), since it sends notifications
-to the client.
+at some point in the override (&quot;super.start()&quot;), since it sends notifications
+to the client.</p>
 </div>
 
 
@@ -1540,7 +1533,7 @@ to the client.
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Thu Mar 20 2025 12:13:40 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Thu Mar 20 2025 17:07:11 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>
