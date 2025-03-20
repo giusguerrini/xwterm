@@ -170,7 +170,7 @@ and AnsiTermWeSocketDriver respectively).
 
 ## Full documentation
 A (still incomplete) documentation of the package, in particulare classes and their methods, is here:
-![API Documentation](./docs/index.html)
+![API Documentation](https://giusguerrini.github.io/xwterm/)
 
 ## Screenshots
 Here are some images taken while running the shell and some applications that require
