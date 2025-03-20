@@ -60,6 +60,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.XWTERM_TOKEN }}
         with:
-          github_token: ${{ secrets.XWTERM_TOKEN }}
+          #github_token: ${{ secrets.XWTERM_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./docs
 
