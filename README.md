@@ -170,7 +170,7 @@ and AnsiTermWeSocketDriver respectively).
 
 ## API
 A (still incomplete) documentation of the package's classes and their methods is here:
-![API Documentation](./docs/index.html)
+![API Documentation](./doc/index.html)
 
 ## Screenshots
 Here are some images taken while running the shell and some applications that require
