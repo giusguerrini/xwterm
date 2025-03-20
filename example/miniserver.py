@@ -201,7 +201,8 @@ SESSION_IDLE_TIMEOUT = 1000 #30
 if platform.system() == "Linux":
     default_encoding = 'utf-8'
 else:
-    default_encoding = 'cp1252'
+    #default_encoding = 'cp1252'
+    default_encoding = 'utf-8'
 
 home_dir = os.path.dirname(os.path.abspath(__file__))
 
