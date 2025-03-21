@@ -1066,13 +1066,13 @@ if __name__ == '__main__':
         orop = normal + ' | ' + bold
         comment = normal + ' : '
         print('\nUsage:')
-        print(' ', bold, '-bind', orop, '-bindaddr ', italic, 'IP addrress', comment, 'bind address for services. Default = ', DEFAULT_BIND_ADDRESS)
-        print(' ', bold, '-http', orop, '-httpport ', italic, 'TCP port', comment, 'TCP port for HTTP service. Default = ', DEFAULT_HTTP_PORT)
-        print(' ', bold, '-ws', orop, '-wsport', orop, '-websocket', orop, '-websocketport ', italic, 'TCP port', comment, 'TCP port for WebSocket service. Default = ', DEFAULT_WEBSOCKET_PORT)
-        print(' ', bold, '-no-http', comment, 'Disable HTTP service')
-        print(' ', bold, '-no-websocket', comment, 'Disable WebSocket service')
-        print(' ', bold, '-d', orop, '-debug', comment, 'Enable debug mode')
-        print(' ', bold, '-h', orop, '-help', comment, 'This help')
+        print(' '+bold+'-bind'+orop+'-bindaddr '+italic+'IP addrress'+comment+'bind address for services. Default='+str(DEFAULT_BIND_ADDRESS))
+        print(' '+bold+'-http'+orop+'-httpport '+italic+'TCP port'+comment+'TCP port for HTTP service. Default='+str(DEFAULT_HTTP_PORT))
+        print(' '+bold+'-ws'+orop+'-wsport'+orop+'-websocket'+orop+'-websocketport '+italic+'TCP port'+comment+'TCP port for WebSocket service. Default='+str(DEFAULT_WEBSOCKET_PORT))
+        print(' '+bold+'-no-http'+comment+'Disable HTTP service')
+        print(' '+bold+'-no-websocket'+comment+'Disable WebSocket service')
+        print(' '+bold+'-d'+orop+'-debug'+comment+'Enable debug mode')
+        print(' '+bold + '-h'+orop+'-help'+comment+'This help')
         print('')
         sys.exit(0)
 
