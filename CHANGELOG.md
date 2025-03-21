@@ -1,4 +1,9 @@
 # Changelog
+## [0.13.0] - 2025-03-21
+- Fixed missing "break" in "CSI m" processing, color selection could not work reliably.
+- Improved "miniserver.py" and added a welcome/caution message.
+- Fixed exit from alternate screen, screen wasn't cleared correctly.
+
 ## [0.12.0] - 2025-03-19
 - Fixed typos in a function name.
 - Restyled the code.
