@@ -1406,6 +1406,8 @@ export class AnsiTerm {
 
 		this.output_frozen_by_user = false;
 
+		this.freeze_count = 0;
+
 		this.url_source = this.params.httpSource;
 		//this.url_source = this.params.url + this.params.httpSource;
 		this.url_dest = this.params.httpDest;
@@ -1722,7 +1724,7 @@ export class AnsiTerm {
 	
 	_is_frozen()
 	{
-		return (this.output_frozen_by_user || this.selection_active);
+		return (this.freeze_count != 0);
 	}
 
 	_update_freeze_state()
@@ -1732,10 +1734,25 @@ export class AnsiTerm {
 			this._apply(this.incoming_text);
 			this.incoming_text = "";
 		}
-		this.on_freeze_change.forEach(callback => callback(frozen, this.incoming_text.length));
+		this.on_freeze_change.forEach(callback => callback(frozen, this.incoming_text.length, this.freeze_count));
 		if (this.freeze_div) {
-			this._update_status_element(this.freeze_div, !frozen, "Unfrozen", "Frozen - " + this.incoming_text.length + " bytes pending");
+			this._update_status_element(this.freeze_div, !frozen, "Unfrozen", "Frozen [x" + this.freeze_count + "]- " + this.incoming_text.length + " bytes pending");
 		}
+	}
+
+	_inc_freeze()
+	{
+		++this.freeze_count;
+		this._update_freeze_state();
+	}
+
+	_dec_freeze()
+	{
+		if (this.freeze_count > 0) {
+			--this.freeze_count;
+			this._update_freeze_state();
+		}
+
 	}
 
 	/**
@@ -1761,7 +1778,7 @@ export class AnsiTerm {
 	registerOnFreezeChange(cb)
 	{
 		this.on_freeze_change.push(cb);
-		cb(this._is_frozen(), this.incoming_text.length);
+		cb(this._is_frozen(), this.incoming_text.length, this.freeze_count);
 	}
 	/**
 	 * This method removes the callback registered by {@link registerOnFreezeChange}.
@@ -1776,6 +1793,12 @@ export class AnsiTerm {
 	_toggle_freeze()
 	{
 		this.output_frozen_by_user = ! this.output_frozen_by_user;
+		if (this.output_frozen_by_user) {
+			this._inc_freeze();
+		}
+		else {
+			this._dec_freeze();
+		}
 		if (this.freeze_button) {
 			this.freeze_button.innerText = this.output_frozen_by_user ? "Unfreeze" : "Freeze";
 		}
@@ -2583,7 +2606,7 @@ export class AnsiTerm {
 		} catch(err) {
 			console.log(err.toString() + ": " + t)
 		}
-		if (this.output_frozen_by_user || this.selection_active) {
+		if (this._is_frozen()) {
 			this.incoming_text += t;
 			this._update_freeze_state();
 		}
@@ -2838,6 +2861,9 @@ export class AnsiTerm {
 		this.selection_end = -1;
 		this.selection_last = -1;
 		this.selection_on = false;
+		if (this.selection_active) {
+			this._dec_freeze();
+		}
 		this.selection_active = false;
 		this._update_freeze_state();
 		return rv;
@@ -3166,6 +3192,9 @@ export class AnsiTerm {
 		this.selection_end = -1;
 		this.selection_last = -1;
 		this.selection_on = true;
+		if (! this.selection_active) {
+			this._inc_freeze();
+		}
 		this.selection_active = true;
 		this._update_selection(x, y);
 		this._update_freeze_state();
