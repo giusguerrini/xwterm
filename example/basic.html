@@ -61,7 +61,7 @@
 					autocenter: false,
 
 					channelType: channel_type,
-					wsEndpoint: window.location.host, //for websocket, ignored in other cases
+					wsEndpoint: window.location.host.replace(':8000',':8001'), //for websocket, ignored in other cases
 					/* Changing size:
 					*/
 					nLines : 40,
