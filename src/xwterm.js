@@ -310,6 +310,10 @@ export class AnsiTerm {
 		for (let i = 0; i < this.params.nLines; ++i) {
 			this.screens[0][i] = [];
 			this.screens[1][i] = [];
+			for (let j = 0; j < this.params.nColumns; ++j) {
+				this.screens[0][i][j] = {};
+				this.screens[1][i][j] = {};	
+			}
 		}
 		this.scr_background = [ this.params.background, this.params.background ];
 		this.scr_foreground = [ this.params.foreground, this.params.foreground ];
@@ -2312,6 +2316,7 @@ export class AnsiTerm {
 						j += 2;
 					}
 				}
+				break;
 			case 39:
 				this.params.foreground = this.palette[7];
 				break;

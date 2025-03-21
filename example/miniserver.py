@@ -963,7 +963,7 @@ async def do_PUT(request, session):
 
 async def websocket_server():
 
-    print('*** Websocket server ready - bind address = ', bind_address, ' port = ', websocket_port)
+    print('*** Websocket server ready - bind address=' + bind_address + ' port=' + str(websocket_port))
 
     async def read_from_websocket(ws, session):
         async for data in ws:
@@ -1020,7 +1020,7 @@ async def websocket_server():
 
 async def init_http_server():
 
-    print('*** HTTP server ready - bind address = ', bind_address, ' port = ', http_port)
+    print('*** HTTP server ready - bind address=' + bind_address + ' port=', str(http_port))
 
     http_server = aiohttp.web.Application()
     http_server.add_routes([aiohttp.web.get('/', do_GET),
