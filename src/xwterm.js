@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "0.12.0";
+const ANSITERM_VERSION = "0.13.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -313,7 +313,7 @@ export class AnsiTerm {
 			for (let j = 0; j < this.params.nColumns; ++j) {
 				this.screens[0][i][j] = {};
 				this.screens[1][i][j] = {};	
-			}
+			} 	
 		}
 		this.scr_background = [ this.params.background, this.params.background ];
 		this.scr_foreground = [ this.params.foreground, this.params.foreground ];
