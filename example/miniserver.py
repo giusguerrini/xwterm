@@ -339,9 +339,9 @@ class Shell:
  
     def set_size_windows(self, li, co):
         print("Process ", self.name, ": Size=", li, ",", co)
-        new_buffer_size = COORD(co, li)
-        result = kernel32.ResizePseudoConsole(self.pty, new_buffer_size)
-        if result == 0:
+        size = COORD(co, li)
+        result = kernel32.ResizePseudoConsole(self.pty, size)
+        if result != 0:
             raise ctypes.WinError(ctypes.get_last_error())
 
     def set_size(self, li, co):
@@ -1043,7 +1043,11 @@ async def init_http_server():
 
 mimetypes.add_type('application/javascript', '.js')
 
+
 if __name__ == '__main__':
+
+    if platform.system() != "Linux":
+        kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
 
     def welcome():
         print('')
@@ -1083,17 +1087,18 @@ if __name__ == '__main__':
         opt = args[0]
         opt = opt.replace('--', '-')
         args = args[1:]
-
+        #print('"' + opt + '"')
         if opt in [ "-http", "-httpport", "-bind", "-bindaddr", "-ws", "-wsport", "-websocket", "-websocketport" ]:
 
             if len(args) == 0:
                 usage()
             arg = args[0]
+            args = args[1:]
             if opt in [ "-http", "-httpport" ]:
                 http_port = arg
             elif opt in [ "-ws", "-wsport", "-websocket", "-websocketport" ]:
                 websocket_port = arg
-            elif opt in [ "-http", "-httpport", "-bind", "-bindaddr" ]:
+            elif opt in [ "-bind", "-bindaddr" ]:
                 bind_address = arg
             
         elif opt in [ "-h", "-help", "-no-http", "-no-websocket", "-d", "-debug" ]:
@@ -1108,7 +1113,7 @@ if __name__ == '__main__':
                 enable_websocket = False
 
         else:
-            print('Unknown option: "', args[0], '"')
+            print('Unknown option: "', opt, '"')
             usage()
 
     welcome()
