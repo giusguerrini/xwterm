@@ -34,26 +34,26 @@ place by specifying the new parameter "containerId".
 - Fixed bound checks in redraw
 - Added "selet all" button in status bar
 - Added public methods to
- - write text (and ANSI sequences) to terminal
- - send keyboard events to the remote
- - invoke the functions bound to status bar's buttons:
- copy as text/Rich Text/HTML/ANSI to clipboard,
- select all, paste clipboard, toggle freeze state.
+  - write text (and ANSI sequences) to terminal
+  - send keyboard events to the remote
+  - invoke the functions bound to status bar's buttons:
+    copy as text/Rich Text/HTML/ANSI to clipboard,
+    select all, paste clipboard, toggle freeze state.
 - New exaples.
   
 ## [0.8.0] - 2025-03-05
 - Added parameters to enable or disable
- - title bar
- - status bar
- - soft keyboard and optionally function keys.
+  - title bar
+  - status bar
+  - soft keyboard and optionally function keys.
 - Added public methods to register callbacks on
- - title change
- - connection state change
- - freeze state change
+  - title change
+  - connection state change
+  - freeze state change
 - Added a static method to read xwterm's version.
-These new services make it possible to create
-custom decorations on the main canvas. A simple
-example is given in example.html.
+  These new services make it possible to create
+  custom decorations on the main canvas. A simple
+  example is given in example.html.
 - Fixed index overflow during selection. 
 
 ## [0.7.0] - 2025-03-01
