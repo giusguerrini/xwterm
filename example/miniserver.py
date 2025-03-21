@@ -22,6 +22,8 @@
 # find any citation in aiohttp's changelog.
 #
 
+VERSION = '1.0'
+
 import os
 import sys
 import platform
@@ -36,7 +38,7 @@ import time
 import json
 import websockets
 import threading
-import queue
+import logging
 #import pathlib
 try:
     import io
@@ -184,6 +186,8 @@ else:
 DEFAULT_NLINES=40
 DEFAULT_NCOLUMNS=120
 
+DEFAULT_BIND_ADDRESS = '127.0.0.1'
+
 DEFAULT_HTTP_PORT = 8000
 CONSOLE_URL="/"
 DATA_REQUEST_PARAM="console"
@@ -197,6 +201,13 @@ DEBUG_FLAGS = {"async", "process", "session", "websocket"}
 
 SESSION_IDLE_CHECK_PERIOD = 10
 SESSION_IDLE_TIMEOUT = 1000 #30
+
+bind_address = DEFAULT_BIND_ADDRESS
+http_port = DEFAULT_HTTP_PORT
+websocket_port = DEFAULT_WEBSOCKET_PORT
+debug = False
+enable_http = True
+enable_websocket = True
 
 if platform.system() == "Linux":
     default_encoding = 'utf-8'
@@ -952,6 +963,8 @@ async def do_PUT(request, session):
 
 async def websocket_server():
 
+    print('*** Websocket server ready - bind address = ', bind_address, ' port = ', websocket_port)
+
     async def read_from_websocket(ws, session):
         async for data in ws:
             try:
@@ -1002,34 +1015,128 @@ async def websocket_server():
 
 
     while True:
-        async with websockets.serve(websocket_connection, "127.0.0.1", DEFAULT_WEBSOCKET_PORT):
+        async with websockets.serve(websocket_connection, bind_address, websocket_port):
             await asyncio.Future()
 
-async def init_app():
+async def init_http_server():
+
+    print('*** HTTP server ready - bind address = ', bind_address, ' port = ', http_port)
+
+    http_server = aiohttp.web.Application()
+    http_server.add_routes([aiohttp.web.get('/', do_GET),
+                            aiohttp.web.get('/{file_path:.*}', do_GET_files),
+                            aiohttp.web.post('/', do_POST),
+                            aiohttp.web.put('/', do_PUT)])
 
     session_manager = Session.setup()
 
-    app = aiohttp.web.Application()
-    app.add_routes([aiohttp.web.get('/', do_GET),
-                    aiohttp.web.get('/{file_path:.*}', do_GET_files),
-                    aiohttp.web.post('/', do_POST),
-                    aiohttp.web.put('/', do_PUT)])
-    
-
-    async def run_session_manager(app):
+    async def run_session_manager(http_server):
         asyncio.create_task(session_manager())
-
-    app.on_startup.append(run_session_manager)
-
-    async def run_websocket_server(app):
-        asyncio.create_task(websocket_server())
-
-    app.on_startup.append(run_websocket_server)
-
-    return app
+    http_server.on_startup.append(run_session_manager)
+    
+    if enable_websocket:
+        async def run_websocket_server(http_server):
+            asyncio.create_task(websocket_server())
+        http_server.on_startup.append(run_websocket_server)
+    
+    return http_server
 
 mimetypes.add_type('application/javascript', '.js')
 
 if __name__ == '__main__':
-    aiohttp.web.run_app(init_app(), host='127.0.0.1', port=DEFAULT_HTTP_PORT)
+
+    def welcome():
+        print('')
+        print('miniserver.py rel.', VERSION)
+        print('\x1B[96m')
+        print('This is a minimal HTTP and WebSocket terminal server.')
+        print('It is intended to help experiment and develop xwterm.js (AnsiTerm)')
+        print('and applications that use it.')
+        print('\x1B[93m')
+        print('It is NOT intended to be used as a real terminal server, as it lacks')
+        print('the minimal security checks and resource controls. If you nevertheless')
+        print('use it in a real production environment, and in particular expose its')
+        print('services to the Internet, you do so at your own risk.')
+        print('\x1B[0m')
+
+    def usage():
+        normal = '\x1B[0m'
+        bold  = normal + '\x1B[22m\x1B[96m'
+        italic  = normal + '\x1B[3m\x1B[93m'
+        orop = normal + ' | ' + bold
+        comment = normal + ' : '
+        print('\nUsage:')
+        print(' ', bold, '-bind', orop, '-bindaddr ', italic, 'IP addrress', comment, 'bind address for services. Default = ', DEFAULT_BIND_ADDRESS)
+        print(' ', bold, '-http', orop, '-httpport ', italic, 'TCP port', comment, 'TCP port for HTTP service. Default = ', DEFAULT_HTTP_PORT)
+        print(' ', bold, '-ws', orop, '-wsport', orop, '-websocket', orop, '-websocketport ', italic, 'TCP port', comment, 'TCP port for WebSocket service. Default = ', DEFAULT_WEBSOCKET_PORT)
+        print(' ', bold, '-no-http', comment, 'Disable HTTP service')
+        print(' ', bold, '-no-websocket', comment, 'Disable WebSocket service')
+        print(' ', bold, '-d', orop, '-debug', comment, 'Enable debug mode')
+        print(' ', bold, '-h', orop, '-help', comment, 'This help')
+        print('')
+        sys.exit(0)
+
+    args = sys.argv[1:]
+
+    while len(args) > 0:
+
+        opt = args[0]
+        opt = opt.replace('--', '-')
+        args = args[1:]
+
+        if opt in [ "-http", "-httpport", "-bind", "-bindaddr", "-ws", "-wsport", "-websocket", "-websocketport" ]:
+
+            if len(args) == 0:
+                usage()
+            arg = args[0]
+            if opt in [ "-http", "-httpport" ]:
+                http_port = arg
+            elif opt in [ "-ws", "-wsport", "-websocket", "-websocketport" ]:
+                websocket_port = arg
+            elif opt in [ "-http", "-httpport", "-bind", "-bindaddr" ]:
+                bind_address = arg
+            
+        elif opt in [ "-h", "-help", "-no-http", "-no-websocket", "-d", "-debug" ]:
+
+            if opt in [ "-d", "-debug" ]:
+                debug = True
+            elif opt in [ "-h", "-help" ]:
+                usage()
+            elif opt in [ "-no-http" ]:
+                enable_http = False
+            elif opt in [ "-no-websocket" ]:
+                enable_websocket = False
+
+        else:
+            print('Unknown option: "', args[0], '"')
+            usage()
+
+    welcome()
+
+    logging.basicConfig(level=logging.WARNING)
+
+    if enable_http:
+
+        def web_print(*args):
+            pass
+        aiohttp.web.run_app(init_http_server(), host=bind_address, port=http_port, print=web_print)
+
+    elif enable_websocket:
+
+        async def wsonly():
+
+            session_manager = Session.setup()
+
+            sm = asyncio.create_task(session_manager())
+            ws = asyncio.create_task(websocket_server())
+
+            tasks = list()
+            tasks.append(sm)
+            tasks.append(ws)
+
+            await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+
+        asyncio.run(wsonly())
+    else:
+        usage()
 
