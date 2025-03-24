@@ -1,4 +1,10 @@
 # Changelog
+## [0.14.0] - 2025-03-24
+- Fixed cursor position after the last character of a line is inserted. The cursor
+  was placed at the beginning of the next line, but for ANSI-XTerm conformance, it
+  must stay on the current line and be placed beyond the right margin, hidden.
+  This correction makes Midnight Commander for Windows work correctly.
+ 
 ## [0.13.0] - 2025-03-21
 - Fixed missing "break" in "CSI m" processing, color selection could not work reliably.
 - Improved "miniserver.py" and added a welcome/caution message.

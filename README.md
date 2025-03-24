@@ -170,7 +170,7 @@ Also, you can study "xwterm.js" itself, where HTTP and WebSocket driver are defi
 and AnsiTermWeSocketDriver respectively).
 
 ## Full documentation
-A (still incomplete) documentation of the package, in particulare classes and their methods, is here:
+A (still incomplete) documentation of the package, mainly classes and their methods, is here:
 [API Documentation](https://giusguerrini.github.io/xwterm/index.html)
 
 ## Live example
@@ -207,6 +207,7 @@ More sophisticated encodings are expected to be problematic.
 Many things to do:
 - Clean up code and add comments.
 - Add better support for server-side sessions (e.g., cookies, access tokens...)
+- Add support for hyperlinks and hyperlink sequences (e.g, \e]8;;http://example.com\e\\This is a link\e]8;;\e)
 - Add custom CSS properties to configure the terminal. Currently, the configuration comes
   from a set of parameters passed to the constructor.
 - Add a configuration item to choose the terminal mode (e.g., "pure ANSI", "xterm", "xterm-256"...).
@@ -214,7 +215,7 @@ Many things to do:
   keyboards don't have "Tilde" nor "Backquote" keys...
 - Add management of alternate character set (see "G0/G1" character set selection sequences).
 - Add history buffer (and scroll bar, of course).
-- Responsiveness.
+- Resize and responsiveness.
 
 ## Enjoy!
 
