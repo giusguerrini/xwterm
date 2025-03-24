@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style type="text/css">
+	canvas {
+		border: 2px solid #8080ff;
+		margin: 0px auto;
+		text-align: left;
+	}
+	.basic-example {
+		border: 2px solid #8080FF;
+		border-radius: 20px;
+		margin: 20px auto;
+		background-color: #f2f2e0; 
+	}
+	div.basic-example {
+		width: auto;
+		padding: 40px auto;
+		margin: 40px auto;
+	}
+	button.basic-example  {
+		margin: 40px auto;
+		padding: 40px auto;
+	}
+</style>
+</head>
+<body>
+	<div id="main-div" class="basic-example" style="display: grid; grid-template-columns: auto; place-items: center;">
+		<h3>JavaScript Terminal</h3>
+	</div>
+<script type="module">
+
+	import { AnsiTerm, AnsiTermDriver } from "./xwterm.js";
+
+	class CustomDriver extends AnsiTermDriver 
+	{
+
+		constructor(params)
+		{
+			super(params);
+		}
+
+		start()
+		{ 
+			super.start();
+			this._set_connection_state(true); // Signal "connected" to the terminal
+			this._new_data("Hello!\r\n"); // Send data to the terminal
+		}
+
+		_tx(text)
+		{
+			console.log("From xwterm: " + text);
+		}
+	}
+	
+	
+	
+	window.ansi = new AnsiTerm( 
+		{
+		driver: new CustomDriver(),
+
+		containerId: "main-div",
+		autocenter: false,
+		
+		nLines : 30,
+		nColumns : 100,
+		fontSize : 12,
+		background : "rgb(245,245,235)",
+		foreground : "black",
+		hasTitleBar: false,
+		hasStatusBar: true,
+		hasSoftFKeys: false,
+		}
+	);
+	
+</script>
+</body>
+</html>
