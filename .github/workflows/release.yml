@@ -28,9 +28,6 @@ jobs:
       - name: Install JSdoc
         run: npm install jsdoc -g
       
-      - name: Create documentation
-        run: npx jsdoc -c jsdoc.json
-
       - name: Create release
         id: create_release
         uses: actions/create-release@v1
@@ -52,9 +49,14 @@ jobs:
           asset_name: xwterm.min.js
           asset_content_type: application/javascript
 
-      - name: Generate JSDoc
+      - name: Create documentation
         run: npx jsdoc -c jsdoc.json
   
+      - name: Copy Additional Files
+        run: |
+          cp src/xwterm.js docs/
+          cp example/jsconsole.html docs/
+      
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         env:
