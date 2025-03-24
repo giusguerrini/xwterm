@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "0.13.0";
+const ANSITERM_VERSION = "0.14.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -1524,14 +1524,41 @@ export class AnsiTerm {
 		if (this.pending_text.length > 0) {
 			// TODO: optimize
 			for (let i = 0; i < this.pending_text.length; ++i) {
-							this._printchar(this.pending_text[i]);
-							if (this.posx >= this.params.nColumns - 1) {
-								this._setpos(0, this.posy);
-								this._nextline();
-							}
-							else {
-								this._incpos(1, 0);
-							}
+
+			/* Check if we are beyond the end of the line, i.e.,
+			 the line has been filled completely. Only at this point,
+			 we synthesize a CR-LF before drawing the next character.
+			 Then, we increment the horizontal position. Note that
+			 the horizontal position may take the "impossible" value
+			 of "nColumns", while its "normal" value should be 0 to
+			 "nColumns-1". This may look weird, but it is required for
+			 ANSI-xterm compliance: when the line is completely full,
+			 the cursor disappears behind the right margin.
+			 This also forces us to check for the "special value" of "posx",
+			 e.g., in cursor blink logic. */
+				if (this.posx >= this.params.nColumns) {
+					this._setpos(0, this.posy);
+					this._nextline();
+				}
+				this._printchar(this.pending_text[i]);
+				if (this.posx < this.params.nColumns) {
+					this._incpos(1, 0);
+				}
+
+				/* The naive version: no "impo ssible" value of "posx",
+				 but a slightly different behavior that breaks some
+				 applications (e.g., the Midnight Commander's port on Windows)
+
+				this._printchar(this.pending_text[i]);
+				if (this.posx >= this.params.nColumns - 1) {
+					this._setpos(0, this.posy);
+					this._nextline();
+				}
+				else {
+					this._incpos(1, 0);
+				}
+				*/
+
 			}
 			this.pending_text = "";
 		}
@@ -2004,10 +2031,12 @@ export class AnsiTerm {
 		if (this.blink_cursor || this.cursor_off) {
 			this.x_lastblink = this.posx;
 			this.y_lastblink = this.posy;
-			let op = this.gc.globalCompositeOperation;
-			this.gc.globalCompositeOperation = "xor";
-			this._clearcharbb(this.params.foreground);
-			this.gc.globalCompositeOperation = op;
+			if (this.posx < this.params.nColumns) {
+				let op = this.gc.globalCompositeOperation;
+				this.gc.globalCompositeOperation = "xor";
+				this._clearcharbb(this.params.foreground);
+				this.gc.globalCompositeOperation = op;
+			}
 		}
 		this.cursor_off = false;
 	}
@@ -2051,14 +2080,16 @@ export class AnsiTerm {
 	_unblink_cursor()
 	{
 		if (this.x_lastblink >= 0 && this.y_lastblink >= 0) {
-			let bg = this.params.background;
-			let fg = this.params.foreground;
-			let ch = this.screen[this.y_lastblink][this.x_lastblink];
-			this.params.background = ch.background;
-			this.params.foreground = ch.foreground;
-			this._printchar_in_place(ch.ch, this.x_lastblink, this.y_lastblink);
-			this.params.background = bg;
-			this.params.foreground = fg;
+			if (this.x_lastblink < this.params.nColumns) {
+				let bg = this.params.background;
+				let fg = this.params.foreground;
+				let ch = this.screen[this.y_lastblink][this.x_lastblink];
+				this.params.background = ch.background;
+				this.params.foreground = ch.foreground;
+				this._printchar_in_place(ch.ch, this.x_lastblink, this.y_lastblink);
+				this.params.background = bg;
+				this.params.foreground = fg;
+			}
 		}
 		this.cursor_off = true;
 	}
@@ -2072,7 +2103,7 @@ export class AnsiTerm {
 			y = 0;
 		}
 		if (x >= this.params.nColumns) {
-			x = this.params.nColumns - 1;
+			x = this.params.nColumns ; // - 1;
 		}
 		if (y >= this.params.nLines) {
 			y = this.params.nLines - 1;
