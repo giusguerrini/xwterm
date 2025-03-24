@@ -1,32 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>JSDoc: Source: xwterm.js</title>
-
-    <script src="scripts/prettify/prettify.js"> </script>
-    <script src="scripts/prettify/lang-css.js"> </script>
-    <!--[if lt IE 9]>
-      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
-    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
-    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
-</head>
-
-<body>
-
-<div id="main">
-
-    <h1 class="page-title">Source: xwterm.js</h1>
-
-    
-
-
-
-    
-    <section>
-        <article>
-            <pre class="prettyprint source linenums"><code>const ANSITERM_VERSION = "0.14.0";
+const ANSITERM_VERSION = "0.14.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -108,7 +80,7 @@
  horrors like this:
  
 	for (iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere = 0;
-	     iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere &lt; fArrayOfThingsIAmLookingFor.length;
+	     iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere < fArrayOfThingsIAmLookingFor.length;
 	     ++iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere) {
 
 		if (fArrayOfThingsIAmLookingFor[iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere]
@@ -335,10 +307,10 @@ export class AnsiTerm {
 		this.gc.fillStyle = this.params.foreground;
 
 		this.screens = [[],[]];
-		for (let i = 0; i &lt; this.params.nLines; ++i) {
+		for (let i = 0; i < this.params.nLines; ++i) {
 			this.screens[0][i] = [];
 			this.screens[1][i] = [];
-			for (let j = 0; j &lt; this.params.nColumns; ++j) {
+			for (let j = 0; j < this.params.nColumns; ++j) {
 				this.screens[0][i][j] = {};
 				this.screens[1][i][j] = {};	
 			} 	
@@ -703,8 +675,8 @@ export class AnsiTerm {
 			// TESTS
 			5: {
 				"8": this._ti(() => {
-					for (let y = 0; y &lt; this.params.nLines; ++y) {
-						for (let x = 0; x &lt; this.params.nColumns; ++x) {
+					for (let y = 0; y < this.params.nLines; ++y) {
+						for (let x = 0; x < this.params.nColumns; ++x) {
 							let ch = (x+y) % 10;
 							this.screen[y][x].ch = ch;
 							this._printchar_in_place(ch, x, y);
@@ -934,11 +906,11 @@ export class AnsiTerm {
 		// Standard 16 colors: 8 base colors + 8 bright colors. Color's
 		// RGB components are encoded in 3 levels: 0, 128 (for base), 255 (for bright).
 		// Iteration index's bits are used to select the components.
-		for (let i = 0; i &lt; 16; ++i) {
-			let on = (i &amp; 0x08) ? 255 : 128;
-			let r = (i &amp; 0x01) ? on : 0;
-			let g = (i &amp; 0x02) ? on : 0;
-			let b = (i &amp; 0x04) ? on : 0;
+		for (let i = 0; i < 16; ++i) {
+			let on = (i & 0x08) ? 255 : 128;
+			let r = (i & 0x01) ? on : 0;
+			let g = (i & 0x02) ? on : 0;
+			let b = (i & 0x04) ? on : 0;
 			this.xpalette.push("rgb(" + r + "," + g + "," + b + ")");
 		}
 		this.xpalette[7] = "rgb(192,192,192)"; // Base color 7 doesn't fit the above pattern.
@@ -948,7 +920,7 @@ export class AnsiTerm {
 		// is a level index in "v", which is a vector
 		// of levels for each component.
 		let v = [ 0, 95, 135, 175, 215, 255 ];
-		for (let i = 16; i &lt; 232; ++i) {
+		for (let i = 16; i < 232; ++i) {
 			let x = (i - 16);
 			let rm = x % 6;
 			let b = v[rm];
@@ -962,7 +934,7 @@ export class AnsiTerm {
 		}
 
 		// Grayscale (232...255: 24 levels of gray)
-		for (let i = 232; i &lt; 256; ++i) {
+		for (let i = 232; i < 256; ++i) {
 			let v = (i - 232) * 10 + 8;
 			this.xpalette.push("rgb(" + v + "," + v + "," + v + ")");
 		}
@@ -1109,7 +1081,7 @@ export class AnsiTerm {
 
 				let button_properties = [];
 
-				for (let i = 0; i &lt; 12; ++i) {
+				for (let i = 0; i < 12; ++i) {
 					let t = "F" + (i+1);
 					let p = {
 						text: t,
@@ -1135,7 +1107,7 @@ export class AnsiTerm {
 							key: { key: "\x7e", code: 'Tilde', composed: false, ctrlKey: false, altKey: false, metaKey: false, },
 						});
 				
-				for (let i = 0; i &lt; button_properties.length; ++i) {
+				for (let i = 0; i < button_properties.length; ++i) {
 					let e = null;
 					if (i >= 12 || this.params.hasSoftFKeys) {
 						e = document.createElement("button");
@@ -1335,7 +1307,7 @@ export class AnsiTerm {
 
 		this.underline_height = Math.floor(this.charheight / 10); // TODO: make parametric
 		this.underline_off = Math.floor(this.charheight / 10); // TODO: make parametric
-		if (this.underline_off &lt; 1) {
+		if (this.underline_off < 1) {
 			this.underline_off = 1;
 		}
 		this.width = this.charwidth * this.params.nColumns;
@@ -1551,7 +1523,7 @@ export class AnsiTerm {
 	{
 		if (this.pending_text.length > 0) {
 			// TODO: optimize
-			for (let i = 0; i &lt; this.pending_text.length; ++i) {
+			for (let i = 0; i < this.pending_text.length; ++i) {
 
 			/* Check if we are beyond the end of the line, i.e.,
 			 the line has been filled completely. Only at this point,
@@ -1569,7 +1541,7 @@ export class AnsiTerm {
 					this._nextline();
 				}
 				this._printchar(this.pending_text[i]);
-				if (this.posx &lt; this.params.nColumns) {
+				if (this.posx < this.params.nColumns) {
 					this._incpos(1, 0);
 				}
 
@@ -1601,7 +1573,7 @@ export class AnsiTerm {
 	{
 		let args = this._getargs();
 		let v;
-		if (args[index] &amp;&amp; args[index] != "") {
+		if (args[index] && args[index] != "") {
 			v = Number(args[index]);
 		}
 		else {
@@ -1617,7 +1589,7 @@ export class AnsiTerm {
 
 	_clear_timer()
 	{
-		if (this.params.timeout > 0 &amp;&amp; this.timer) {
+		if (this.params.timeout > 0 && this.timer) {
 			clearTimeout(this.timer);
 			this.timer = null;
 		}
@@ -1684,7 +1656,7 @@ export class AnsiTerm {
 	{
 		this._clear_timer();
 
-		for (let i = 0; i &lt; t.length; ++i) {
+		for (let i = 0; i < t.length; ++i) {
 			this.ch = t[i];
 			this._sm(t[i], false);
 		}
@@ -1714,8 +1686,8 @@ export class AnsiTerm {
 	{
 		let y;
 		let x;
-		for (y = 0; y &lt; this.params.nLines; ++y) {
-			for (x = 0; x &lt; this.params.nColumns; ++x) {
+		for (y = 0; y < this.params.nLines; ++y) {
+			for (x = 0; x < this.params.nColumns; ++x) {
 				this.screen[y][x] = {
 					ch: " ",
 					background: this.params.background,
@@ -1903,7 +1875,7 @@ export class AnsiTerm {
 	{
 		let a = this._getargs();
 
-		if (a.length &lt; 1) {
+		if (a.length < 1) {
 			return;
 		}
 		
@@ -1916,12 +1888,12 @@ export class AnsiTerm {
 
 		if (a0 == 0 || a0 == 2) {
 			let p = this.paramstr.indexOf(";");
-			if (p &lt; 0) {
+			if (p < 0) {
 				p = 0;
 			}
 			this._set_title(this.paramstr.slice(p + 1));
 		}
-		else if (a0 >= 10 &amp;&amp; a0 &lt;= 19 &amp;&amp; a[1] == "?") {
+		else if (a0 >= 10 && a0 <= 19 && a[1] == "?") {
 			// Retuturn RGB codes of some "notable" colors.
 			let to_palette = {
 				10: 7,
@@ -1949,25 +1921,25 @@ export class AnsiTerm {
 		let reverse = this.reverse;
 		let blink = this.blink;
 
-		if (width &lt; 0) {
+		if (width < 0) {
 			width = 0;
 		}
 		else if (width > this.params.nColumns) {
 			width = this.params.nColumns;
 		}
-		if (height &lt; 0) {
+		if (height < 0) {
 			height = 0;
 		}
 		else if (height > this.params.nLines) {
 			height = this.params.nLines;
 		}
-		if (x0 &lt; 0) {
+		if (x0 < 0) {
 			x0 = 0;
 		}
 		if (x0 + width >= this.params.nColumns) {
 			x0 = this.params.nColumns - width;
 		}
-		if (y0 &lt; 0) {
+		if (y0 < 0) {
 			y0 = 0;
 		}
 		if (y0 + height >= this.params.nLines) {
@@ -1976,8 +1948,8 @@ export class AnsiTerm {
 
 		//console.log("redraw",x0, y0, width, height);
 
-		for (let y = y0; y &lt; y0 + height; ++y) {
-			for (let x = x0; x &lt; x0 + width; ++x) {
+		for (let y = y0; y < y0 + height; ++y) {
+			for (let x = x0; x < x0 + width; ++x) {
 
 				let ch = this.screen[y][x];
 				this.params.background = ch.background;
@@ -2014,7 +1986,7 @@ export class AnsiTerm {
 			this.app_cursor_keys = f;
 		}
 		else if (a == 12) {
-			if (this.blink_cursor != f &amp;&amp; !this.force_blink_cursor) {
+			if (this.blink_cursor != f && !this.force_blink_cursor) {
 				this.blink_cursor = f;
 				if (this.enable_cursor) {
 					if (! f) {
@@ -2036,7 +2008,7 @@ export class AnsiTerm {
 				}
 			}
 		}
-		else if (a >= 1047 &amp;&amp; a &lt;= 1049) {
+		else if (a >= 1047 && a <= 1049) {
 			if (a == 1047 || a == 1049) {
 				this._selectscreen(f);
 			}
@@ -2064,7 +2036,7 @@ export class AnsiTerm {
 			this.x_lastblink = this.posx;
 			this.y_lastblink = this.posy;
 			// Check "special value", see comments in "_flush()"
-			if (this.posx &lt; this.params.nColumns) {
+			if (this.posx < this.params.nColumns) {
 				let op = this.gc.globalCompositeOperation;
 				this.gc.globalCompositeOperation = "xor";
 				this._clearcharbb(this.params.foreground);
@@ -2112,8 +2084,8 @@ export class AnsiTerm {
 
 	_unblink_cursor()
 	{
-		if (this.x_lastblink >= 0 &amp;&amp; this.y_lastblink >= 0) {
-			if (this.x_lastblink &lt; this.params.nColumns) {
+		if (this.x_lastblink >= 0 && this.y_lastblink >= 0) {
+			if (this.x_lastblink < this.params.nColumns) {
 				let bg = this.params.background;
 				let fg = this.params.foreground;
 				let ch = this.screen[this.y_lastblink][this.x_lastblink];
@@ -2129,10 +2101,10 @@ export class AnsiTerm {
 
 	_setpos(x, y)
 	{
-		if (x &lt; 0) {
+		if (x < 0) {
 			x = 0;
 		}
-		if (y &lt; 0) {
+		if (y < 0) {
 			y = 0;
 		}
 		if (x >= this.params.nColumns) {
@@ -2162,7 +2134,7 @@ export class AnsiTerm {
 		}
 		let ajump = jump;
 		let up = true;
-		if (ajump &lt; 0) {
+		if (ajump < 0) {
 			up = false;
 			ajump = -ajump;
 		}
@@ -2220,23 +2192,23 @@ export class AnsiTerm {
 		this.gc.fillRect(0, py_clr, this.gc.canvas.width, jumppx);
 		this.gc.fillStyle = this.params.foreground;
 
-		for (let y = ymove_start; (y * ymove_step) &lt; ymove_end; y += ymove_step) {
-			for (let x = 0; x &lt; this.params.nColumns; ++x) {
+		for (let y = ymove_start; (y * ymove_step) < ymove_end; y += ymove_step) {
+			for (let x = 0; x < this.params.nColumns; ++x) {
 				this._setcell(x, y, { ...this.screen[y + jump][x] });
 			}
 		}
 
 		//this.dump();
 		for (let y = y_to_erase; (y * ymove_step) >= ymove_end; y -= ymove_step) {
-			for (let x = 0; x &lt; this.params.nColumns; ++x) {
+			for (let x = 0; x < this.params.nColumns; ++x) {
 				this._clearcharscr(x, y);
 			}
 		}
 		//this.dump();
 
-		if (this.y_lastblink >= y_start &amp;&amp; this.y_lastblink &lt;= y_end) {
+		if (this.y_lastblink >= y_start && this.y_lastblink <= y_end) {
 			this.y_lastblink -= jump;
-			if (this.y_lastblink &lt; 0) {
+			if (this.y_lastblink < 0) {
 				this.y_lastblink = 0;
 			}
 			else if (this.y_lastblink >= this.params.nLines) {
@@ -2273,7 +2245,7 @@ export class AnsiTerm {
 	_tab()
 	{
 		let l = 8 - this.posx % 8;
-		for (let i = 0; i &lt; l ; ++i) {
+		for (let i = 0; i < l ; ++i) {
 			this.pending_text += " ";
 			if (this.posx + i >= this.params.nColumns - 1) {
 				this._flush();
@@ -2299,7 +2271,7 @@ export class AnsiTerm {
 
 	_upline()
 	{
-		if (this.posy &lt;= this.scrollregion_l) {
+		if (this.posy <= this.scrollregion_l) {
 			this._revscroll();
 		}
 		else {
@@ -2350,11 +2322,11 @@ export class AnsiTerm {
 	{
 		let args = this._getargs();
 
-		if (args.length &lt; 1) {
+		if (args.length < 1) {
 			args[0] = "0";
 		}
 
-		for (let j = 0; j &lt; args.length; ++j) {
+		for (let j = 0; j < args.length; ++j) {
 			let a = args[j];
 			// I don't know what the hell is this % that vim sometimes generates. It looks like a bug,
 			// (probably in terminfo) because it's not documented in the xterm sequences.
@@ -2382,7 +2354,7 @@ export class AnsiTerm {
 			case 48:
 				if (args.length - j >= 3)  {
 					let e = Number(args[j+1]);
-					if ((e == 2) &amp;&amp; (args.length - j >= 6)) {
+					if ((e == 2) && (args.length - j >= 6)) {
 						let c = "rgb(" + Number(args[j+3]) + "," + Number(args[j+4]) + "," + Number(args[j+5]) + ")";
 						if (a == 38) {
 							this.params.foreground = c;
@@ -2504,14 +2476,14 @@ export class AnsiTerm {
 	{
 		let x = this.posx;
 		let y = this.posy;
-		if (a &lt; 2) {
+		if (a < 2) {
 			this._erase_line(a);
 		}
 		let start = (a == 0) ? (y + 1) : 0;
 		let end = (a == 1) ? y : this.params.nLines;
 		// TODO: optimize
-		for (let i = start; i &lt; end; ++i) {
-			for (let j = 0; j &lt; this.params.nColumns; ++j) {
+		for (let i = start; i < end; ++i) {
+			for (let j = 0; j < this.params.nColumns; ++j) {
 				this._setpos(j, i);
 				this._clearchar();
 			}
@@ -2523,7 +2495,7 @@ export class AnsiTerm {
 	{
 		let x = this.posx;
 		let y = this.posy;
-		for (let i = start; i &lt; end; ++i) {
+		for (let i = start; i < end; ++i) {
 			this._setpos(i, this.posy);
 			this._clearchar();
 		}
@@ -2540,14 +2512,14 @@ export class AnsiTerm {
 
 	_insert_lines(n)
 	{
-		for (let i = 0; i &lt; n; ++i) {
+		for (let i = 0; i < n; ++i) {
 			this._revscroll_from(this.posy);
 		}
 	}
 
 	_delete_lines(n)
 	{
-		for (let i = 0; i &lt; n; ++i) {
+		for (let i = 0; i < n; ++i) {
 			this._scroll_from(this.posy);
 		}
 	}
@@ -2564,7 +2536,7 @@ export class AnsiTerm {
 			n = this.params.nColumns - this.posx - 1;
 		}
 
-		for (let i = this.posx; i &lt; this.params.nColumns - n; ++i) {
+		for (let i = this.posx; i < this.params.nColumns - n; ++i) {
 			this._setcell(i, this.posy, { ...this.screen[this.posy][i + n] });
 		}
 
@@ -2746,7 +2718,7 @@ export class AnsiTerm {
 			}
 			e.code = e.key;	
 		}
-		if (this.app_cursor_keys &amp;&amp; AnsiTerm.key_translations_app[e.code]) {
+		if (this.app_cursor_keys && AnsiTerm.key_translations_app[e.code]) {
 			key = AnsiTerm.key_translations_app[e.code];
 		}
 		else if (AnsiTerm.key_translations[e.code]) {
@@ -2762,10 +2734,10 @@ export class AnsiTerm {
 				}
 				else if (e.ctrlKey) {
 					let b = e.key.charCodeAt(0);
-					if (b >= 64 &amp;&amp; b &lt; 96) {
+					if (b >= 64 && b < 96) {
 						key = String.fromCharCode(b - 64);
 					}
-					else if (b >= 96 &amp;&amp; b &lt; 128) {
+					else if (b >= 96 && b < 128) {
 						key = String.fromCharCode(b - 96);
 					}
 				}
@@ -2816,8 +2788,8 @@ export class AnsiTerm {
 	_dump()
 	{
 		let l = "";
-		for (let y = 0; y &lt; this.params.nLines; ++y) {
-			for (let x = 0; x &lt; this.params.nColumns; ++x) {
+		for (let y = 0; y < this.params.nLines; ++y) {
+			for (let x = 0; x < this.params.nColumns; ++x) {
 				l += this.screen[y][x].ch;
 			}
 			l = l + "\n";
@@ -2885,7 +2857,7 @@ export class AnsiTerm {
 			let i2 = this.selection_last;
 			let i3 = sel;
 			if (i3 != i2) {
-				if (i1 &lt; i2) {
+				if (i1 < i2) {
 					if (i3 > i2) {
 						this._redraw_selection(i2 + 1, i3, true);
 					}
@@ -2898,10 +2870,10 @@ export class AnsiTerm {
 					}
 				}
 				else {
-					if (i3 &lt; i2) {
+					if (i3 < i2) {
 						this._redraw_selection(i3, i2 - 1, true);
 					}
-					else if (i3 &lt;= i1) {
+					else if (i3 <= i1) {
 						this._redraw_selection(i2, i3 - 1, false);
 					}
 					else {
@@ -2975,7 +2947,7 @@ export class AnsiTerm {
 			let xi = this.selection_start % this.params.nColumns;
 			let yi = Math.floor(this.selection_start / this.params.nColumns);
 			let l = "";
-			for (let i = this.selection_start; i &lt;= this.selection_end; ++i) {
+			for (let i = this.selection_start; i <= this.selection_end; ++i) {
 				l += character_handler(this.screen[yi][xi]);
 				++xi;
 				if (xi >= this.params.nColumns) {
@@ -3091,14 +3063,14 @@ export class AnsiTerm {
 				let fs = "";
 				if (start) {
 					start = false;
-					rv = `&lt;!DOCTYPE html>
-&lt;html>
- &lt;head>
-  &lt;meta charset="UTF-8">
- &lt;/head>
- &lt;body>
-  &lt;pre>
-   &lt;span>
+					rv = `<!DOCTYPE html>
+<html>
+ <head>
+  <meta charset="UTF-8">
+ </head>
+ <body>
+  <pre>
+   <span>
 `
 				}
 				if (ch.background != prev.background
@@ -3118,17 +3090,17 @@ export class AnsiTerm {
 					ns = "color: " + fg + "; background-color: " + bg + ";";
 					   + "font-style: " + (fs == "" ? "normal" : fs) + ";"
 					   + "text-decoration: " + (ch.underline ? "underline" : "none") + ";";
-					rv += "&lt;/span>&lt;span style=\"" + ns + "\">";
+					rv += "</span><span style=\"" + ns + "\">";
 				}
 				rv += ch.ch;
 				prev = ch;
 				return rv;
 			},
 			(t) => {
-				t += `&lt;/span>
-  &lt;/pre>
- &lt;/body>
-&lt;/html>
+				t += `</span>
+  </pre>
+ </body>
+</html>
 `
 				t = encodeHtml(t);
 				let mimetype = plain_text ? "text/plain" : "text/html";
@@ -3586,7 +3558,7 @@ class AnsiTermHttpDriver extends AnsiTermDriver
 
 		xhr.onreadystatechange = () => {
 			if (xhr.readyState === XMLHttpRequest.DONE) {
-				if (xhr.status >= 200 &amp;&amp; xhr.status &lt; 400) {
+				if (xhr.status >= 200 && xhr.status < 400) {
 					let t = xhr.responseText;
 					let data = t;
 					try {
@@ -3635,7 +3607,7 @@ class AnsiTermHttpDriver extends AnsiTermDriver
 		xhr.onreadystatechange = () => {
 			if (xhr.readyState === XMLHttpRequest.DONE) {
 				clearTimeout(this.timer);
-				if (xhr.status >= 200 &amp;&amp; xhr.status &lt; 400) {
+				if (xhr.status >= 200 && xhr.status < 400) {
 					console.log(xhr.responseText);
 					success();
 				}
@@ -3729,7 +3701,7 @@ class AnsiTermWebSocketDriver extends AnsiTermDriver
 
 		try {
 			let ep = this.params.wsEndpoint;
-			if (ep.substring(0,5) != "ws://" &amp;&amp; ep.substring(0,6) != "wss://") {
+			if (ep.substring(0,5) != "ws://" && ep.substring(0,6) != "wss://") {
 				ep = "ws://" + ep;
 			}
 			this.socket = new WebSocket(ep);
@@ -3824,26 +3796,3 @@ class AnsiTermWebSocketDriver extends AnsiTermDriver
 	}
 
 }
-</code></pre>
-        </article>
-    </section>
-
-
-
-
-</div>
-
-<nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AnsiTerm.html">AnsiTerm</a></li><li><a href="AnsiTermDriver.html">AnsiTermDriver</a></li><li><a href="AnsiTermHttpDriver.html">AnsiTermHttpDriver</a></li><li><a href="AnsiTermWebSocketDriver.html">AnsiTermWebSocketDriver</a></li></ul>
-</nav>
-
-<br class="clear">
-
-<footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Mon Mar 24 2025 23:23:26 GMT+0000 (Coordinated Universal Time)
-</footer>
-
-<script> prettyPrint(); </script>
-<script src="scripts/linenumber.js"> </script>
-</body>
-</html>
