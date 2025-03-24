@@ -1666,6 +1666,10 @@ export class AnsiTerm {
 
 	_setcell(x, y, src)
 	{
+		// Check "special value", see comments in "_flush()"
+		if (x >= this.nColumns) {
+			return;
+		}
 		let blink = this.screen[y][x].blink;
 		this.screen[y][x] = src;
 		if (src.blink != blink) {
@@ -2031,6 +2035,7 @@ export class AnsiTerm {
 		if (this.blink_cursor || this.cursor_off) {
 			this.x_lastblink = this.posx;
 			this.y_lastblink = this.posy;
+			// Check "special value", see comments in "_flush()"
 			if (this.posx < this.params.nColumns) {
 				let op = this.gc.globalCompositeOperation;
 				this.gc.globalCompositeOperation = "xor";
@@ -2542,6 +2547,10 @@ export class AnsiTerm {
 
 	_clearcharbbxy(bg, x, y)
 	{
+		// Check "special value" (here in pixels), see comments in "_flush()"
+		if (x >= this.width) {
+			return;
+		}		
 		this.gc.fillStyle = bg;
 		this.gc.fillRect(x, y - this.charheight + 1, this.charwidth, this.charheight);
 	}
