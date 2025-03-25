@@ -17,6 +17,7 @@
 The goal of this project is to provide a simple, pure javascript terminal emulator frontend
 (i.e., the client side). Connecting to a terminal service is a user's responsibility.
 For testing purposes, a very basic terminal server is available here.
+
 This project is still under development.
 
 ## Setup
@@ -45,7 +46,7 @@ only a terminal with default properties:
 	  </script>
 	</html>
 
-The only thing the programmer has to do is to create an instance of the "AnsiTerm" class.
+The only thing the programmer has to do is to create an instance of the `AnsiTerm` class.
 By default, AnsiTerm's constructor connects its main "div" container to the document body,
 but you can put a terminal inside a container of your choice by specifying its ID:
 
@@ -57,11 +58,11 @@ but you can put a terminal inside a container of your choice by specifying its I
 The constructor also accepts some configuration parameters, which you can pass as an
 array of key/value pairs. The most important keys are:
 
-- nLines : number of text lines (default 25)
-- nColumns : number of characters in a line (default 80)
-- containerId : the ID of the container where you want the terminal to be placed (default "", which
+- `nLines` : number of text lines (default 25)
+- `nColumns` : number of characters in a line (default 80)
+- `containerId` : the ID of the container where you want the terminal to be placed (default "", which
 means that the constructor will use the document's body)
-- channelType : the type of channel by which the terminal gets the sream of characters
+- `channelType` : the type of channel by which the terminal gets the sream of characters
 to display and sends events. "http" (alias "rest", default), "websocket", "dummy" or "custom"
 are recognized (see below for details).
 
@@ -92,25 +93,25 @@ requests:
 
 These defaults can be changed by specifying these parameters:
 
-- "httpSize": specifies the request by which the terminal sends the screen size. The strings
+- `httpSize`: specifies the request by which the terminal sends the screen size. The strings
 "?lines?" and "?columns?" here are used as placeholders for the actual number of
 lines and columns. The default is "/?size=?lines?x?columns?".
-- "httpSource": The request to get the stream of pending characters. Default is "/?console".
-- "httpDest": The POST request to send terminal events. Default is "/".
+- `httpSource`: The request to get the stream of pending characters. Default is "/?console".
+- `httpDest`: The POST request to send terminal events. Default is "/".
 
 ### WebSocket
 The terminal receives characters and sends events through a WebSocket connection. Data are encoded
 as JSON objects. By default these JSON tags are used:
 
-- "text" for both incoming and outgoing characters,
-- "size" for screen size settings.
+- `text` for both incoming and outgoing characters,
+- `size` for screen size settings.
 
 Default settings can be changed by specifying these parameters:
 
-- "wsEndpoint": the server endpoint in the form *host:port*,
-- "wsDataTag": the JSON field for characters in both directions,
-- "wsSizeTag": the JSON field containing the screen size,
-- "wsSizeData": the format of scren sie string, as in "config" HTTP parameter described above.
+- `wsEndpoint`: the server endpoint in the form *host:port*,
+- `wsDataTag`: the JSON field for characters in both directions,
+- `wsSizeTag`: the JSON field containing the screen size,
+- `wsSizeData`: the format of scren sie string, as in `config` HTTP parameter described above.
 
 ### Dummy protocol
 This is a pseudo-protocol that just sends back to the terminal the data it receives.
@@ -120,12 +121,12 @@ The programmer has the ability to write its own communication driver for xwterm.
 required steps:
 
 - Write a JavaScript class containing the code that implements the protocol. The class must
-extend **AnsiTermDriver** (it is the "dummy" protocol described above).
+extend `AnsiTermDriver` (it is the "dummy" protocol described above).
 - Instantiate an object of the class.
-- Assign the object to AnsiTerm's configuration parameter "driver".
+- Assign the object to AnsiTerm's configuration parameter `driver`.
 
-If the parameter "driver" is not null, the terminal ignores "channelType" and all
-protocol-specific parameters (but you can set "channelType" to "custom" for clarity).
+If the parameter `driver` is not null, the terminal ignores `channelType` and all
+protocol-specific parameters (but you can set `channelType` to "custom" for clarity).
 
 
 Example (minimal):
@@ -158,41 +159,41 @@ Example (minimal):
 	
 	</script>
 
-A simple but more interesting example is in "example/jsconsole.html".
-Also, you can study "xwterm.js" itself, where HTTP and WebSocket driver are defined (AnsiTermHttpDriver
-and AnsiTermWeSocketDriver respectively).
+A simple but more interesting example is in `example/jsconsole.html`.
+Also, you can study `xwterm.js` itself, where HTTP and WebSocket driver are defined (`AnsiTermHttpDriver`
+and `AnsiTermWeSocketDriver` respectively).
 
 ## Sample server
 For testing purposes, you can find a minimal terminal server written in Python3 in the
-"example" folder.
+`example` folder.
 
 **Do not use the example as if it were a real terminal server**; it
-is meant only to familiarize with the AnsiTerm class and ease its development.
+is meant only to familiarize yourself with the AnsiTerm class and ease its development.
 
 The server implements both HTTP and WebSocket services on TCP port 8000 and 8001
 respectively. By default, the server accepts local connections only, but ports and listen
-address can be changed by command line options. In particular:
+addresses can be changed by command line options. In particular:
 
-- **--bind** *IP address* : set the IP address mask by which the services are exposed. Default is 127.0.0.1.
-- **--http** *TCP port* : set the TCP port used by HTTP service. Default is 8000.
-- **--ws** *TCP port* : set the TCP port used by WebSocket service. Default is 8001.
-- **--no-http** : disable the HTTP service.
-- **--no-websocket** : disable the WebSocket service.
+- **--bind** *IP address* : Set the IP address mask by which the services are exposed. Default is `127.0.0.1`.
+- **--http** *TCP port* : Set the TCP port used by HTTP service. Default is `8000`.
+- **--ws** *TCP port* : Set the TCP port used by WebSocket service. Default is `8001`.
+- **--no-http** : Disable the HTTP service.
+- **--no-websocket** : Disable the WebSocket service.
 
-To start the server go to the "example" folder and launch "./miniserver.py" (on Linux),
-or "python miniserver.py" on Windows 10. HTTP service URL is http://127.0.0.1:8000,
-WebSocket endpoint is ws://127.0.0.1:8001.
+To start the server go to the `example` folder and launch `./miniserver.py` (on Linux),
+or `python miniserver.py` (on Windows 10). The HTTP service URL is `http://127.0.0.1:8000`,
+the WebSocket endpoint is `ws://127.0.0.1:8001`.
 
 The server has been tested on Linux and Windows 10 only. On Linux, a virtual terminal
-(pty) and a shell (bash) are created for each session. On Windows 10, ConPTY subsystem is used
-to host a command interpreter (cmd.exe) for each session.
+(pty) and a shell (`bash`) are created for each session. On Windows 10, the ConPTY subsystem is used
+to host a command interpreter (`cmd.exe`) for each session.
 Here are the server dependencies:
 
-- python >= 3.12
-- aiohttp (pip install aiohttp)
-- websockets (pip install websockets)
+- Python >= 3.12
+- aiohttp (`pip install aiohttp`)
+- websockets (`pip install websockets`)
 
-Since the server has been written for testing an debugging purposes, security and resource
+Since the server has been written for testing and debugging purposes, security and resource
 control have been neglected. Also, there are some known bugs:
 
 - aiohttp has a known issue [aiohttp-issue-6978](https://github.com/aio-libs/aiohttp/issues/6978).
@@ -202,7 +203,7 @@ but not (yet) in 3.11.13 (tested on Windows 10 only). As far as I know, the issu
 solved officially. At least, I couldn't find any citation in aiohttp's changelog.
 - On Windows 10, after the first session has been established, the program becomes
 insensitive to CTRL-C, and must be killed by Task Manager. This problem is probably related
-to ConPTY subsystem, maybe some cleanup/detach code is required after child process has been lauched.
+to the ConPTY subsystem, maybe some cleanup/detach code is required after child process has been lauched.
 
 ## Full documentation
 A (still incomplete) documentation of the package, mainly classes and their methods, is here:
@@ -244,15 +245,17 @@ More sophisticated encodings are expected to be problematic.
 Many things to do:
 - Clean up code and add comments.
 - Add better support for server-side sessions (e.g., cookies, access tokens...)
-- Add support for hyperlinks and hyperlink sequences (e.g, \e]8;;http://example.com\e\\This is a link\e]8;;\e)
+- Add support for hyperlinks and hyperlink sequences (e.g, `\e]8;;http://example.com\e\\This is a link\e]8;;\e`)
 - Add custom CSS properties to configure the terminal. Currently, the configuration comes
   from a set of parameters passed to the constructor.
 - Add a configuration item to choose the terminal mode (e.g., "pure ANSI", "xterm", "xterm-256"...).
 - Improve the soft keyboard. The current implementation reflects my particular need: Italian 
   keyboards don't have "Tilde" nor "Backquote" keys...
 - Add management of alternate character set (see "G0/G1" character set selection sequences).
-- Add history buffer (and scroll bar, of course).
-- Resize and responsiveness.
+- Add a history buffer (and a scroll bar, of course).
+- Implement resizing and responsiveness. This means the terminal should maintain logical lines as generated by the server
+  (i.e., the sequences of characters ending with a line feed), because when the number of columns changes, it is expected
+  that logical lines are preserved instead of being truncated to the previous visual line length.
 
 ## Enjoy!
 
