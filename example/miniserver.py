@@ -39,11 +39,11 @@ import json
 import websockets
 import threading
 import logging
+#import subprocess
 #import pathlib
 try:
     import io
     import msvcrt
-    import subprocess
     import ctypes
     from ctypes import wintypes, Structure
     from ctypes.wintypes import HANDLE, DWORD, BOOL
@@ -208,6 +208,8 @@ websocket_port = DEFAULT_WEBSOCKET_PORT
 debug = False
 enable_http = True
 enable_websocket = True
+quiet = False
+fix_aiohttp = False
 
 if platform.system() == "Linux":
     default_encoding = 'utf-8'
@@ -288,8 +290,10 @@ class AsyncJob:
                     # Hell, cancellation exception is propagated up to the current task...
                     #
                         await task            
-                    except (asyncio.CancelledError, GeneratorExit):
+                    except (asyncio.CancelledError):
                         pass
+                    except (GeneratorExit):
+                        raise
                     except:
                         pass
                 #print("Job ", self.name, ": invoking termination callback ", self.on_task_termination)
@@ -992,7 +996,7 @@ async def websocket_server():
         session = await Session.new_session()
         await session.activate()
         tasks = list()
-
+        
         print("WS connection, shell running, peer = ", json.dumps(ws.remote_address))
 
         tasks.append(asyncio.create_task(read_from_websocket(ws, session)))
@@ -1020,7 +1024,7 @@ async def websocket_server():
 
 async def init_http_server():
 
-    print('*** HTTP server ready - bind address=' + bind_address + ' port=', str(http_port))
+    print('*** HTTP server ready - bind address=' + bind_address + ' port=' + str(http_port))
 
     http_server = aiohttp.web.Application()
     http_server.add_routes([aiohttp.web.get('/', do_GET),
@@ -1075,8 +1079,10 @@ if __name__ == '__main__':
         print(' '+bold+'-ws'+orop+'-wsport'+orop+'-websocket'+orop+'-websocketport '+italic+'TCP port'+comment+'TCP port for WebSocket service. Default='+str(DEFAULT_WEBSOCKET_PORT))
         print(' '+bold+'-no-http'+comment+'Disable HTTP service')
         print(' '+bold+'-no-websocket'+comment+'Disable WebSocket service')
+        print(' '+bold+'-fix-aiohttp'+comment+'Launch WebSocket server in a separate process to prevent aiohttp bug')
         print(' '+bold+'-d'+orop+'-debug'+comment+'Enable debug mode')
-        print(' '+bold + '-h'+orop+'-help'+comment+'This help')
+        print(' '+bold+'-q'+orop+'-quiet'+comment+'Quiet mode, no messages')
+        print(' '+bold+'-h'+orop+'-help'+comment+'This help')
         print('')
         sys.exit(0)
 
@@ -1101,30 +1107,53 @@ if __name__ == '__main__':
             elif opt in [ "-bind", "-bindaddr" ]:
                 bind_address = arg
             
-        elif opt in [ "-h", "-help", "-no-http", "-no-websocket", "-d", "-debug" ]:
+        elif opt in [ "-h", "-help", "-no-http", "-no-websocket", "-d", "-debug", "-q", "quiet", "-fix-aiohttp" ]:
 
             if opt in [ "-d", "-debug" ]:
                 debug = True
+            elif opt in [ "-q", "-quiet" ]:
+                quiet = True
             elif opt in [ "-h", "-help" ]:
                 usage()
             elif opt in [ "-no-http" ]:
                 enable_http = False
             elif opt in [ "-no-websocket" ]:
                 enable_websocket = False
+            elif opt in [ "-fix-aiohttp" ]:
+                fix_aiohttp = True
 
         else:
             print('Unknown option: "', opt, '"')
             usage()
 
+    
+    def no_print(*args):
+        pass
+
+
+# An ugly hack to prevent a bug that affects some versions of aiohttp,
+# in which the websocket listener task is terminated (and never awaited, too)
+# by the http listener at the first WebSocket connection.
+# So we reserve a separate process to manage WebSocket, and the main one
+# manages HTTP.
+
+    if fix_aiohttp and enable_websocket and enable_http:
+        rv = os.spawnlp(os.P_NOWAIT, sys.executable, sys.executable, __file__,
+                        '-q', '-no-http', '-ws', str(websocket_port), '-bind', bind_address) 
+        enable_websocket = False
+        print(rv)
+
+    if quiet:
+        print = no_print
+
     welcome()
 
-    logging.basicConfig(level=logging.WARNING)
+    if debug:
+        logging.basicConfig(level=logging.WARNING)
 
     if enable_http:
 
-        def web_print(*args):
-            pass
-        aiohttp.web.run_app(init_http_server(), host=bind_address, port=http_port, print=web_print)
+        aiohttp.web.run_app(init_http_server(), host=bind_address, port=http_port, print=no_print)
 
     elif enable_websocket:
 

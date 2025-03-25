@@ -179,6 +179,7 @@ addresses can be changed by command line options. In particular:
 - **--ws** *TCP port* : Set the TCP port used by WebSocket service. Default is `8001`.
 - **--no-http** : Disable the HTTP service.
 - **--no-websocket** : Disable the WebSocket service.
+- **--fix-aiohttp** : a workaround to prevent a bug in `aiohttp` (see below).
 
 To start the server go to the `example` folder and launch `./miniserver.py` (on Linux),
 or `python miniserver.py` (on Windows 10). The HTTP service URL is `http://127.0.0.1:8000`,
@@ -196,11 +197,15 @@ Here are the server dependencies:
 Since the server has been written for testing and debugging purposes, security and resource
 control have been neglected. Also, there are some known bugs:
 
-- aiohttp has a known issue [aiohttp-issue-6978](https://github.com/aio-libs/aiohttp/issues/6978).
+- aiohttp has a known issue, described here: [aiohttp-issue-6978](https://github.com/aio-libs/aiohttp/issues/6978).
 In this application, it causes an excepion after the very first WebSocket connection.
 I am experiencing this issue in aiohttp 3.9.1 (the one available by default in my Linux Mint)
 but not (yet) in 3.11.13 (tested on Windows 10 only). As far as I know, the issue has never been
 solved officially. At least, I couldn't find any citation in aiohttp's changelog.
+This problem happens only if both HTTP and WebSocket services are active.
+If you are experiencing this issue, you can add the option **--fix-aiohttp** as a workaround.
+Whit this option, the WebSocket server is managed by a separate process running in background
+and in quiet mode (i.e., messages suppressed, including the initial port/bind address report).
 - On Windows 10, after the first session has been established, the program becomes
 insensitive to CTRL-C, and must be killed by Task Manager. This problem is probably related
 to the ConPTY subsystem, maybe some cleanup/detach code is required after child process has been lauched.
