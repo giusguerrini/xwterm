@@ -5,6 +5,7 @@
 - [Introduction](#introduction)
 - [Setup](#setup)
 - [Usage](#usage)
+- [Sample server](#sample-server)
 - [Full documentation](#full-documentation)
 - [Live example](#live-example)
 - [Screenshots](#screenshots)
@@ -68,14 +69,6 @@ Example:
 
 	    var ansi = new AnsiTerm( { nLines: 40, nColumns: 120, containerId: "myterminal" } );
 
-For testing purposes, you can find a minimal terminal server written in Python3 in the
-"example" folder. It works well on Linux only, since it needs "pty" support. To try it, just
-go to the "example" folder and launch "./miniserver.py", then open your browser at the URL
-http://127.0.0.1:8000 . Miniserver can be launched also on Windows 10, but a reliable integration
-with Windows' virtual console system requires much more effort.
-Miniserver also implements an experimental WebSocket support as endpoint ws://127.0.0.1:8001.
-**Do not use the example as if it were a real terminal server**; it
-is meant only to familiarize with the AnsiTerm class and ease its development.
 
 The terminal can use these kinds of channels to communicate with the server
 (*NOTE: Here we use the term "server" in an extensive sense, to indicate any form of data source and destination that is suitable to be managed by a terminal.*)
@@ -169,6 +162,48 @@ A simple but more interesting example is in "example/jsconsole.html".
 Also, you can study "xwterm.js" itself, where HTTP and WebSocket driver are defined (AnsiTermHttpDriver
 and AnsiTermWeSocketDriver respectively).
 
+## Sample server
+For testing purposes, you can find a minimal terminal server written in Python3 in the
+"example" folder.
+
+**Do not use the example as if it were a real terminal server**; it
+is meant only to familiarize with the AnsiTerm class and ease its development.
+
+The server implements both HTTP and WebSocket services on TCP port 8000 and 8001
+respectively. By default, the server accepts local connections only, but ports and listen
+address can be changed by command line options. In particular:
+
+- **--bind** *IP address* : set the IP address mask by which the services are exposed. Default is 127.0.0.1.
+- **--http** *TCP port* : set the TCP port used by HTTP service. Default is 8000.
+- **--ws** *TCP port* : set the TCP port used by WebSocket service. Default is 8001.
+- **--no-http** : disable the HTTP service.
+- **--no-websocket** : disable the WebSocket service.
+
+To start the server go to the "example" folder and launch "./miniserver.py" (on Linux),
+or "python miniserver.py" on Windows 10. HTTP service URL is http://127.0.0.1:8000,
+WebSocket endpoint is ws://127.0.0.1:8001.
+
+The server has been tested on Linux and Windows 10 only. On Linux, a virtual terminal
+(pty) and a shell (bash) are created for each session. On Windows 10, ConPTY subsystem is used
+to host a command interpreter (cmd.exe) for each session.
+Here are the server dependencies:
+
+- python >= 3.12
+- aiohttp (pip install aiohttp)
+- websockets (pip install websockets)
+
+Since the server has been written for testing an debugging purposes, security and resource
+control have been neglected. Also, there are some known bugs:
+
+- aiohttp has a known issue [aiohttp-issue-6978](https://github.com/aio-libs/aiohttp/issues/6978).
+In this application, it causes an excepion after the very first WebSocket connection.
+I am experiencing this issue in aiohttp 3.9.1 (the one available by default in my Linux Mint)
+but not (yet) in 3.11.13 (tested on Windows 10 only). As far as I know, the issue has never been
+solved officially. At least, I couldn't find any citation in aiohttp's changelog.
+- On Windows 10, after the first session has been established, the program becomes
+insensitive to CTRL-C, and must be killed by Task Manager. This problem is probably related
+to ConPTY subsystem, maybe some cleanup/detach code is required after child process has been lauched.
+
 ## Full documentation
 A (still incomplete) documentation of the package, mainly classes and their methods, is here:
 [API Documentation](https://giusguerrini.github.io/xwterm/index.html)
@@ -190,14 +225,16 @@ Please remember that this project is in its early stage.
 The project was born out of a specific need of mine in a controlled environment; to make it
 fully usable, a certain effort of generalization is still required.
 
-As the project grows, some details in the public interface (e.g., parameter names) may change. This may happen at least until the first "non-beta" release (v1.0.0) is published.
+As the project grows, some details in the public interface (e.g., parameter names) may change.
+This may happen at least until the first "non-beta" release (v1.0.0) is published.
 
 Development and test have been done mainly on recent versions of Chrome and Firefox.
 Safari has been tested very superficially. No other browsers have been tested at this time.
 
 About Safari, there is at least a known problem: iOS soft keyboard doesn't appear if
 the page doesn't contain an input field. AnsiTerm's canvas is not considered an input field
-by Safari, that's why I had to add a simple hand-made soft keyboard.
+by Safari, that's why I had to add a simple hand-made soft keyboard. This problem
+sometimes appears on Android devices too.
 
 Internationalization, and encoding in general, is also an issue I neglected. My daily
 environment is Western Europe (Italy), where "latin1" or "Windows-1252" are sufficient.
