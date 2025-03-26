@@ -210,6 +210,7 @@ enable_http = True
 enable_websocket = True
 quiet = False
 fix_aiohttp = False
+enable_welcome = True
 
 if platform.system() == "Linux":
     default_encoding = 'utf-8'
@@ -1107,7 +1108,8 @@ if __name__ == '__main__':
             elif opt in [ "-bind", "-bindaddr" ]:
                 bind_address = arg
             
-        elif opt in [ "-h", "-help", "-no-http", "-no-websocket", "-d", "-debug", "-q", "quiet", "-fix-aiohttp" ]:
+        elif opt in [ "-h", "-help", "-no-http", "-no-websocket", "-d", "-debug", "-q", "quiet",
+                      "-fix-aiohttp", "-aiohttp-workaround", "-no-welcome" ]:
 
             if opt in [ "-d", "-debug" ]:
                 debug = True
@@ -1119,8 +1121,10 @@ if __name__ == '__main__':
                 enable_http = False
             elif opt in [ "-no-websocket" ]:
                 enable_websocket = False
-            elif opt in [ "-fix-aiohttp" ]:
+            elif opt in [ "-fix-aiohttp", "-aiohttp-workaround" ]:
                 fix_aiohttp = True
+            elif opt in [ "-no-welcome" ]:
+                enable_welcome = False
 
         else:
             print('Unknown option: "', opt, '"')
@@ -1139,14 +1143,15 @@ if __name__ == '__main__':
 
     if fix_aiohttp and enable_websocket and enable_http:
         rv = os.spawnl(os.P_NOWAIT, sys.executable, sys.executable, __file__,
-                       '-no-http', '-ws', str(websocket_port), '-bind', bind_address) 
+                       '-no-welcome', '-no-http', '-ws', str(websocket_port), '-bind', bind_address) 
         enable_websocket = False
         print(rv)
 
     if quiet:
         print = no_print
 
-    welcome()
+    if enable_welcome:
+        welcome()
 
     if debug:
         logging.basicConfig(level=logging.WARNING)
