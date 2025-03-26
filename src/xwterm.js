@@ -3796,3 +3796,73 @@ class AnsiTermWebSocketDriver extends AnsiTermDriver
 	}
 
 }
+
+/* TODO: 
+Add a hidden input to force the on-screen keyboard to appear on mobile devices.
+
+const hiddenInput = document.createElement('input');
+hiddenInput.type = 'text';
+hiddenInput.style.position = 'absolute';
+hiddenInput.style.opacity = '0';
+hiddenInput.style.pointerEvents = 'none';
+document.body.appendChild(hiddenInput);
+
+this.canvas.addEventListener('click', () => {
+	hiddenInput.style.pointerEvents = 'auto';
+	hiddenInput.focus();
+	hiddenInput.style.pointerEvents = 'none';
+});
+
+hiddenInput.addEventListener('input', (event) => {
+	this._send_data(event.target.value);
+	hiddenInput.value = ''; // Clear the input after sending
+});
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canvas e Input Invisibile</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background-color: #f0f0f0;
+    }
+    canvas {
+      border: 1px solid #ccc;
+    }
+    input[type="text"] {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="myCanvas" width="300" height="150"></canvas>
+  <input type="text" id="hiddenInput" autocomplete="off">
+
+  <script>
+    const canvas = document.getElementById('myCanvas');
+    const hiddenInput = document.getElementById('hiddenInput');
+
+    canvas.addEventListener('click', () => {
+      hiddenInput.style.pointerEvents = 'auto';
+      hiddenInput.focus(); // Attiva l'input
+      hiddenInput.style.pointerEvents = 'none';
+    });
+
+    hiddenInput.addEventListener('input', (event) => {
+      console.log('Input dell’utente:', event.target.value);
+    });
+  </script>
+</body>
+</html>
+
+*/
