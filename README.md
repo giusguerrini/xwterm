@@ -191,8 +191,8 @@ to host a command interpreter (`cmd.exe`) for each session.
 Here are the server dependencies:
 
 - Python >= 3.12
-- aiohttp (`pip install aiohttp` or, on Ubuntu and derivates, `apt install python3-aiohttp`)
-- websockets (`pip install websockets` or, on Ubuntu and derivates, `apt install python3-websockets`)
+- aiohttp (`pip install aiohttp` or, on Ubuntu and its derivatives, `apt install python3-aiohttp`)
+- websockets (`pip install websockets` or, on Ubuntu and its derivatives, `apt install python3-websockets`)
 
 Since the server has been written for testing and debugging purposes, security and resource
 control have been neglected. Also, there are some known bugs:
