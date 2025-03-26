@@ -1138,8 +1138,8 @@ if __name__ == '__main__':
 # manages HTTP.
 
     if fix_aiohttp and enable_websocket and enable_http:
-        rv = os.spawnlp(os.P_NOWAIT, sys.executable, sys.executable, __file__,
-                        '-q', '-no-http', '-ws', str(websocket_port), '-bind', bind_address) 
+        rv = os.spawnl(os.P_NOWAIT, sys.executable, sys.executable, __file__,
+                       '-no-http', '-ws', str(websocket_port), '-bind', bind_address) 
         enable_websocket = False
         print(rv)
 
