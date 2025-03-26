@@ -1145,7 +1145,6 @@ if __name__ == '__main__':
         rv = os.spawnl(os.P_NOWAIT, sys.executable, sys.executable, __file__,
                        '-no-welcome', '-no-http', '-ws', str(websocket_port), '-bind', bind_address) 
         enable_websocket = False
-        print(rv)
 
     if quiet:
         print = no_print
