@@ -1,11 +1,18 @@
 {
   "plugins": ["plugins/markdown"],
-  "source": {
+  "tags": {
+    "allowUnknownTags": true
+  },
+"source": {
     "include": ["src"],
+    "includePattern": ".+\\.js(doc|x)?$",
+    "excludePattern": "(^|\\/|\\\\)_",
     "exclude": ["node_modules"]
   },
   "opts": {
     "destination": "./docs",
+    "readme": "./README.md",
+    "tutorials": "./doc",
     "recurse": true
   }
 }
