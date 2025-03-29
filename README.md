@@ -47,7 +47,7 @@ only a terminal with default properties:
 	</html>
 
 The only thing the programmer has to do is to create an instance of the `AnsiTerm` class.
-You can find a more detailed explanation here:[Basic example](https://giusguerrini.github.io/xwterm/10-basic-page.html).
+You can find a more detailed explanation here: [Basic example](https://giusguerrini.github.io/xwterm/tutorial-10-basic-page.html).
 
 By default, AnsiTerm's constructor connects its main "div" container to the document body,
 but you can put a terminal inside a container of your choice by specifying its ID:

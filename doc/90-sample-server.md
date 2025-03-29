@@ -9,6 +9,7 @@
 - [Known Limitations and Issues](#known-limitations-and-issues)
 
 <h2 id="introduction">Introduction</h2>
+
 For testing purposes, you can find a minimal terminal server written in Python 3 in the
 `example` folder.
 
@@ -16,6 +17,7 @@ For testing purposes, you can find a minimal terminal server written in Python 3
 is meant only to familiarize you with the AnsiTerm class and ease its development.
 
 <h2 id="description-and-usage">Description and Usage</h2>
+
 The server implements both HTTP and WebSocket services on TCP ports 8000 and 8001,
 respectively. By default, the server accepts local connections only, but ports and listening
 addresses can be changed using command-line options. In particular:
@@ -32,6 +34,7 @@ or `python miniserver.py` (on Windows 10). The HTTP service URL is `http://127.0
 and the WebSocket endpoint is `ws://127.0.0.1:8001`.
 
 <h2 id="requirements-and-dependencies">Requirements and Dependencies</h2>
+
 The server has been tested on Linux and Windows 10 only. On Linux, a virtual terminal
 (pty) and a shell (`bash`) are created for each session. On Windows 10, the ConPTY subsystem is used
 to host a command interpreter (`cmd.exe`) for each session.  
@@ -42,6 +45,7 @@ Here are the server dependencies:
 - websockets (`pip install websockets` or, on Ubuntu and its derivatives, `apt install python3-websockets`)
 
 <h2 id="internals">Internals</h2>
+
 The program uses **asyncio** to manage three activities in parallel:
 - Listening to HTTP and WebSocket TCP ports
 - Servicing clients for both incoming and outgoing traffic
@@ -63,6 +67,7 @@ Moreover, to access **ConPTY** services, the program invokes many low-level call
 Python module, so it contains a bunch of Windows-specific code.
 
 <h2 id="known-limitations-and-issues">Known Limitations and Issues</h2>
+
 By design, the server is a single thread running a number of *async* tasks (Note: this is not completely true on Windows,
 where a couple of threads per session are created, but they are just ancillary threads whose usage I would have avoided if I could.
 They don't perform real CPU load partitioning).  
