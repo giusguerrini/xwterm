@@ -47,6 +47,8 @@ only a terminal with default properties:
 	</html>
 
 The only thing the programmer has to do is to create an instance of the `AnsiTerm` class.
+You can find a more detailed explanation here:[Basic example](https://giusguerrini.github.io/xwterm/10-basic-page.html).
+
 By default, AnsiTerm's constructor connects its main "div" container to the document body,
 but you can put a terminal inside a container of your choice by specifying its ID:
 
@@ -62,14 +64,13 @@ array of key/value pairs. The most important keys are:
 - `nColumns` : number of characters in a line (default 80)
 - `containerId` : the ID of the container where you want the terminal to be placed (default "", which
 means that the constructor will use the document's body)
-- `channelType` : the type of channel by which the terminal gets the sream of characters
+- `channelType` : the type of channel by which the terminal gets the stream of characters
 to display and sends events. "http" (alias "rest", default), "websocket", "dummy" or "custom"
 are recognized (see below for details).
 
 Example:
 
 	    var ansi = new AnsiTerm( { nLines: 40, nColumns: 120, containerId: "myterminal" } );
-
 
 The terminal can use these kinds of channels to communicate with the server
 (*NOTE: Here we use the term "server" in an extensive sense, to indicate any form of data source and destination that is suitable to be managed by a terminal.*)
@@ -79,89 +80,7 @@ The terminal can use these kinds of channels to communicate with the server
 - Dummy
 - Custom protocol
 
-### HTTP
-This is the default.
-The terminal obtains the stream of characters by periodically sending HTTP GET
-requests, and sends terminal events (e.g., key events) to the host by sending HTTP POST
-requests. Also, the terminal needs to communicate its initial size to the host through
-an additional parameter in GET request. By default, the terminal generates these
-requests:
-
-- `/?size=`*lines*x*columns*: configure the screen size (e.g., `/?size=40x120`).
-- `/?console`: requests pending character to display.
-- `/`: the POST request containing the stream of terminal events (mainly keys).
-
-These defaults can be changed by specifying these parameters:
-
-- `httpSize`: specifies the request by which the terminal sends the screen size. The strings
-`?lines?` and `?columns?` are used as placeholders for the actual number of
-lines and columns. The default is `/?size=?lines?x?columns?`.
-- `httpSource`: The request to get the stream of pending characters. Default is `/?console`.
-- `httpDest`: The POST request to send terminal events. Default is `/`.
-
-### WebSocket
-The terminal receives characters and sends events through a WebSocket connection. Data are encoded
-as JSON objects. By default these JSON tags are used:
-
-- `text` for both incoming and outgoing characters,
-- `size` for screen size settings.
-
-Default settings can be changed by specifying these parameters:
-
-- `wsEndpoint`: the server endpoint in the form *host:port*,
-- `wsDataTag`: the JSON field for characters in both directions,
-- `wsSizeTag`: the JSON field containing the screen size,
-- `wsSizeData`: the format of scren sie string, as in `config` HTTP parameter described above.
-
-### Dummy protocol
-This is a pseudo-protocol that just sends back to the terminal the data it receives.
-
-### Custom protocol
-The programmer has the ability to write its own communication driver for xwterm. Here are the
-required steps:
-
-- Write a JavaScript class containing the code that implements the protocol. The class must
-extend `AnsiTermDriver` (it is the "dummy" protocol described above).
-- Instantiate an object of the class.
-- Assign the object to AnsiTerm's configuration parameter `driver`.
-
-If the parameter `driver` is not null, the terminal ignores `channelType` and all
-protocol-specific parameters (but you can set `channelType` to "custom" for clarity).
-
-
-Example (minimal):
-
-	<script type="module">
-
-	import { AnsiTerm, AnsiTermDriver } from "./xwterm.js";
-
-	class CustomDriver extends AnsiTermDriver 
-	{
-		constructor(params)
-		{
-			super(params);
-		}
-
-		start()
-		{ 
-			super.start();
-			this._set_connection_state(true); // Signal "connected" to the terminal
-			this._new_data("Hello!\r\n"); // Send data to the terminal
-		}
-
-		_tx(text)
-		{
-			console.log("From xwterm: " + text);
-		}
-	}
-	
-	var ansi = new AnsiTerm( { nLines: 40, nColumns: 120, driver: new CustomDriver() } );
-	
-	</script>
-
-A simple but more interesting example is in `example/jsconsole.html`.
-Also, you can study `xwterm.js` itself, where HTTP and WebSocket driver are defined (`AnsiTermHttpDriver`
-and `AnsiTermWeSocketDriver` respectively).
+A detailed description of channels is here: [Communication drivers](https://giusguerrini.github.io/xwterm/tutorial-40-communication-drivers.html)
 
 ## Sample server
 For testing purposes, you can find a minimal terminal server written in Python3 in the
@@ -171,43 +90,9 @@ For testing purposes, you can find a minimal terminal server written in Python3 
 is meant only to familiarize yourself with the AnsiTerm class and ease its development.
 
 The server implements both HTTP and WebSocket services on TCP port 8000 and 8001
-respectively. By default, the server accepts local connections only, but ports and listen
-addresses can be changed by command line options. In particular:
+respectively. By default, the server accepts local connections only
 
-- **--bind** *IP address* : Set the IP address mask by which the services are exposed. Default is `127.0.0.1`.
-- **--http** *TCP port* : Set the TCP port used by HTTP service. Default is `8000`.
-- **--ws** *TCP port* : Set the TCP port used by WebSocket service. Default is `8001`.
-- **--no-http** : Disable the HTTP service.
-- **--no-websocket** : Disable the WebSocket service.
-- **--aiohttp-workaround** : a workaround to prevent a bug in `aiohttp` (see below).
-
-To start the server, go to the `example` folder and launch `./miniserver.py` (on Linux),
-or `python miniserver.py` (on Windows 10). The HTTP service URL is `http://127.0.0.1:8000`,
-the WebSocket endpoint is `ws://127.0.0.1:8001`.
-
-The server has been tested on Linux and Windows 10 only. On Linux, a virtual terminal
-(pty) and a shell (`bash`) are created for each session. On Windows 10, the ConPTY subsystem is used
-to host a command interpreter (`cmd.exe`) for each session.
-Here are the server dependencies:
-
-- Python >= 3.12
-- aiohttp (`pip install aiohttp` or, on Ubuntu and its derivatives, `apt install python3-aiohttp`)
-- websockets (`pip install websockets` or, on Ubuntu and its derivatives, `apt install python3-websockets`)
-
-Since the server has been written for testing and debugging purposes, security and resource
-control have been neglected. Also, there are some known bugs:
-
-- aiohttp has a known issue, described here: [aiohttp-issue-6978](https://github.com/aio-libs/aiohttp/issues/6978).
-In this application, it causes an excepion after the very first WebSocket connection.
-I am experiencing this issue in aiohttp 3.9.1 (the one available by default in my Linux Mint)
-but not (yet) in 3.11.13 (tested on Windows 10 only). As far as I know, the issue has never been
-solved officially. At least, I couldn't find any citation in aiohttp's changelog.
-This problem happens only if both HTTP and WebSocket services are active.
-If you are experiencing this issue, you can add the option **--aiohttp-workaround** as a workaround.
-Whit this option, the WebSocket server is managed by a separate process running in background.
-- On Windows 10, after the first session has been established, the program becomes
-insensitive to CTRL-C, and must be killed by Task Manager. This problem is probably related
-to the ConPTY subsystem, maybe some cleanup/detach code is required after child process has been lauched.
+A detailed description of the server is here: [Sample server](https://giusguerrini.github.io/xwterm/tutorial-90-sample-server.html)
 
 ## Full documentation
 A (still incomplete) documentation of the package, mainly classes and their methods, is here:
