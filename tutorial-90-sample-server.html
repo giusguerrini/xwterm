@@ -39,14 +39,14 @@
 <li><a href="#known-limitations-and-issues">Known Limitations and Issues</a></li>
 </ul>
 <h2 id="introduction">Introduction</h2>
-For testing purposes, you can find a minimal terminal server written in Python 3 in the
-`example` folder.
+<p>For testing purposes, you can find a minimal terminal server written in Python 3 in the
+<code>example</code> folder.</p>
 <p><strong>Do not use the example as if it were a real terminal server</strong>; it
 is meant only to familiarize you with the AnsiTerm class and ease its development.</p>
 <h2 id="description-and-usage">Description and Usage</h2>
-The server implements both HTTP and WebSocket services on TCP ports 8000 and 8001,
+<p>The server implements both HTTP and WebSocket services on TCP ports 8000 and 8001,
 respectively. By default, the server accepts local connections only, but ports and listening
-addresses can be changed using command-line options. In particular:
+addresses can be changed using command-line options. In particular:</p>
 <ul>
 <li><strong>--bind</strong> <em>IP address</em>: Set the IP address mask by which the services are exposed. Default is <code>127.0.0.1</code>.</li>
 <li><strong>--http</strong> <em>TCP port</em>: Set the TCP port used by the HTTP service. Default is <code>8000</code>.</li>
@@ -59,20 +59,22 @@ addresses can be changed using command-line options. In particular:
 or <code>python miniserver.py</code> (on Windows 10). The HTTP service URL is <code>http://127.0.0.1:8000</code>,
 and the WebSocket endpoint is <code>ws://127.0.0.1:8001</code>.</p>
 <h2 id="requirements-and-dependencies">Requirements and Dependencies</h2>
-The server has been tested on Linux and Windows 10 only. On Linux, a virtual terminal
-(pty) and a shell (`bash`) are created for each session. On Windows 10, the ConPTY subsystem is used
-to host a command interpreter (`cmd.exe`) for each session.  
-Here are the server dependencies:
+<p>The server has been tested on Linux and Windows 10 only. On Linux, a virtual terminal
+(pty) and a shell (<code>bash</code>) are created for each session. On Windows 10, the ConPTY subsystem is used
+to host a command interpreter (<code>cmd.exe</code>) for each session.<br>
+Here are the server dependencies:</p>
 <ul>
 <li>Python &gt;= 3.12</li>
 <li>aiohttp (<code>pip install aiohttp</code> or, on Ubuntu and its derivatives, <code>apt install python3-aiohttp</code>)</li>
 <li>websockets (<code>pip install websockets</code> or, on Ubuntu and its derivatives, <code>apt install python3-websockets</code>)</li>
 </ul>
 <h2 id="internals">Internals</h2>
-The program uses **asyncio** to manage three activities in parallel:
-- Listening to HTTP and WebSocket TCP ports
-- Servicing clients for both incoming and outgoing traffic
-- Managing session lifecycles, including timeout control
+<p>The program uses <strong>asyncio</strong> to manage three activities in parallel:</p>
+<ul>
+<li>Listening to HTTP and WebSocket TCP ports</li>
+<li>Servicing clients for both incoming and outgoing traffic</li>
+<li>Managing session lifecycles, including timeout control</li>
+</ul>
 <p>Sessions are modeled by the class <code>Session</code>. Each session owns a pair of <strong>asyncio</strong> streams
 that implement async traffic management in both directions. Since a number of async tasks are needed to
 manage each session, the class <code>AsyncJob</code> has been defined. Its purpose is to keep track of a set of related
@@ -87,22 +89,24 @@ interface).<br>
 Moreover, to access <strong>ConPTY</strong> services, the program invokes many low-level calls to <code>kernel32.dll</code> through the <strong>ctypes</strong>
 Python module, so it contains a bunch of Windows-specific code.</p>
 <h2 id="known-limitations-and-issues">Known Limitations and Issues</h2>
-By design, the server is a single thread running a number of *async* tasks (Note: this is not completely true on Windows,
+<p>By design, the server is a single thread running a number of <em>async</em> tasks (Note: this is not completely true on Windows,
 where a couple of threads per session are created, but they are just ancillary threads whose usage I would have avoided if I could.
-They don't perform real CPU load partitioning).  
+They don't perform real CPU load partitioning).<br>
 Since the server has been written for testing and debugging purposes, security and resource
-control have been neglected. Additionally, there are these known bugs:
-- aiohttp has a known issue, described here: [aiohttp-issue-6978](https://github.com/aio-libs/aiohttp/issues/6978).
+control have been neglected. Additionally, there are these known bugs:</p>
+<ul>
+<li>aiohttp has a known issue, described here: <a href="https://github.com/aio-libs/aiohttp/issues/6978">aiohttp-issue-6978</a>.
 In this application, it causes an exception after the very first WebSocket connection.
 I am experiencing this issue in aiohttp 3.9.1 (the one available by default in my Linux Mint)
 but not (yet) in 3.11.13 (tested on Windows 10 only). As far as I know, the issue has never been
 officially resolved. At least, I couldn't find any mention of it in aiohttp's changelog.
 This problem happens only if both HTTP and WebSocket services are active.
-If you are experiencing this issue, you can add the option **--aiohttp-workaround** as a workaround.
-With this option, the WebSocket server is managed by a separate process running in the background.
-- On Windows 10, after the first session has been established, the program becomes
+If you are experiencing this issue, you can add the option <strong>--aiohttp-workaround</strong> as a workaround.
+With this option, the WebSocket server is managed by a separate process running in the background.</li>
+<li>On Windows 10, after the first session has been established, the program becomes
 insensitive to CTRL-C and must be killed via Task Manager. This problem is probably related
-to the ConPTY subsystem; maybe some cleanup/detach code is required after the child process has been launched.
+to the ConPTY subsystem; maybe some cleanup/detach code is required after the child process has been launched.</li>
+</ul>
 </article>
 
 </section>
@@ -116,7 +120,7 @@ to the ConPTY subsystem; maybe some cleanup/detach code is required after the ch
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Sat Mar 29 2025 18:52:41 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Sat Mar 29 2025 19:03:45 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>
