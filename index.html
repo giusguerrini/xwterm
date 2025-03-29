@@ -42,6 +42,251 @@
 
 
 
+    <section>
+        <article><h1>xwterm</h1>
+<p><strong>Simple web Xterm and ANSI terminal emulator - pure JavaScript, no dependencies</strong></p>
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#setup">Setup</a></li>
+<li><a href="#usage">Usage</a></li>
+<li><a href="#sample-server">Sample server</a></li>
+<li><a href="#full-documentation">Full documentation</a></li>
+<li><a href="#live-example">Live example</a></li>
+<li><a href="#screenshots">Screenshots</a></li>
+<li><a href="#caveats">Caveats</a></li>
+<li><a href="#todo">TODO</a></li>
+<li><a href="#enjoy">Enjoy</a></li>
+</ul>
+<h2>Introduction</h2>
+<p>The goal of this project is to provide a simple, pure javascript terminal emulator frontend
+(i.e., the client side). Connecting to a terminal service is a user's responsibility.
+For testing purposes, a very basic terminal server is available here.</p>
+<p>This project is still under development.</p>
+<h2>Setup</h2>
+<p>The source is a single JavaScript file (<strong>src/xwterm.js</strong>); once downloaded (e.g.,
+by cloning the repository), it is ready to use. To produce a minified version,
+run <strong>make</strong> from the project's root directory. <strong><a href="https://terser.org/">terser</a></strong> is
+required to do this. The minified file is <strong>dist/xwterm.min.js</strong>. You can also download
+the minified file directly from the <a href="https://github.com/giusguerrini/xwterm/releases">GitHub releases page</a>.
+<strong>It is recommended to use release versions, unless your goal is to contribute to this project,
+as the latest commit may contain experimental or incomplete code.</strong></p>
+<h2>Usage</h2>
+<p>The following HTML code shows a minimal example of use. It generates a page containing
+only a terminal with default properties:</p>
+<pre><code>&lt;html lang=&quot;en&quot;&gt;
+  &lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+  &lt;/body&gt;
+  &lt;script type=&quot;module&quot;&gt;
+    import { AnsiTerm } from &quot;./xwterm.js&quot;;
+    var ansi = new AnsiTerm();
+  &lt;/script&gt;
+&lt;/html&gt;
+</code></pre>
+<p>The only thing the programmer has to do is to create an instance of the <code>AnsiTerm</code> class.
+By default, AnsiTerm's constructor connects its main &quot;div&quot; container to the document body,
+but you can put a terminal inside a container of your choice by specifying its ID:</p>
+<pre><code>...
+&lt;div id=&quot;myterminal&quot;&gt;&lt;/div&gt;
+...
+    var ansi = new AnsiTerm(&quot;myterminal&quot;);
+</code></pre>
+<p>The constructor also accepts some configuration parameters, which you can pass as an
+array of key/value pairs. The most important keys are:</p>
+<ul>
+<li><code>nLines</code> : number of text lines (default 25)</li>
+<li><code>nColumns</code> : number of characters in a line (default 80)</li>
+<li><code>containerId</code> : the ID of the container where you want the terminal to be placed (default &quot;&quot;, which
+means that the constructor will use the document's body)</li>
+<li><code>channelType</code> : the type of channel by which the terminal gets the sream of characters
+to display and sends events. &quot;http&quot; (alias &quot;rest&quot;, default), &quot;websocket&quot;, &quot;dummy&quot; or &quot;custom&quot;
+are recognized (see below for details).</li>
+</ul>
+<p>Example:</p>
+<pre><code>    var ansi = new AnsiTerm( { nLines: 40, nColumns: 120, containerId: &quot;myterminal&quot; } );
+</code></pre>
+<p>The terminal can use these kinds of channels to communicate with the server
+(<em>NOTE: Here we use the term &quot;server&quot; in an extensive sense, to indicate any form of data source and destination that is suitable to be managed by a terminal.</em>)</p>
+<ul>
+<li>HTTP</li>
+<li>WebSocket</li>
+<li>Dummy</li>
+<li>Custom protocol</li>
+</ul>
+<h3>HTTP</h3>
+<p>This is the default.
+The terminal obtains the stream of characters by periodically sending HTTP GET
+requests, and sends terminal events (e.g., key events) to the host by sending HTTP POST
+requests. Also, the terminal needs to communicate its initial size to the host through
+an additional parameter in GET request. By default, the terminal generates these
+requests:</p>
+<ul>
+<li><code>/?size=</code><em>lines</em>x<em>columns</em>: configure the screen size (e.g., <code>/?size=40x120</code>).</li>
+<li><code>/?console</code>: requests pending character to display.</li>
+<li><code>/</code>: the POST request containing the stream of terminal events (mainly keys).</li>
+</ul>
+<p>These defaults can be changed by specifying these parameters:</p>
+<ul>
+<li><code>httpSize</code>: specifies the request by which the terminal sends the screen size. The strings
+<code>?lines?</code> and <code>?columns?</code> are used as placeholders for the actual number of
+lines and columns. The default is <code>/?size=?lines?x?columns?</code>.</li>
+<li><code>httpSource</code>: The request to get the stream of pending characters. Default is <code>/?console</code>.</li>
+<li><code>httpDest</code>: The POST request to send terminal events. Default is <code>/</code>.</li>
+</ul>
+<h3>WebSocket</h3>
+<p>The terminal receives characters and sends events through a WebSocket connection. Data are encoded
+as JSON objects. By default these JSON tags are used:</p>
+<ul>
+<li><code>text</code> for both incoming and outgoing characters,</li>
+<li><code>size</code> for screen size settings.</li>
+</ul>
+<p>Default settings can be changed by specifying these parameters:</p>
+<ul>
+<li><code>wsEndpoint</code>: the server endpoint in the form <em>host:port</em>,</li>
+<li><code>wsDataTag</code>: the JSON field for characters in both directions,</li>
+<li><code>wsSizeTag</code>: the JSON field containing the screen size,</li>
+<li><code>wsSizeData</code>: the format of scren sie string, as in <code>config</code> HTTP parameter described above.</li>
+</ul>
+<h3>Dummy protocol</h3>
+<p>This is a pseudo-protocol that just sends back to the terminal the data it receives.</p>
+<h3>Custom protocol</h3>
+<p>The programmer has the ability to write its own communication driver for xwterm. Here are the
+required steps:</p>
+<ul>
+<li>Write a JavaScript class containing the code that implements the protocol. The class must
+extend <code>AnsiTermDriver</code> (it is the &quot;dummy&quot; protocol described above).</li>
+<li>Instantiate an object of the class.</li>
+<li>Assign the object to AnsiTerm's configuration parameter <code>driver</code>.</li>
+</ul>
+<p>If the parameter <code>driver</code> is not null, the terminal ignores <code>channelType</code> and all
+protocol-specific parameters (but you can set <code>channelType</code> to &quot;custom&quot; for clarity).</p>
+<p>Example (minimal):</p>
+<pre><code>&lt;script type=&quot;module&quot;&gt;
+
+import { AnsiTerm, AnsiTermDriver } from &quot;./xwterm.js&quot;;
+
+class CustomDriver extends AnsiTermDriver 
+{
+	constructor(params)
+	{
+		super(params);
+	}
+
+	start()
+	{ 
+		super.start();
+		this._set_connection_state(true); // Signal &quot;connected&quot; to the terminal
+		this._new_data(&quot;Hello!\r\n&quot;); // Send data to the terminal
+	}
+
+	_tx(text)
+	{
+		console.log(&quot;From xwterm: &quot; + text);
+	}
+}
+
+var ansi = new AnsiTerm( { nLines: 40, nColumns: 120, driver: new CustomDriver() } );
+
+&lt;/script&gt;
+</code></pre>
+<p>A simple but more interesting example is in <code>example/jsconsole.html</code>.
+Also, you can study <code>xwterm.js</code> itself, where HTTP and WebSocket driver are defined (<code>AnsiTermHttpDriver</code>
+and <code>AnsiTermWeSocketDriver</code> respectively).</p>
+<h2>Sample server</h2>
+<p>For testing purposes, you can find a minimal terminal server written in Python3 in the
+<code>example</code> folder.</p>
+<p><strong>Do not use the example as if it were a real terminal server</strong>; it
+is meant only to familiarize yourself with the AnsiTerm class and ease its development.</p>
+<p>The server implements both HTTP and WebSocket services on TCP port 8000 and 8001
+respectively. By default, the server accepts local connections only, but ports and listen
+addresses can be changed by command line options. In particular:</p>
+<ul>
+<li><strong>--bind</strong> <em>IP address</em> : Set the IP address mask by which the services are exposed. Default is <code>127.0.0.1</code>.</li>
+<li><strong>--http</strong> <em>TCP port</em> : Set the TCP port used by HTTP service. Default is <code>8000</code>.</li>
+<li><strong>--ws</strong> <em>TCP port</em> : Set the TCP port used by WebSocket service. Default is <code>8001</code>.</li>
+<li><strong>--no-http</strong> : Disable the HTTP service.</li>
+<li><strong>--no-websocket</strong> : Disable the WebSocket service.</li>
+<li><strong>--aiohttp-workaround</strong> : a workaround to prevent a bug in <code>aiohttp</code> (see below).</li>
+</ul>
+<p>To start the server, go to the <code>example</code> folder and launch <code>./miniserver.py</code> (on Linux),
+or <code>python miniserver.py</code> (on Windows 10). The HTTP service URL is <code>http://127.0.0.1:8000</code>,
+the WebSocket endpoint is <code>ws://127.0.0.1:8001</code>.</p>
+<p>The server has been tested on Linux and Windows 10 only. On Linux, a virtual terminal
+(pty) and a shell (<code>bash</code>) are created for each session. On Windows 10, the ConPTY subsystem is used
+to host a command interpreter (<code>cmd.exe</code>) for each session.
+Here are the server dependencies:</p>
+<ul>
+<li>Python &gt;= 3.12</li>
+<li>aiohttp (<code>pip install aiohttp</code> or, on Ubuntu and its derivatives, <code>apt install python3-aiohttp</code>)</li>
+<li>websockets (<code>pip install websockets</code> or, on Ubuntu and its derivatives, <code>apt install python3-websockets</code>)</li>
+</ul>
+<p>Since the server has been written for testing and debugging purposes, security and resource
+control have been neglected. Also, there are some known bugs:</p>
+<ul>
+<li>aiohttp has a known issue, described here: <a href="https://github.com/aio-libs/aiohttp/issues/6978">aiohttp-issue-6978</a>.
+In this application, it causes an excepion after the very first WebSocket connection.
+I am experiencing this issue in aiohttp 3.9.1 (the one available by default in my Linux Mint)
+but not (yet) in 3.11.13 (tested on Windows 10 only). As far as I know, the issue has never been
+solved officially. At least, I couldn't find any citation in aiohttp's changelog.
+This problem happens only if both HTTP and WebSocket services are active.
+If you are experiencing this issue, you can add the option <strong>--aiohttp-workaround</strong> as a workaround.
+Whit this option, the WebSocket server is managed by a separate process running in background.</li>
+<li>On Windows 10, after the first session has been established, the program becomes
+insensitive to CTRL-C, and must be killed by Task Manager. This problem is probably related
+to the ConPTY subsystem, maybe some cleanup/detach code is required after child process has been lauched.</li>
+</ul>
+<h2>Full documentation</h2>
+<p>A (still incomplete) documentation of the package, mainly classes and their methods, is here:
+<a href="https://giusguerrini.github.io/xwterm/index.html">API Documentation</a></p>
+<h2>Live example</h2>
+<p>You can test a working example of xwterm here:
+<a href="https://giusguerrini.github.io/xwterm/jsconsole.html">Simple JavaScript Console</a>, where an instance of AnsiTerm hosts a basic JavaScript console.</p>
+<h2>Screenshots</h2>
+<p>Here are some images taken while running the shell and some applications that require
+full support of graphics functions (Midnight Commander, htop, vim):
+<img src="./doc/xwterm-screenshot-bash.png" alt="Bash prompt">
+<img src="./doc/xwterm-screenshot-mc.png" alt="Midnight Commander">
+<img src="./doc/xwterm-screenshot-htop.png" alt="Htop">
+<img src="./doc/xwterm-screenshot-vim.png" alt="Vim"></p>
+<h2>Caveats</h2>
+<p>Please remember that this project is in its early stage.
+The project was born out of a specific need of mine in a controlled environment; to make it
+fully usable, a certain effort of generalization is still required.</p>
+<p>As the project grows, some details in the public interface (e.g., parameter names) may change.
+This may happen at least until the first &quot;non-beta&quot; release (v1.0.0) is published.</p>
+<p>Development and test have been done mainly on recent versions of Chrome and Firefox.
+Safari has been tested very superficially. No other browsers have been tested at this time.</p>
+<p>About Safari, there is at least a known problem: iOS soft keyboard doesn't appear if
+the page doesn't contain an input field. AnsiTerm's canvas is not considered an input field
+by Safari, that's why I had to add a simple hand-made soft keyboard. This problem
+sometimes appears on Android devices too.</p>
+<p>Internationalization, and encoding in general, is also an issue I neglected. My daily
+environment is Western Europe (Italy), where &quot;latin1&quot; or &quot;Windows-1252&quot; are sufficient.
+More sophisticated encodings are expected to be problematic.</p>
+<h2>TODO</h2>
+<p>Many things to do:</p>
+<ul>
+<li>Clean up code and add comments.</li>
+<li>Add better support for server-side sessions (e.g., cookies, access tokens...)</li>
+<li>Add support for hyperlinks and hyperlink sequences (e.g, <code>\e]8;;http://example.com\e\\This is a link\e]8;;\e</code>)</li>
+<li>Add custom CSS properties to configure the terminal. Currently, the configuration comes
+from a set of parameters passed to the constructor.</li>
+<li>Add a configuration item to choose the terminal mode (e.g., &quot;pure ANSI&quot;, &quot;xterm&quot;, &quot;xterm-256&quot;...).</li>
+<li>Improve the soft keyboard. The current implementation reflects my particular need: Italian
+keyboards don't have &quot;Tilde&quot; nor &quot;Backquote&quot; keys...</li>
+<li>Add management of alternate character set (see &quot;G0/G1&quot; character set selection sequences).</li>
+<li>Add a history buffer (and a scroll bar, of course).</li>
+<li>Implement resizing and responsiveness. This means the terminal should maintain logical lines as generated by the server
+(i.e., the sequences of characters ending with a line feed), because when the number of columns changes, it is expected
+that logical lines are preserved instead of being truncated to the previous visual line length.</li>
+</ul>
+<h2>Enjoy!</h2></article>
+    </section>
+
 
 
 
@@ -50,13 +295,13 @@
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AnsiTerm.html">AnsiTerm</a></li><li><a href="AnsiTermDriver.html">AnsiTermDriver</a></li><li><a href="AnsiTermHttpDriver.html">AnsiTermHttpDriver</a></li><li><a href="AnsiTermWebSocketDriver.html">AnsiTermWebSocketDriver</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AnsiTerm.html">AnsiTerm</a></li><li><a href="AnsiTermDriver.html">AnsiTermDriver</a></li><li><a href="AnsiTermHttpDriver.html">AnsiTermHttpDriver</a></li><li><a href="AnsiTermWebSocketDriver.html">AnsiTermWebSocketDriver</a></li></ul><h3>Tutorials</h3><ul><li><a href="tutorial-10-basic-page.html">10-basic-page</a></li><li><a href="tutorial-90-sample-server.html">90-sample-server</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Mon Mar 24 2025 23:23:26 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Sat Mar 29 2025 01:05:56 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Tutorial: 90-sample-server</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Tutorial: 90-sample-server</h1>
+
+    <section>
+
+<header>
+    
+
+    <h2>90-sample-server</h2>
+</header>
+
+<article>
+    <h1><strong>xwterm</strong> - Advanced topic: the sample server</h1>
+<p><strong>A basic HTTP and WebSocket server written in Python</strong></p>
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#description-and-usage">Description and usage</a></li>
+<li><a href="#requirements-and-dependencies">Requirements and dependencies</a></li>
+<li><a href="#internals">Internals</a></li>
+<li><a href="#known-limitations-and-issues">Known limitations and issues</a></li>
+</ul>
+<h2>Introduction</h2>
+<p>For testing purposes, you can find a minimal terminal server written in Python3 in the
+<code>example</code> folder.</p>
+<p><strong>Do not use the example as if it were a real terminal server</strong>; it
+is meant only to familiarize yourself with the AnsiTerm class and ease its development.</p>
+<h2>Decsription and usage</h2>
+<p>The server implements both HTTP and WebSocket services on TCP port 8000 and 8001
+respectively. By default, the server accepts local connections only, but ports and listen
+addresses can be changed by command line options. In particular:</p>
+<ul>
+<li><strong>--bind</strong> <em>IP address</em> : Set the IP address mask by which the services are exposed. Default is <code>127.0.0.1</code>.</li>
+<li><strong>--http</strong> <em>TCP port</em> : Set the TCP port used by HTTP service. Default is <code>8000</code>.</li>
+<li><strong>--ws</strong> <em>TCP port</em> : Set the TCP port used by WebSocket service. Default is <code>8001</code>.</li>
+<li><strong>--no-http</strong> : Disable the HTTP service.</li>
+<li><strong>--no-websocket</strong> : Disable the WebSocket service.</li>
+<li><strong>--aiohttp-workaround</strong> : a workaround to prevent a bug in <code>aiohttp</code> (see below).</li>
+</ul>
+<p>To start the server, go to the <code>example</code> folder and launch <code>./miniserver.py</code> (on Linux),
+or <code>python miniserver.py</code> (on Windows 10). The HTTP service URL is <code>http://127.0.0.1:8000</code>,
+the WebSocket endpoint is <code>ws://127.0.0.1:8001</code>.</p>
+<h2>Requirements and dependencies</h2>
+<p>The server has been tested on Linux and Windows 10 only. On Linux, a virtual terminal
+(pty) and a shell (<code>bash</code>) are created for each session. On Windows 10, the ConPTY subsystem is used
+to host a command interpreter (<code>cmd.exe</code>) for each session.
+Here are the server dependencies:</p>
+<ul>
+<li>Python &gt;= 3.12</li>
+<li>aiohttp (<code>pip install aiohttp</code> or, on Ubuntu and its derivatives, <code>apt install python3-aiohttp</code>)</li>
+<li>websockets (<code>pip install websockets</code> or, on Ubuntu and its derivatives, <code>apt install python3-websockets</code>)</li>
+</ul>
+<h2>Internals</h2>
+<p>The program uses <strong>asyncio</strong> to manage there activities in parallel:</p>
+<ul>
+<li>listening to HTTP and WebSocket TCP ports</li>
+<li>servicing clients for both incoming and outgoing traffic</li>
+<li>managing session lifecycle, including timeout control</li>
+</ul>
+<p>Sessions are modeled by the class <code>Session</code>. Each session owns a TCP socket and a pair of <strong>asyncio</strong>'s streams
+that implements the async traffic management in both directions. Since a number of aync tasks are needed to
+manage each session, the class <code>AsyncJob</code> has been defined. Its purpose is to keep trask of a set of related
+tasks and manage their lifecycle as as single unit.</p>
+<p>Each session also owns a virtual terminal and a command interpreter (<code>/bin/bash</code> or <code>C:\Windows\System32\cmd.exe</code>) running in it.
+While on Linux tradition <strong>pty</strong> interoperates seamlessly with <strong>asyncio</strong>, on Windows a certain effort of integration
+is needed. The main problem is that Windows' <strong>ConPTY</strong> subsystem doesn't support <code>OVERLAPPED</code> operations, that are
+at the basis of Python's <strong>asyncio</strong>. The only way I have found is to create a pair of threads to transfer data from (or to,
+respectively) the virtual terminal to (or from) a pair of <code>asyncio.Queue</code> objects, and then &quot;embed&quot; this in a pair of
+simulated <code>asincio.StreamReader/Writer</code> objects (i.e., a local class that pretends to be an async stream by implementing the minimal
+interface).
+Moreover, in order to access <strong>ConPTY</strong> services, tre program invokes many low-level calls to <code>kernel32.dll</code> through <strong>ctypes</strong>
+Python module, so it cotains a bunch of Windows-specific code.</p>
+<h2>Known limitations and issues</h2>
+<p>By design, the server is a single thread running a number of <em>async</em> tasks (Note: this is not completely true on Windows,
+where a couple of threads per session is created, but they are just ancillary thread whom usage I would avoided if I could.
+They don't do a real CPU load partition).
+Since the server has been written for testing and debugging purposes, security and resource
+control have been neglected. Also, there are these known bugs:</p>
+<ul>
+<li>aiohttp has a known issue, described here: <a href="https://github.com/aio-libs/aiohttp/issues/6978">aiohttp-issue-6978</a>.
+In this application, it causes an excepion after the very first WebSocket connection.
+I am experiencing this issue in aiohttp 3.9.1 (the one available by default in my Linux Mint)
+but not (yet) in 3.11.13 (tested on Windows 10 only). As far as I know, the issue has never been
+solved officially. At least, I couldn't find any citation in aiohttp's changelog.
+This problem happens only if both HTTP and WebSocket services are active.
+If you are experiencing this issue, you can add the option <strong>--aiohttp-workaround</strong> as a workaround.
+Whit this option, the WebSocket server is managed by a separate process running in background.</li>
+<li>On Windows 10, after the first session has been established, the program becomes
+insensitive to CTRL-C, and must be killed by Task Manager. This problem is probably related
+to the ConPTY subsystem, maybe some cleanup/detach code is required after child process has been lauched.</li>
+</ul>
+</article>
+
+</section>
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AnsiTerm.html">AnsiTerm</a></li><li><a href="AnsiTermDriver.html">AnsiTermDriver</a></li><li><a href="AnsiTermHttpDriver.html">AnsiTermHttpDriver</a></li><li><a href="AnsiTermWebSocketDriver.html">AnsiTermWebSocketDriver</a></li></ul><h3>Tutorials</h3><ul><li><a href="tutorial-10-basic-page.html">10-basic-page</a></li><li><a href="tutorial-90-sample-server.html">90-sample-server</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Sat Mar 29 2025 01:05:56 GMT+0000 (Coordinated Universal Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

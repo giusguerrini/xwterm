@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Tutorial: 10-basic-page</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Tutorial: 10-basic-page</h1>
+
+    <section>
+
+<header>
+    
+
+    <h2>10-basic-page</h2>
+</header>
+
+<article>
+    <h1><strong>xwterm</strong> - Example 1: Basic usage</h1>
+<p><strong>A very simple use case</strong></p>
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#default-decorations">Default decorations</a></li>
+<li><a href="#setup">Setup</a></li>
+<li><a href="#the-code">The code</a></li>
+</ul>
+<h2>Introduction</h2>
+<p>In this example, <strong>xwterm</strong> generates a terminal with default size, colors, layout and ancillary widgets.
+This isa also a chance to describe the functions implemented by <strong>xwterm</strong> package.
+The terminal takes takes by default the &quot;traditional&quot; number of rows and colums of &quot;80x25&quot;, black backgroung, medium white foreground.
+It also uses HTTP as communication channel.</p>
+<h2>Default decorations</h2>
+<p>Here is a decription of ancillary elements that decorate the terminal:</p>
+<ul>
+<li>A title bar is added on top of the terminal.</li>
+<li>A status bar is added at the bottom of the terminal.</li>
+<li>The status bas contains these elements (from left to right):
+<ul>
+<li>A &quot;freeze&quot; button, by which the user can suspend the processing of incoming characters,</li>
+<li>A read-only text in which the current freeze state is shown. There may be multiple suspension at the same time, since a suspensiona
+may be due to both the &quot;freeze&quot; button and by a clipboard selection. The text shows the suspension count and the number of unprocessed
+bytes since the terminal has been frozen.</li>
+<li>A read only text indicating the current state of the connection with the server.</li>
+<li>The version numer of <strong>xwterm</strong> pakage.</li>
+<li>A &quot;Select all&quot; button, by which the user may select the whole terminal content.</li>
+<li>A &quot;Copy&quot; button to copy the selected content to clipboard as plain text.</li>
+<li>A &quot;Copy as...&quot; button, which shows a popup menu to access advanced &quot;copy to clipboard&quot; operations: &quot;Copy as text&quot;, &quot;Copy as ANSI sequences&quot;,
+&quot;Copy as HTML&quot; and &quot;Copy as Rich Text&quot;.</li>
+<li>A &quot;Paste&quot; button, by which the clipboard content is sent to the server.</li>
+</ul>
+</li>
+</ul>
+<h2>Setup</h2>
+<p>For the example to work, the sample server <strong>miniserver.py</strong> contained in the source package is required.
+To start the server, go to the <code>example</code> folder and launch <code>./miniserver.py</code> (on Linux),
+or <code>python miniserver.py</code> (on Windows 10). The HTTP service URL is <code>http://127.0.0.1:8000</code>.
+You can rfind a more detailed description of the sample server here:
+<a href="https://giusguerrini.github.io/xwterm/90-sample-server.html">Sample server</a></p>
+<h2>The code</h2>
+<p>This is the HTML code that implements the example. Let's describe the relevant parts:</p>
+<p><strong>Normal HTML document, header etc...</strong></p>
+<pre><code>&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+  &lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+  &lt;/body&gt;
+</code></pre>
+<p><strong>Here we import the <code>AnsiTerm</code> class from <code>xwterm.js</code> (or <code>xwterm.min.js</code> if you are using the minified version, which is recommended in production).</strong>
+<strong>Note that we must import the package as a JS module.</strong></p>
+<pre><code>  &lt;script type=&quot;module&quot;&gt;
+    import { AnsiTerm } from &quot;./xwterm.js&quot;;
+</code></pre>
+<p><strong>Create an instance of <code>AnsiTerm</code> class and store them in a variable...</strong></p>
+<pre><code>    var ansi = new AnsiTerm();
+</code></pre>
+<p><strong>...and that's all! <code>AnsiTerm</code>'s constructor will create the terminal with default properties.</strong></p>
+<pre><code>  &lt;/script&gt;
+&lt;/html&gt;
+</code></pre>
+</article>
+
+</section>
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AnsiTerm.html">AnsiTerm</a></li><li><a href="AnsiTermDriver.html">AnsiTermDriver</a></li><li><a href="AnsiTermHttpDriver.html">AnsiTermHttpDriver</a></li><li><a href="AnsiTermWebSocketDriver.html">AnsiTermWebSocketDriver</a></li></ul><h3>Tutorials</h3><ul><li><a href="tutorial-10-basic-page.html">10-basic-page</a></li><li><a href="tutorial-90-sample-server.html">90-sample-server</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Sat Mar 29 2025 01:05:56 GMT+0000 (Coordinated Universal Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
