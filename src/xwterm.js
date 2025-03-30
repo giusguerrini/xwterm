@@ -957,6 +957,7 @@ export class AnsiTerm {
 		this.copy_as_button = null;
 		this.paste_button = null;
 		this.select_all_button = null;
+		this.hidden_input = null;
 
 		this.container = null;
 		this.no_container = false;
@@ -1071,6 +1072,45 @@ export class AnsiTerm {
 				this.paste_button = null;
 				this.select_all_button = null;
 			}
+
+
+if (false) {
+
+			// Workaround for Safari, and mobiles in general, to
+			// make sure that the soft keyboard is shown when
+			// the user clicks on the canvas.
+			// The canvas is not focusable, so we create a hidden
+			// input field, and we focus it when the user clicks
+			// on the canvas. This will show the soft keyboard.
+			this.hidden_input = document.createElement('input');
+			this.hidden_input.type = 'text';
+			this.hidden_input.style.position = 'absolute';
+			this.hidden_input.style.top = "0px";
+			this.hidden_input.style.left = "0px";
+			this.hidden_input.style.opacity = '0';
+			this.hidden_input.setAttribute("autocomplete", "off");
+			this.hidden_input.setAttribute("autocorrect", "off");
+
+
+			this.hidden_input.style.pointerEvents = 'none';
+			document.body.appendChild(this.hidden_input);
+
+			this.canvas.addEventListener('click', () => {
+				//this.write("Click on canvas");
+				this.hidden_input.style.pointerEvents = 'auto';
+				this.hidden_input.focus();
+				this.hidden_input.style.pointerEvents = 'none';
+			});
+
+			//this.hidden_input.onkeydown = (event) => { this._on_keydown(event); };
+
+			this.hidden_input.addEventListener('input', (event) => {
+				//this.write("Input text: " + this.hidden_input.value + "\r\n");
+				this._send_data(this.hidden_input.value + "\r\n");
+				this.hidden_input.value = ''; // Clear the input after sending
+			});
+}
+
 
 			if (this.params.hasSoftKeyboard) {
 				this.keyboard_div = document.createElement("div");
