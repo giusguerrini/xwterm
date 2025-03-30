@@ -71,8 +71,11 @@ protocol-specific parameters (but you can set `channelType` to "custom" for clar
 
 Example (minimal):
 
+```html
 	<script type="module">
+```
 
+```javascript
 	import { AnsiTerm, AnsiTermDriver } from "./xwterm.js";
 
 	class CustomDriver extends AnsiTermDriver 
@@ -96,8 +99,11 @@ Example (minimal):
 	}
 	
 	var ansi = new AnsiTerm( { nLines: 40, nColumns: 120, driver: new CustomDriver() } );
+```
 	
+```html
 	</script>
+```
 
 A simple but more interesting example is in `example/jsconsole.html`.
 Also, you can study `xwterm.js` itself, where HTTP and WebSocket driver are defined (`AnsiTermHttpDriver`

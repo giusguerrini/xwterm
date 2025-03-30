@@ -1,15 +1,22 @@
 {
   "plugins": ["plugins/markdown"],
+  "markdown": {
+    "idInHeadings": true
+  },
   "tags": {
     "allowUnknownTags": true
   },
-"source": {
+  "source": {
     "include": ["src"],
     "includePattern": ".+\\.js(doc|x)?$",
     "excludePattern": "(^|\\/|\\\\)_",
     "exclude": ["node_modules"]
   },
+  "templates": {
+    "cleverLinks": true
+  },
   "opts": {
+    "template": "./jsdoc-template/xwterm-template",
     "destination": "./docs",
     "readme": "./README.md",
     "tutorials": "./doc",
