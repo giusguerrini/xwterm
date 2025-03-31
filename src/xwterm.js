@@ -1712,7 +1712,7 @@ if (false) {
 	_setcell(x, y, src)
 	{
 		// Check "special value", see comments in "_flush()"
-		if (x >= this.nColumns) {
+		if (x >= this.params.nColumns) {
 			return;
 		}
 		let blink = this.screen[y][x].blink;
