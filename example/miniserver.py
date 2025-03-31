@@ -159,10 +159,15 @@ else:
     kernel32.CreatePseudoConsole.restype = HRESULT
 
     CreatePipe = kernel32.CreatePipe
-    SetHandleInformation = kernel32.SetHandleInformation
     CreatePipe.argtypes = [ctypes.POINTER(wintypes.HANDLE), ctypes.POINTER(wintypes.HANDLE), ctypes.POINTER(ctypes.c_void_p), wintypes.DWORD,]
+
+    SetHandleInformation = kernel32.SetHandleInformation
     SetHandleInformation.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD]
 
+    SetConsoleCtrlHandler = kernel32.SetConsoleCtrlHandler
+    SetConsoleCtrlHandler.argtypes = [wintypes.LPVOID, BOOL]
+
+    CREATE_NO_WINDOW = 0x08000000
     EXTENDED_STARTUPINFO_PRESENT = 0x00080000
     HANDLE_FLAG_INHERIT = 0x00000001
     #INVALID_HANDLE_VALUE = ctypes.cast(-1, ctypes.c_void_p)
@@ -410,40 +415,77 @@ class Shell:
 
     async def run_windows(self):
 
+# Set to True to emulate what OpenSSH does (no success yet...)
+
+        use_conhost = False #True
+
+# NOTE: OpenSSH for Windows creates tree NAMED PIPES and then launches
+# this process:
+#
+# command = 'conhost.exe --headless --width '
+#         + str(DEFAULT_NCOLUMNS) + ' --height ' + str(DEFAULT_NLINES)
+#         + ' --signal 0x' + hex(control_read.value) + '' + ' -- ' + command
+#
+# where "control_write" is the write side of the third pipe. It brings
+# screen size events.
+# It looks quite weird, but it works better than ConPTY...
+# ...but Microsoft recommends to use ConPTY...
+#
+# ...and here's how OpenSSH creates pipes for pty:
+#
+#           sec_attributes.bInheritHandle = TRUE;
+#	    sec_attributes.lpSecurityDescriptor = NULL;
+#	    sec_attributes.nLength = sizeof(sec_attributes);
+#           write_handle = CreateNamedPipeA(pipe_name, PIPE_ACCESS_OUTBOUND | FILE_FLAG_OVERLAPPED, PIPE_TYPE_BYTE | PIPE_WAIT, 1, 4096, 4096, 0, &sec_attributes);
+#           read_handle = CreateFileA(pipe_name, GENERIC_READ, 0, &sec_attributes, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
+
         command = "cmd.exe"
-        #cmdargs = [ command, "/a"]
+        #cmdargs = [ command, "/a" ]
         cmdargs = [ command]
 
-        if True:
+        SetConsoleCtrlHandler(None, False)
 
-            stdin_read = wintypes.HANDLE()
-            stdin_write = wintypes.HANDLE()
-            stdout_read = wintypes.HANDLE()
-            stdout_write = wintypes.HANDLE()
+        stdin_read = wintypes.HANDLE()
+        stdin_write = wintypes.HANDLE()
+        stdout_read = wintypes.HANDLE()
+        stdout_write = wintypes.HANDLE()
 
-            if not CreatePipe(ctypes.byref(stdin_read), ctypes.byref(stdin_write), None, 1):
+        if not CreatePipe(ctypes.byref(stdin_read), ctypes.byref(stdin_write), None, 1):
+            raise ctypes.WinError(ctypes.get_last_error())
+        if not CreatePipe(ctypes.byref(stdout_read), ctypes.byref(stdout_write), None, 1):
+            raise ctypes.WinError(ctypes.get_last_error())
+
+        if not SetHandleInformation(stdin_write, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
+            raise ctypes.WinError(ctypes.get_last_error())
+        if not SetHandleInformation(stdout_read, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
+            raise ctypes.WinError(ctypes.get_last_error())
+
+        if use_conhost:
+            control_read = wintypes.HANDLE()
+            control_write = wintypes.HANDLE()
+            if not CreatePipe(ctypes.byref(control_read), ctypes.byref(control_write), None, 1):
                 raise ctypes.WinError(ctypes.get_last_error())
-            if not CreatePipe(ctypes.byref(stdout_read), ctypes.byref(stdout_write), None, 1):
+            if not SetHandleInformation(control_read, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
                 raise ctypes.WinError(ctypes.get_last_error())
 
-            if not SetHandleInformation(stdin_write, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
-                raise ctypes.WinError(ctypes.get_last_error())
-            if not SetHandleInformation(stdout_read, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
-                raise ctypes.WinError(ctypes.get_last_error())
 
-            self.pty = ctypes.c_void_p()
+        attr_size = SIZE_T()
+        if not kernel32.InitializeProcThreadAttributeList(None, 1, 0, ctypes.byref(attr_size)):
+            #raise ctypes.WinError(ctypes.get_last_error())
+            pass
+        attr_list = ctypes.create_string_buffer(attr_size.value)
+        if not kernel32.InitializeProcThreadAttributeList(attr_list, 1, 0, ctypes.byref(attr_size)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        self.pty = ctypes.c_void_p()
+
+        if use_conhost:
+            command = 'conhost.exe --headless --width ' + str(DEFAULT_NCOLUMNS) + ' --height ' + str(DEFAULT_NLINES) + ' --signal ' + hex(control_read.value) + '' + ' -- ' + command
+            print(command)
+        else:
             size = COORD(DEFAULT_NCOLUMNS, DEFAULT_NLINES)
 
             rv = kernel32.CreatePseudoConsole(size, stdin_read, stdout_write, 0, ctypes.byref(self.pty))
             if rv != 0:
-                raise ctypes.WinError(ctypes.get_last_error())
-
-            attr_size = SIZE_T()
-            if not kernel32.InitializeProcThreadAttributeList(None, 1, 0, ctypes.byref(attr_size)):
-                #raise ctypes.WinError(ctypes.get_last_error())
-                pass
-            attr_list = ctypes.create_string_buffer(attr_size.value)
-            if not kernel32.InitializeProcThreadAttributeList(attr_list, 1, 0, ctypes.byref(attr_size)):
                 raise ctypes.WinError(ctypes.get_last_error())
 
             success = True
@@ -458,206 +500,210 @@ class Shell:
             if not success:
                 raise ctypes.WinError(ctypes.get_last_error())
 
-            startupinfo = STARTUPINFOWEX()
-            startupinfo.StartupInfo.cb = ctypes.sizeof(startupinfo)
-            startupinfo.lpAttributeList = ctypes.cast(ctypes.addressof(attr_list), ctypes.c_void_p)
+        startupinfo = STARTUPINFOWEX()
+        startupinfo.StartupInfo.cb = ctypes.sizeof(startupinfo)
+        startupinfo.lpAttributeList = ctypes.cast(ctypes.addressof(attr_list), ctypes.c_void_p)
 
-            startupinfo.StartupInfo.dwFlags = STARTF_USESTDHANDLES
-            startupinfo.StartupInfo.hStdInput = stdin_read
-            startupinfo.StartupInfo.hStdOutput = stdout_write
-            startupinfo.StartupInfo.hStdError = stdout_write
- 
-            stdin_fd = msvcrt.open_osfhandle(stdin_write.value, os.O_WRONLY)
-            stdout_fd = msvcrt.open_osfhandle(stdout_read.value, os.O_RDONLY)
- 
-            stdin_pipe = os.fdopen(stdin_fd, 'wb')
-            stdout_pipe = os.fdopen(stdout_fd, 'rb')
+        startupinfo.StartupInfo.dwFlags = STARTF_USESTDHANDLES
+        startupinfo.StartupInfo.hStdInput = stdin_read
+        startupinfo.StartupInfo.hStdOutput = stdout_write
+        startupinfo.StartupInfo.hStdError = stdout_write
 
-            pi = PROCESS_INFORMATION()
+        stdin_fd = msvcrt.open_osfhandle(stdin_write.value, os.O_WRONLY)
+        stdout_fd = msvcrt.open_osfhandle(stdout_read.value, os.O_RDONLY)
 
-            success = CreateProcessW(
-                None,
-                ctypes.c_wchar_p(command),
-                None,
-                None,
-                False,
-                EXTENDED_STARTUPINFO_PRESENT,
-                None,
-                None,
-                ctypes.byref(startupinfo),
-                ctypes.byref(pi))
+        stdin_pipe = os.fdopen(stdin_fd, 'wb')
+        stdout_pipe = os.fdopen(stdout_fd, 'rb')
 
-            kernel32.CloseHandle(stdin_read)
-            kernel32.CloseHandle(stdout_write)
+        pi = PROCESS_INFORMATION()
+
+        flags = EXTENDED_STARTUPINFO_PRESENT
+        if use_conhost:
+            flags = flags | CREATE_NO_WINDOW
+
+        success = CreateProcessW(
+            None,
+            ctypes.c_wchar_p(command),
+            None,
+            None,
+            use_conhost,
+            flags,
+            None,
+            None,
+            ctypes.byref(startupinfo),
+            ctypes.byref(pi))
+
+        kernel32.CloseHandle(stdin_read)
+        kernel32.CloseHandle(stdout_write)
 #            kernel32.CloseHandle(stderr_write)
 
 
-            if not success:
-                raise ctypes.WinError(ctypes.get_last_error())
+        if not success:
+            raise ctypes.WinError(ctypes.get_last_error())
 
-            #
-            # Since ConPty only implements synchronous I/O, we have to create a pair of threads
-            # to integrate the pseudoterminal in asyncio :-(
-            # Not handy.
-            #
-            # Ok, let's try (NO, I WILL NOT USE POLLING, even though this is just a test program).
-            #
-            # asyncio provides an "run_coroutine_threadsafe"... the only thing that can make thareds
-            # and coroutines interoperate.
-            #
+        #
+        # Since ConPty only implements synchronous I/O, we have to create a pair of threads
+        # to integrate the pseudoterminal in asyncio :-(
+        # Not handy.
+        #
+        # Ok, let's try (NO, I WILL NOT USE POLLING, even though this is just a test program).
+        #
+        # asyncio provides an "run_coroutine_threadsafe"... the only thing that can make thareds
+        # and coroutines interoperate.
+        #
 
-            stdin_queue = asyncio.Queue()
-            stdout_queue = asyncio.Queue()
+        stdin_queue = asyncio.Queue()
+        stdout_queue = asyncio.Queue()
 
-            loop = asyncio.get_running_loop()
+        loop = asyncio.get_running_loop()
 
-            def read_from_process_thr():
-                try:
-                    while True:
-                        data = stdout_pipe.read(1)
-                        #print("R>> ", data)
-                        asyncio.run_coroutine_threadsafe(stdout_queue.put(data), loop).result()
-                        #print("R<<")
-                except (asyncio.CancelledError, GeneratorExit):
-                    raise
-                except Exception as e:
-                    print(e)
-                    pass
+        def read_from_process_thr():
+            try:
+                while True:
+                    data = stdout_pipe.read(1)
+                    #print("R>> ", data)
+                    asyncio.run_coroutine_threadsafe(stdout_queue.put(data), loop).result()
+                    #print("R<<")
+            except (asyncio.CancelledError, GeneratorExit):
+                raise
+            except Exception as e:
+                print(e)
+                pass
 
-            th_read = threading.Thread(target=read_from_process_thr)
-            th_read.start()
+        th_read = threading.Thread(target=read_from_process_thr)
+        th_read.start()
 
-            class QueueStreamReader:
-                def __init__(self, queue):
-                    self.queue = queue
-                    self.buffer = b''
+        class QueueStreamReader:
+            def __init__(self, queue):
+                self.queue = queue
+                self.buffer = b''
 
-                async def read(self, n=-1):
-                    while len(self.buffer) < n or n == -1:
-                        if len(self.buffer) > 0:
-                            try:
-                                data = await self.queue.get_nowait()
-                            except asyncio.QueueEmpty:
-                                break
-                            except:
-                                raise
-                        else:    
-                            data = await self.queue.get()
-                        if data is None:
+            async def read(self, n=-1):
+                while len(self.buffer) < n or n == -1:
+                    if len(self.buffer) > 0:
+                        try:
+                            data = await self.queue.get_nowait()
+                        except asyncio.QueueEmpty:
                             break
-                        self.buffer += data
-                    if n == -1:
-                        result, self.buffer = self.buffer, b''
-                    else:
-                        result, self.buffer = self.buffer[:n], self.buffer[n:]
-                    return result
-
-            reader = QueueStreamReader(stdout_queue)
-
-
-            def write_to_process_thr():
-                try:
-                    async def queue_get():
-                        data = await stdin_queue.get()
-                        return data
-                    while True:
-                        data = asyncio.run_coroutine_threadsafe(queue_get(), loop).result()
-                        if data is None:
-                            break
-                        stdin_pipe.write(data)
-                        stdin_pipe.flush()
-                except (asyncio.CancelledError, GeneratorExit):
-                    raise
-                except Exception as e:
-                    print(e)
-                    pass
-
-            th_write = threading.Thread(target=write_to_process_thr)
-            th_write.start()
-
-            class QueueStreamWriter:
-                def __init__(self, queue):
-                    self.queue = queue
-                    self.buffer = b''
-
-                def write(self, data):
+                        except:
+                            raise
+                    else:    
+                        data = await self.queue.get()
+                    if data is None:
+                        break
                     self.buffer += data
+                if n == -1:
+                    result, self.buffer = self.buffer, b''
+                else:
+                    result, self.buffer = self.buffer[:n], self.buffer[n:]
+                return result
 
-                async def drain(self):
-                    await self.queue.put(self.buffer)
-                    self.buffer = b''
+        reader = QueueStreamReader(stdout_queue)
 
 
-            writer = QueueStreamWriter(stdin_queue)
+        def write_to_process_thr():
+            try:
+                async def queue_get():
+                    data = await stdin_queue.get()
+                    return data
+                while True:
+                    data = asyncio.run_coroutine_threadsafe(queue_get(), loop).result()
+                    if data is None:
+                        break
+                    stdin_pipe.write(data)
+                    stdin_pipe.flush()
+            except (asyncio.CancelledError, GeneratorExit):
+                raise
+            except Exception as e:
+                print(e)
+                pass
 
-            reader_err = None
+        th_write = threading.Thread(target=write_to_process_thr)
+        th_write.start()
 
-            proc = {
-                    "pi": pi,
-                    "th_read": th_read,
-                    "th_write": th_write,
-                    "stdin_queue": stdin_queue,
-                    "stdout_queue": stdout_queue,
-                    "stdin_pipe": stdin_pipe,
-                    "stdout_pipe": stdout_pipe
-                    }
-            
-            async def end_shell():
-                print("end_shell: ", self.proc.hProcess)
-                try:
-                    self.proc.pi.stdin_queue.put(None)
-                except (asyncio.CancelledError, GeneratorExit):
-                    raise
-                except:
-                    pass
-                try:
-                    kernel32.TerminateProcess(self.proc.pi.hProcess, 0)
-                except (asyncio.CancelledError, GeneratorExit):
-                    raise
-                except:
-                    pass
-                try:
-                    kernel32.CloseHandle(self.proc.pi.hProcess)
-                except (asyncio.CancelledError, GeneratorExit):
-                    raise
-                except:
-                    pass
-                try:
-                    kernel32.CloseHandle(self.proc.pi.hThread)
-                except (asyncio.CancelledError, GeneratorExit):
-                    raise
-                except:
-                    pass
-                try:
-                    kernel32.ClosePseudoConsole(self.pty)
-                except (asyncio.CancelledError, GeneratorExit):
-                    raise
-                except:
-                    pass
-                try:
-                    self.proc.stdout_pipe.close()
-                except (asyncio.CancelledError, GeneratorExit):
-                    raise
-                except:
-                    pass
-                try:
-                    self.proc.stdin_pipe.close()
-                except (asyncio.CancelledError, GeneratorExit):
-                    raise
-                except:
-                    pass
-                try:
-                    self.proc.th_read.join()
-                except (asyncio.CancelledError, GeneratorExit):
-                    raise
-                except:
-                    pass
-                try:
-                    self.proc.th_write.join()
-                except (asyncio.CancelledError, GeneratorExit):
-                    raise
-                except:
-                    pass
+        class QueueStreamWriter:
+            def __init__(self, queue):
+                self.queue = queue
+                self.buffer = b''
+
+            def write(self, data):
+                self.buffer += data
+
+            async def drain(self):
+                await self.queue.put(self.buffer)
+                self.buffer = b''
+
+
+        writer = QueueStreamWriter(stdin_queue)
+
+        reader_err = None
+
+        proc = {
+                "pi": pi,
+                "th_read": th_read,
+                "th_write": th_write,
+                "stdin_queue": stdin_queue,
+                "stdout_queue": stdout_queue,
+                "stdin_pipe": stdin_pipe,
+                "stdout_pipe": stdout_pipe
+                }
+        
+        async def end_shell():
+            print("end_shell: ", self.proc.hProcess)
+            try:
+                self.proc.pi.stdin_queue.put(None)
+            except (asyncio.CancelledError, GeneratorExit):
+                raise
+            except:
+                pass
+            try:
+                kernel32.TerminateProcess(self.proc.pi.hProcess, 0)
+            except (asyncio.CancelledError, GeneratorExit):
+                raise
+            except:
+                pass
+            try:
+                kernel32.CloseHandle(self.proc.pi.hProcess)
+            except (asyncio.CancelledError, GeneratorExit):
+                raise
+            except:
+                pass
+            try:
+                kernel32.CloseHandle(self.proc.pi.hThread)
+            except (asyncio.CancelledError, GeneratorExit):
+                raise
+            except:
+                pass
+            try:
+                kernel32.ClosePseudoConsole(self.pty)
+            except (asyncio.CancelledError, GeneratorExit):
+                raise
+            except:
+                pass
+            try:
+                self.proc.stdout_pipe.close()
+            except (asyncio.CancelledError, GeneratorExit):
+                raise
+            except:
+                pass
+            try:
+                self.proc.stdin_pipe.close()
+            except (asyncio.CancelledError, GeneratorExit):
+                raise
+            except:
+                pass
+            try:
+                self.proc.th_read.join()
+            except (asyncio.CancelledError, GeneratorExit):
+                raise
+            except:
+                pass
+            try:
+                self.proc.th_write.join()
+            except (asyncio.CancelledError, GeneratorExit):
+                raise
+            except:
+                pass
 
 
         self.pid = None
