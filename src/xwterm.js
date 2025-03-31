@@ -958,6 +958,7 @@ export class AnsiTerm {
 		this.paste_button = null;
 		this.select_all_button = null;
 		this.hidden_input = null;
+		this.clipboard_text_helper = null;
 
 		this.container = null;
 		this.no_container = false;
@@ -1321,6 +1322,10 @@ if (false) {
 			this._on_mouse_move(event);
 		});
 
+		this.canvas.addEventListener("paste", (event) => {
+		    let text = event.clipboardData.getData("text");
+			this._send_data(text);
+		});
 
 		this.gc = this.canvas.getContext("2d");
 		this.gc.font = this.fullfont;
@@ -2824,6 +2829,19 @@ if (false) {
 		this.canvas.focus();
 	}
 
+
+	/**
+	 * This method sends the given sequence of characters
+	 * to the communication channel used by the terminal.
+	 *
+	 * @param {string} text - the text to send
+	 */ 
+	sendText(text)
+	{
+		this._send_data(text);
+	}
+
+
 	// DEBUG //
 	_dump()
 	{
@@ -2951,12 +2969,15 @@ if (false) {
 
 	_read_from_clipboard()
 	{
-		navigator.clipboard.readText().then((text) => {
-			this._send_data(text);
-		}).catch((error) => {
-			console.error('Error reading from clipboard:', error);
-		});
-		
+		try {
+			navigator.clipboard.readText().then((text) => {
+				this._send_data(text);
+			}).catch((err) => {
+				console.error('Error reading from clipboard:', err);
+			});
+		} catch (err) {
+			console.error('Error accessing clipboard:', err);
+		}
 	}
 
 	_clipboard_copy()
@@ -3004,23 +3025,40 @@ if (false) {
 		try {
 			blob_handler(t);
 		} catch {
-			/*		
-			const textArea = document.createElement("textarea");
-			textArea.value = t;
-			textArea.style.position = "fixed";
-			document.body.appendChild(textArea);
-			textArea.focus();
-			textArea.select();
-			try {
-					document.execCommand('copy', false, t);
-			} catch (err) {
-					console.error('Error writing to clipboard:', err);
-			} finally {
-					document.body.removeChild(textArea);
-			}
-			*/
 		}
 	}
+
+	_write_to_clipboard_helper(t, as_text)
+	{
+		try {
+			if (as_text) {
+				navigator.clipboard.writeText(t);
+			}
+			else {
+				navigator.clipboard.write(t);
+			}
+		}
+		catch {
+
+			try {
+				if (! this.clipboard_text_helper) {
+					this.clipboard_text_helper = document.createElement("textarea");
+					document.body.appendChild(this.clipboard_text_helper);
+				}
+				this.clipboard_text_helper.value = t;
+				this.clipboard_text_helper.select();
+
+				document.execCommand("copy");
+			
+			} catch (err) {
+				console.error('Error writing to clipboard:', err);
+			}
+			finally {
+				this.clipboard_text_helper.value = "";
+			}
+		}
+	}
+
 	
 	_write_to_clipboard_as_text()
 	{
@@ -3028,7 +3066,7 @@ if (false) {
 				return ch.ch;
 			}, 
 			(t) => {
-				navigator.clipboard.writeText(t);
+				this._write_to_clipboard_helper(t, true);
 			},
 			true);
 	}
@@ -3078,7 +3116,7 @@ if (false) {
 				let latin1Bytes = encoder.encode(t);
 				let blob = new Blob([latin1Bytes], { type: 'text/plain; charset=latin1' });
 				let cli = [ new ClipboardItem({ 'text/plain': blob }) ];
-				navigator.clipboard.write(cli);
+				this._write_to_clipboard_helper(cli, false);
 			},
 			true);
 	}
@@ -3146,7 +3184,7 @@ if (false) {
 				let mimetype = plain_text ? "text/plain" : "text/html";
 				let blob = new Blob([t], { type: mimetype });
 				let cli = [ new ClipboardItem({ [mimetype]: blob }) ];
-				navigator.clipboard.write(cli);	
+				this._write_to_clipboard_helper(cli, false);	
 			},
 			false);
 	}
