@@ -729,7 +729,8 @@ class Session:
 
         async def on_close(task):
             await self.shell.terminate()
-            del Session.sessions[self.sid]
+            if self.sid in Session.sessions:
+                del Session.sessions[self.sid]
             print("Session ", self.sid, ": exiting")
 
 
@@ -878,15 +879,16 @@ class Session:
         #print("Session cleaner started")
         while True:
             await asyncio.sleep(SESSION_IDLE_CHECK_PERIOD)
-            print("Session cleaner loop")
+            #print("Session cleaner loop")
             s = Session.sessions.copy()
             for sid in s:
                 session = s[sid]
                 if (time.time() - session.visited > SESSION_IDLE_TIMEOUT):
-                    print("Session ", sid, ": timeout -- closing...")
+                    #print("Session ", sid, ": timeout -- closing...")
                     await session.terminate()
                     print("Session ", sid, ": timeout -- closed")
-                    del Session.sessions[sid]
+                    if sid in Session.sessions:
+                        del Session.sessions[sid]
 
 
     def setup():
