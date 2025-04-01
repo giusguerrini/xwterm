@@ -137,6 +137,8 @@ const ANSITERM_DEFAULTS = {
 	// "dummy": a channel that does nothing.
 
 	// Parameters for "rest" channel type:
+	httpSessionHintParam:  "session", // Name of an additional parameter to (try to) connect to a particular session.
+	httpSessionHint:  "", // Value od the additional parameter to (try to) connect to a particular session. If empty, generates a new one internally.
 	httpSource:  "/?console", // GET request to receive characters from the server.
 	httpSize:  "/?size=?lines?x?columns?", // GET request to set the size of the terminal.
 	httpDest:  "/", // POST request to send characters to the server.
@@ -1453,11 +1455,6 @@ if (false) {
 
 		this.freeze_count = 0;
 
-		this.url_source = this.params.httpSource;
-		//this.url_source = this.params.url + this.params.httpSource;
-		this.url_dest = this.params.httpDest;
-		this.url_config = this.params.httpSize;
-		//this.url_dest = this.params.url + this.params.httpDest;
 		this.fullfont = this.params.fontSize.toString() + "px " + this.params.font;
 		this.status_fullfont = /* this.params.fontSize.toString() + "px " + */ this.params.statusFont;
 
@@ -1511,6 +1508,8 @@ if (false) {
 						httpSource: this.params.httpSource,
 						httpDest: this.params.httpDest,
 						httpSize: this.params.httpSize,
+						httpSessionHintParam: this.params.httpSessionHintParam,
+						httpSessionHint: this.params.httpSessionHint,
 					}
 				);
 				break;
@@ -3586,15 +3585,16 @@ class AnsiTermHttpDriver extends AnsiTermDriver
 
 	// Fix some defaults that can't be set in the defaults table.
 	
-		this.url_source = params.httpSource;
-		//this.url_source = this.url + this.httpSource;
-		this.url_dest = params.httpDest;
-		this.url_config = params.httpSize;
-
 		this.url = params.url || window.location.href;
 
 		this._set_connection_state(false);
 		//this._start_cycle(this.params.immediateRefresh);
+		
+		this.session_hint = this.params.httpSessionHint;
+		if (this.session_hint == "") {
+			this.session_hint = Date.now().toString(16);
+			this.session_hint += '0000000000000000'.substr(this.session_hint.length);
+		}
 	}
 	
 	start()
@@ -3634,8 +3634,24 @@ class AnsiTermHttpDriver extends AnsiTermDriver
 		this._start_cycle(timeout);
 	}
 
+	_add_session_hint(url)
+	{
+		if (this.params.httpSessionHintParam != "") {
+			if (url.match(/\?[^\/]*/)) {
+				url += '&';
+			}
+			else {
+				url += '?';
+			}
+			url += this.params.httpSessionHintParam + '=' + this.session_hint;
+		}
+		return url;
+	}
+
 	_send_request(url)
 	{
+		url = this._add_session_hint(url);
+
 		let xhr = new XMLHttpRequest();
 		
 		xhr.withCredentials = true;
@@ -3702,7 +3718,8 @@ class AnsiTermHttpDriver extends AnsiTermDriver
 			}
 		}
 		try {
-			xhr.open("POST", this.params.httpDest, true);
+			let url = this._add_session_hint(this.params.httpDest);
+			xhr.open("POST", url, true);
 			xhr.setRequestHeader('Content-Type', 'text/plain');
 			xhr.send(text)
 		} catch {

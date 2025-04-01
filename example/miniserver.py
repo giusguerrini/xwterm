@@ -196,6 +196,7 @@ DEFAULT_BIND_ADDRESS = '127.0.0.1'
 DEFAULT_HTTP_PORT = 8000
 CONSOLE_URL="/"
 DATA_REQUEST_PARAM="console"
+SESSION_HINT_PARAM="session"
 SET_SIZE_PARAM="size" # e.g. size=25x80
 DEFAULT_FILE="index.html"
 
@@ -816,33 +817,51 @@ class Session:
             print(e)
 
             
-    async def new_session():
-        sid = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+    async def new_session_by_sid(sid):
+        print("New session, ID = ", sid)
         session = Session(sid)
         #await Session.manager.add(session.job.main)
         return session
 
+    async def new_session():
+        sid = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+        return await Session.new_session_by_sid(sid)
+
     async def request_handler(request):
 
-        sid = request.cookies.get('session_id')
+        sid = None
+        hint = False
+        params = request.query
+        if SESSION_HINT_PARAM in params:
+            sid = params[SESSION_HINT_PARAM]
+            hint = True
+            #print("HINT = ", sid)
+
         if not sid:
-            #
-            # Hack: chrome on Windows ignore some cookies...
-            #
-            if "Cookie" in request.headers:
-                cl = request.headers["Cookie"]
-                cookies = {}
-                for cookie in cl.split('; '):
-                    key, value = cookie.split('=', 1)
-                    cookies[key] = value
-                if 'session_id' in cookies:
-                    sid = cookies['session_id']
+            sid = request.cookies.get('session_id')
+            if not sid:
+                #
+                # Hack: chrome on Windows ignore some cookies...
+                #
+                if "Cookie" in request.headers:
+                    cl = request.headers["Cookie"]
+                    cookies = {}
+                    for cookie in cl.split('; '):
+                        key, value = cookie.split('=', 1)
+                        cookies[key] = value
+                    if 'session_id' in cookies:
+                        sid = cookies['session_id']
 
         #print("Receive session ID: ", session_id or "");
-        if sid and sid in Session.sessions:
-            # Existing session
-            #print("Existing session: ", session_id);
-            session = Session.sessions[sid]
+        if sid:
+            if sid in Session.sessions:
+                # Existing session
+                #print("Existing session: ", session_id);
+                session = Session.sessions[sid]
+            elif hint:
+                session = await Session.new_session_by_sid(sid)      
+            else:
+                session = await Session.new_session()      
         else:
             # New session
             session = await Session.new_session()      
@@ -981,6 +1000,7 @@ async def websocket_server():
         async for data in ws:
             try:
                 await session.rxq.put(data)
+                session.visited = time.time()
             except (asyncio.CancelledError, GeneratorExit):
                 raise
             except Exception as e:
@@ -992,6 +1012,7 @@ async def websocket_server():
             try:
                 d = await session.txq.get()
                 await ws.send(json.dumps({ 'text': d }))
+                session.visited = time.time()
             except (asyncio.CancelledError, GeneratorExit):
                 raise
             except Exception as e:
