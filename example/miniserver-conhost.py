@@ -22,7 +22,7 @@
 # find any citation in aiohttp's changelog.
 #
 
-VERSION = '1.0'
+VERSION = '1.1'
 
 import os
 import sys
