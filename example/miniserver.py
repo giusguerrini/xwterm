@@ -415,30 +415,6 @@ class Shell:
 
     async def run_windows(self):
 
-# Set to True to emulate what OpenSSH does (no success yet...)
-
-        use_conhost = False #True
-
-# NOTE: OpenSSH for Windows creates tree NAMED PIPES and then launches
-# this process:
-#
-# command = 'conhost.exe --headless --width '
-#         + str(DEFAULT_NCOLUMNS) + ' --height ' + str(DEFAULT_NLINES)
-#         + ' --signal 0x' + hex(control_read.value) + '' + ' -- ' + command
-#
-# where "control_write" is the write side of the third pipe. It brings
-# screen size events.
-# It looks quite weird, but it works better than ConPTY...
-# ...but Microsoft recommends to use ConPTY...
-#
-# ...and here's how OpenSSH creates pipes for pty:
-#
-#           sec_attributes.bInheritHandle = TRUE;
-#	    sec_attributes.lpSecurityDescriptor = NULL;
-#	    sec_attributes.nLength = sizeof(sec_attributes);
-#           write_handle = CreateNamedPipeA(pipe_name, PIPE_ACCESS_OUTBOUND | FILE_FLAG_OVERLAPPED, PIPE_TYPE_BYTE | PIPE_WAIT, 1, 4096, 4096, 0, &sec_attributes);
-#           read_handle = CreateFileA(pipe_name, GENERIC_READ, 0, &sec_attributes, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
-
         command = "cmd.exe"
         #cmdargs = [ command, "/a" ]
         cmdargs = [ command]
@@ -460,15 +436,6 @@ class Shell:
         if not SetHandleInformation(stdout_read, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
             raise ctypes.WinError(ctypes.get_last_error())
 
-        if use_conhost:
-            control_read = wintypes.HANDLE()
-            control_write = wintypes.HANDLE()
-            if not CreatePipe(ctypes.byref(control_read), ctypes.byref(control_write), None, 1):
-                raise ctypes.WinError(ctypes.get_last_error())
-            if not SetHandleInformation(control_read, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
-                raise ctypes.WinError(ctypes.get_last_error())
-
-
         attr_size = SIZE_T()
         if not kernel32.InitializeProcThreadAttributeList(None, 1, 0, ctypes.byref(attr_size)):
             #raise ctypes.WinError(ctypes.get_last_error())
@@ -478,27 +445,23 @@ class Shell:
             raise ctypes.WinError(ctypes.get_last_error())
         self.pty = ctypes.c_void_p()
 
-        if use_conhost:
-            command = 'conhost.exe --headless --width ' + str(DEFAULT_NCOLUMNS) + ' --height ' + str(DEFAULT_NLINES) + ' --signal ' + hex(control_read.value) + '' + ' -- ' + command
-            print(command)
-        else:
-            size = COORD(DEFAULT_NCOLUMNS, DEFAULT_NLINES)
+        size = COORD(DEFAULT_NCOLUMNS, DEFAULT_NLINES)
 
-            rv = kernel32.CreatePseudoConsole(size, stdin_read, stdout_write, 0, ctypes.byref(self.pty))
-            if rv != 0:
-                raise ctypes.WinError(ctypes.get_last_error())
+        rv = kernel32.CreatePseudoConsole(size, stdin_read, stdout_write, 0, ctypes.byref(self.pty))
+        if rv != 0:
+            raise ctypes.WinError(ctypes.get_last_error())
 
-            success = True
-            success = kernel32.UpdateProcThreadAttribute(
-                    attr_list,
-                    0,
-                    PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
-                    self.pty,
-                    ctypes.sizeof(ctypes.c_void_p),
-                    None,
-                    None)
-            if not success:
-                raise ctypes.WinError(ctypes.get_last_error())
+        success = True
+        success = kernel32.UpdateProcThreadAttribute(
+                attr_list,
+                0,
+                PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
+                self.pty,
+                ctypes.sizeof(ctypes.c_void_p),
+                None,
+                None)
+        if not success:
+            raise ctypes.WinError(ctypes.get_last_error())
 
         startupinfo = STARTUPINFOWEX()
         startupinfo.StartupInfo.cb = ctypes.sizeof(startupinfo)
@@ -518,15 +481,13 @@ class Shell:
         pi = PROCESS_INFORMATION()
 
         flags = EXTENDED_STARTUPINFO_PRESENT
-        if use_conhost:
-            flags = flags | CREATE_NO_WINDOW
 
         success = CreateProcessW(
             None,
             ctypes.c_wchar_p(command),
             None,
             None,
-            use_conhost,
+            False,
             flags,
             None,
             None,
