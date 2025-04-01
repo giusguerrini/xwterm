@@ -2132,12 +2132,18 @@ if (false) {
 			if (this.x_lastblink < this.params.nColumns) {
 				let bg = this.params.background;
 				let fg = this.params.foreground;
+				let rv = this.reverse;
+				let ul = this.underline;
 				let ch = this.screen[this.y_lastblink][this.x_lastblink];
 				this.params.background = ch.background;
 				this.params.foreground = ch.foreground;
+				this.reverse = ch.reverse;
+				this.underline = ch.underline;
 				this._printchar_in_place(ch.ch, this.x_lastblink, this.y_lastblink);
 				this.params.background = bg;
 				this.params.foreground = fg;
+				this.reverse = rv;
+				this.underline = ul;
 			}
 		}
 		this.cursor_off = true;
