@@ -206,7 +206,7 @@ DEFAULT_WEBSOCKET_PORT = 8001
 DEBUG_FLAGS = {"async", "process", "session", "websocket"}
 
 SESSION_IDLE_CHECK_PERIOD = 10
-SESSION_IDLE_TIMEOUT = 1000 #30
+SESSION_IDLE_TIMEOUT = 20 #1000 #30
 
 bind_address = DEFAULT_BIND_ADDRESS
 http_port = DEFAULT_HTTP_PORT
@@ -730,7 +730,7 @@ class Session:
         async def on_close(task):
             await self.shell.terminate()
             del Session.sessions[self.sid]
-            #print("Session ", session.sid, ": exiting")
+            print("Session ", self.sid, ": exiting")
 
 
         self.job = AsyncJob(*tasks, name = self.sid,
@@ -878,14 +878,16 @@ class Session:
         #print("Session cleaner started")
         while True:
             await asyncio.sleep(SESSION_IDLE_CHECK_PERIOD)
-            #print("Session cleaner loop")
+            print("Session cleaner loop")
             s = Session.sessions.copy()
             for sid in s:
-                session = Session.sessions[sid]
+                session = s[sid]
                 if (time.time() - session.visited > SESSION_IDLE_TIMEOUT):
-                    #print("Session ", session.sid, ": timeout -- closing...")
+                    print("Session ", sid, ": timeout -- closing...")
                     await session.terminate()
-                    print("Session ", session.sid, ": timeout -- closed")
+                    print("Session ", sid, ": timeout -- closed")
+                    del Session.sessions[sid]
+
 
     def setup():
         Session.sessions = {}
