@@ -1,4 +1,13 @@
 # Changelog
+## [0.15.0] - 2025-04-02
+- Fixed handling of reverse and underline properties, they were conflicting with
+  cursor blink (TODO: this probably would apply to bold and italic too).
+- Miniserver.py: completed the support of ConPTY on Windows 10 (quite slow).
+- Completed RGB color handling (CSI 38;x;r;g;bm and similar sequences).
+- Added examples and documentation.
+- Added client-side session hints for HTTP connections, so it is possible
+  to open different sessions from the same web page.
+
 ## [0.14.0] - 2025-03-24
 - Fixed cursor position after the last character of a line is inserted. The cursor
   was placed at the beginning of the next line, but for ANSI-XTerm conformance, it
