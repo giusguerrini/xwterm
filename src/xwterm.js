@@ -1031,6 +1031,7 @@ export class AnsiTerm {
 				}),
 				"\x18": () => { this._init(); }, // CAN
 				"\x1A": () => { this._init(); }, // SUB
+				"\x00": () => {  },
 				"": () => { this._addparam(); },
 			},
 
