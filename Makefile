@@ -1,11 +1,11 @@
 SRC_DIR = src
 DIST_DIR = dist
-JS_FILE = xwterm.js
+SRCS = $(SRC_DIR)/scrollbar.js $(SRC_DIR)/xwterm.js
 MIN_JS_FILE = xwterm.min.js
 
-$(DIST_DIR)/$(MIN_JS_FILE): $(SRC_DIR)/$(JS_FILE) jsdoc.json README.md docs/*
+$(DIST_DIR)/$(MIN_JS_FILE): $(SRCS) jsdoc.json README.md docs/*
 	@mkdir -p $(DIST_DIR)
-	terser $(SRC_DIR)/$(JS_FILE) -o $(DIST_DIR)/$(MIN_JS_FILE)
+	terser $(SRCS) -o $(DIST_DIR)/$(MIN_JS_FILE)
 	npx jsdoc -c jsdoc.json
 
 clean:

@@ -113,6 +113,8 @@ const ANSITERM_DEFAULTS = {
 	nLines:  25, // Number of lines
 	nColumns:  80, // Number of columns
 
+	historySize: 0, //1000, // Number of lines in the history buffer.
+	
 	fontSize:  15, // Font size in pixels. It determines the size of the canvas.
 
 	font:  "Courier New", // Font name. A monospaced font is required (or at least suggested).
@@ -624,13 +626,16 @@ export class AnsiTermDecoration {
  * @param {Object|string} params - Configuration parameters or the ID of the div element to create the terminal in.
  * @param {number} [params.nLines=24] - Number of lines in the terminal.
  * @param {number} [params.nColumns=80] - Number of columns in the terminal.
- * @param {number} [params.fontSize=14] - Font size for the terminal text.
+ * @param {number} [params.historySize=1000] - Size of the history buffer.
+ * @param {number} [params.fontSize=15] - Font size for the terminal text.
  * @param {string} [params.font="monospace"] - Font family for the terminal text.
  * @param {string} [params.statusFont="monospace"] - Font family for the status bar text.
  * @param {string} [params.containerId=""] - ID of the container element to create the terminal in.
  * @param {string} [params.canvasId=""] - ID of the canvas element to use for the terminal.
  * @param {string} [params.url=""] - URL for the terminal's data source.
  * @param {string} [params.channelType=""] - Type of channel for communication.
+ * @param {string} [params.httpSessionHintParam="session"] - Name of an additional parameter to (try to) connect to a particular session.
+ * @param {string} [params.httpSessionHint=""] - Value od the additional parameter to (try to) connect to a particular session. If empty, generates a new one internally.
  * @param {string} [params.httpSource=""] - Source for the terminal's data.
  * @param {string} [params.httpSize=""] - Configuration URL for the terminal.
  * @param {string} [params.httpDest=""] - Destination URL for sending terminal data.
@@ -719,6 +724,7 @@ export class AnsiTerm {
 		this.blink_lists = [[], []];
 		this.blink_list = this.blink_lists[0];
 		this.cursor_off = true;
+		this.viewpoint = 0;
 	}
 
 	_selectscreen(f)
@@ -1329,6 +1335,7 @@ export class AnsiTerm {
 		this.clipboard_text_helper = null;
 		
 		this.decoration = null;
+		this.scrollbar = null;
 
 		this.container = null;
 		this.no_container = false;
@@ -1409,7 +1416,32 @@ export class AnsiTerm {
 		this.gc.font = this.fullfont;
 		this.gc.textBaseline = "bottom";
 
-		//this.scrollbar = new GenericScrollBarAdder(this.canvas);
+		if (this.params.historySize > 0) {
+			this.scrollbar = new GenericScrollBarAdder(this.canvas, {vertical: true, horizontal: false});
+			this.scrollbar.verticalScrollbar.setMinValue(0);
+			this.scrollbar.verticalScrollbar.setMaxValue(this.params.nLines - 1);
+			this.scrollbar.verticalScrollbar.setVisibleRangeSize(this.params.nLines);
+			this.scrollbar.verticalScrollbar.setValue(this.params.nLines - 1);
+			this.scrollbar.verticalScrollbar.registerOnChange( (rv)	=> {
+				rv.value = rv.minValue
+				         + (rv.value - rv.minValue)
+						  * ((rv.maxValue - rv.minValue - rv.visibleRangeSize + 1) / (rv.maxValue - rv.minValue));
+				rv.value = Math.floor(rv.value + 0.5);
+				console.log(rv);
+				if (rv.value != this.viewpoint) {
+					if ((this.viewpoint != 0) != (rv.value != 0)) {
+						if (rv.value != 0) {
+							this._inc_freeze();
+						}
+						else {
+							this._dec_freeze();
+						}
+					}
+					this.viewpoint = rv.value;
+					this._redraw();
+				}
+			});
+		}
 
 		this.canvas.focus();
 
@@ -1500,11 +1532,13 @@ export class AnsiTerm {
 		this.fullfont = this.params.fontSize.toString() + "px " + this.params.font;
 		this.status_fullfont = /* this.params.fontSize.toString() + "px " + */ this.params.statusFont;
 
+		this.history = [];
+		this.viewpoint = 0;
+
 		// Create elements and layout.
 		this._layout();
 		
 		this._create_palette();
-
 
 		this._reset();
 
@@ -2000,19 +2034,22 @@ export class AnsiTerm {
 		if (x0 + width >= this.params.nColumns) {
 			x0 = this.params.nColumns - width;
 		}
-		if (y0 < 0) {
-			y0 = 0;
+		let hl = this.history.length;
+		if (y0 < -hl) {
+			y0 = -hl;
 		}
 		if (y0 + height >= this.params.nLines) {
 			y0 = this.params.nLines - height;
 		}
 
 		//console.log("redraw",x0, y0, width, height);
+		let y0off = y0 < 0 ? -y0 : 0;
 
 		for (let y = y0; y < y0 + height; ++y) {
+			let ly = (y >= 0) ? this.screen[y] : this.history[y + hl];
 			for (let x = x0; x < x0 + width; ++x) {
 
-				let ch = this.screen[y][x];
+				let ch = ly[x];
 				this.params.background = ch.background;
 				this.params.foreground = ch.foreground;
 				this._setbold(ch.bold);
@@ -2021,7 +2058,7 @@ export class AnsiTerm {
 				this.blink = ch.blink;
 				this.reverse = ch.reverse;
 
-				this._printchar_in_place(ch.ch, x, y);
+				this._printchar_in_place(ch.ch, x, y + y0off);
 
 			}
 		}
@@ -2038,7 +2075,7 @@ export class AnsiTerm {
 
 	_redraw()
 	{
-		this._redraw_box(0, 0, this.params.nColumns, this.params.nLines);
+		this._redraw_box(0, this.viewpoint, this.params.nColumns, this.params.nLines);
 	}
 
 	_setfeature(a, f)
@@ -2320,9 +2357,39 @@ export class AnsiTerm {
 		}
 	}
 
+	_display()
+	{
+	}
+
+	_save_history()
+	{
+		if (this.history.length >= this.params.historySize) {
+			this.history.shift();
+		}
+		else {
+			this.scrollbar.verticalScrollbar.setMinValue( - this.history.length);
+		}
+		let line = [];
+		for (let i = 0; i < this.params.nColumns; ++i) {
+			// TODO: preserve blink state
+			line[i] = { ...this.screen[0][i] };
+		}
+		this.history.push(line);
+	}
+
 	_nextline()
 	{
 		if (this.posy >= this.scrollregion_h) {
+			// If the scroll region is not set
+			// we must store the first line
+			// in the history buffer. But we must not do this only if the
+			// current screen is not the alternate screen.
+			if (! this.alternate_screen) {
+				if (this.scrollregion_l == 0 && this.scrollregion_h == this.params.nLines - 1) {
+					this._save_history();
+				}
+			}
+
 			this._scroll();
 		}
 		else {

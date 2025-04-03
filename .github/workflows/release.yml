@@ -23,7 +23,7 @@ jobs:
         run: npm install terser -g
 
       - name: Minify JavaScript
-        run: terser src/xwterm.js -o dist/xwterm.min.js
+        run: terser src/scrollbar.js src/xwterm.js -o dist/xwterm.min.js
 
       - name: Install JSdoc
         run: npm install jsdoc -g
@@ -55,6 +55,7 @@ jobs:
       - name: Copy Additional Files
         run: |
           cp src/xwterm.js docs/
+          cp src/scrollbar.js docs/
           cp example/jsconsole.html docs/
       
       - name: Deploy to GitHub Pages

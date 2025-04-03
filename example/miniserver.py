@@ -929,6 +929,8 @@ async def get_files(request, session):
     fp = os.path.join(home_dir, file_path)
     if not os.path.exists(fp):
         fp = os.path.join(os.path.dirname(home_dir), "src", file_path)
+    if not os.path.exists(fp):
+        fp = os.path.join(os.path.dirname(home_dir), "dist", file_path)
     try:
         with open(fp, 'rb') as file:
             content = file.read()

@@ -1,4 +1,12 @@
 # Changelog
+## [0.16.0] - 2025-04-04
+- Fixed processing of title in Windows, where the string may contain a \x00
+- Code refactoring: the optional default decorations are now implemented
+  in a separate class; the terminal's core is much simpler now.
+- Added an experimental support of history (still incomplete). A custom
+  scrollbar has been used (scr/scrollbar.js), so at the moment the feature is
+  available only in the minified version of the terminal. Sorry.
+
 ## [0.15.0] - 2025-04-02
 - Fixed handling of reverse and underline properties, they were conflicting with
   cursor blink (TODO: this probably would apply to bold and italic too).
