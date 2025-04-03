@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "0.15.0";
+const ANSITERM_VERSION = "0.16.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -113,6 +113,8 @@ const ANSITERM_DEFAULTS = {
 	nLines:  25, // Number of lines
 	nColumns:  80, // Number of columns
 
+	historySize: 0, //1000, // Number of lines in the history buffer.
+	
 	fontSize:  15, // Font size in pixels. It determines the size of the canvas.
 
 	font:  "Courier New", // Font name. A monospaced font is required (or at least suggested).
@@ -215,27 +217,403 @@ function encodeHtml(html)
 	return encodeHtml_textarea.value;
 }
 
-  
 
-/*
-TODO: define classes for screen, cells, graphic states, etc.
+/**
+ * The AnsiTermDecoration class is an auxiliary class used by AnsiTerm
+ * to implement its default decoration.
+ * It is responsible for creating the title bar, the status bar, and
+ * the soft keyboard.
+ * 
+ * @class
+ * @param {AnsiTerm} term - The AnsiTerm instance to decorate.
+ * @param {HTMLCanvasElement} canvas - The canvas element to use for the terminal.
+ * @param {Object} params - Configuration parameters for the decoration. For a full list of parameters,
+ * see {@link ANSITERM_DEFAULTS} and {@link AnsiTerm}.
+ */
 
-class AnsiTermScreenCell {
+export class AnsiTermDecoration {
 
-}
+	_update_status_element(el, ok, text_ok, text_ko)
+	{
+		if (ok) {
+			el.style.color = this.params.statusForegroundOk;
+			el.style.backgroundColor = this.params.statusBackgroundOk;
+			el.innerText = text_ok;
+		}
+		else {
+			el.style.color = this.params.statusForegroundKo;
+			el.style.backgroundColor = this.params.statusBackgroundKo;
+			el.innerText = text_ko;
+		}
+	}
 
-class AnsiTermScreen {
+	//
+	// Layout generator.
+	//
+	_layout()
+	{
+		this.div = null;
+		this.title = null;
+		this.status_div_container = null;
+		this.freeze_div = null;
+		this.freeze_button = null;
+		this.status_div = null;
+		this.version_div = null;
+		this.copy_button = null;
+		this.copy_as_button = null;
+		this.paste_button = null;
+		this.select_all_button = null;
+		this.clipboard_text_helper = null;
 
-	constructor(nlines, ncolumns, fontsize, font, gc) {
-		this.params.nLines = nlines;
-		this.params.nColumns = ncolumns;
-		this.params.fontSize = fontsize;
-		this.params.font = font;
-		this.gc = gc;
-		this._reset();
+		this.container = null;
+		this.no_container = false;
+
+		if (this.params.containerId != "") {
+			this.container = document.getElementById(this.params.containerId);
+		}
+		if (! this.container) {
+			this.no_container = true;
+			this.params.autocenter = true;
+			this.container = document.body;
+		}
+
+		this.div = document.createElement("div");
+		this.div.style.width = "max-content";
+		if (this.params.autocenter) {
+			if (this.no_container) {
+				this.div.style.position = "absolute";
+			}
+			this.div.style.top = "50%";
+			this.div.style.left = "50%";
+			this.div.style.transform = "translate(-50%,-50%)";
+		}
+		this.container.appendChild(this.div);
+		this.div.classList.add("ansi-terminal");
+		this.div.style.display = "grid";
+		this.div.style.gridTemplateColumns = "auto";
+		this.title = document.createElement("div");
+		if (this.params.hasTitleBar) {
+			this.title.style.border = "2px solid black";
+			this.title.style.backgroundColor = this.params.titleBackground;
+			this.title.style.color = this.params.titleForeground;
+			this.title.style.font = this.status_fullfont;
+			this.div.appendChild(this.title);
+
+			this.term.registerOnTitleChange( (text) => {
+					this.title.innerText = text;
+				});
+
+		}
+		else {
+			this.title = null;
+		}
+		this.canvas.tabIndex = 0;
+		this.div.appendChild(this.canvas);
+		if (this.params.hasStatusBar) {
+			this.status_div_container = document.createElement("div");
+			this.status_div_container.style.font = this.status_fullfont;
+			this.status_div_container.style.border = "1px solid black";
+			this.status_div_container.style.display = "grid";
+			this.status_div_container.style.gridTemplateColumns
+			 = "fit-content(10%) fit-content(30%) auto fit-content(15%) fit-content(10%) fit-content(10%) fit-content(10%) fit-content(10%)";
+			this.div.appendChild(this.status_div_container);
+			this.freeze_button = document.createElement("button");
+			this.freeze_button.style.backgroundColor = this.params.keyboardBackground;
+			this.freeze_button.style.color = this.params.keyboardForeground;
+			this.freeze_button.innerText = "Freeze";
+			this.status_div_container.appendChild(this.freeze_button);
+			this.freeze_div = document.createElement("div");
+			this.freeze_div.style.font = this.status_fullfont;
+			this.freeze_div.style.backgroundColor = this.params.statusBackgroundOk;
+			this.freeze_div.style.color = this.params.statusForegroundOk;
+			this.freeze_div.style.border = "1px solid black";
+			this.freeze_div.style.paddingLeft = "6px";
+			this.freeze_div.style.paddingRight = "6px";
+			this.freeze_div.innerText = "Unfrozen";
+			this.status_div_container.appendChild(this.freeze_div);
+
+			this.term.registerOnFreezeChange( (frozen, length_pending, freeze_count) => {
+				this._update_status_element(this.freeze_div, !frozen, "Unfrozen", "Frozen [+" + freeze_count + "]- " + length_pending+ " bytes pending");
+			});
+			
+			this.status_div = document.createElement("div");
+			this.status_div.style.font = this.status_fullfont;
+			this.status_div.style.border = "1px solid black";
+			this.status_div.style.paddingLeft = "6px";
+			this.status_div.style.paddingRight = "6px";
+			this.status_div_container.appendChild(this.status_div);
+
+			this.term.registerOnStatusChange( (ok) => {
+				this._update_status_element(this.status_div, ok, "Connected", "Disconnected");
+			});
+
+			this.version_div = document.createElement("div");
+			this.version_div.style.font = this.status_fullfont;
+			this.version_div.style.backgroundColor = this.params.statusBackgroundOk;
+			this.version_div.style.color = this.params.statusForegroundOk;
+			this.version_div.style.border = "1px solid black";
+			this.version_div.style.paddingLeft = "6px";
+			this.version_div.style.paddingRight = "6px";
+			this.version_div.innerText = "xwterm " + AnsiTerm.getVersion();
+			this.status_div_container.appendChild(this.version_div);
+			this.select_all_button = document.createElement("button");
+			this.select_all_button.style.backgroundColor = this.params.keyboardBackground;
+			this.select_all_button.style.color = this.params.keyboardForeground;
+			this.select_all_button.innerText = "Select all";
+			this.status_div_container.appendChild(this.select_all_button);
+			this.copy_button = document.createElement("button");
+			this.copy_button.style.backgroundColor = this.params.keyboardBackground;
+			this.copy_button.style.color = this.params.keyboardForeground;
+			this.copy_button.innerText = "Copy";
+			this.status_div_container.appendChild(this.copy_button);
+			this.copy_as_button = document.createElement("button");
+			this.copy_as_button.style.backgroundColor = this.params.keyboardBackground;
+			this.copy_as_button.style.color = this.params.keyboardForeground;
+			this.copy_as_button.innerText = "Copy as...";
+			this.status_div_container.appendChild(this.copy_as_button);
+			this.paste_button = document.createElement("button");
+			this.paste_button.style.backgroundColor = this.params.keyboardBackground;
+			this.paste_button.style.color = this.params.keyboardForeground;
+			this.paste_button.innerText = "Paste";
+			this.status_div_container.appendChild(this.paste_button);
+		}
+		else {
+			this.status_div_container = null;
+			this.freeze_div = null;
+			this.freeze_button = null;
+			this.status_div = null;
+			this.version_div = null;
+			this.copy_button = null;
+			this.copy_as_button = null;
+			this.paste_button = null;
+			this.select_all_button = null;
+		}
+
+		if (this.params.hasSoftKeyboard) {
+			this.keyboard_div = document.createElement("div");
+			this.keyboard_div.style.display = "grid";
+			this.keyboard_div.style.gridTemplateColumns = "auto auto auto auto auto auto auto auto auto auto auto auto";
+			this.keyboard_div.style.border = "2px solid black";
+			this.div.appendChild(this.keyboard_div);
+
+			let button_properties = [];
+
+			for (let i = 0; i < 12; ++i) {
+				let t = "F" + (i+1);
+				let p = {
+					text: t,
+					key: { key: t, code: t, composed: false, ctrlKey: false, altKey: false, metaKey: false, },
+				};
+				button_properties.push(p);
+			}
+
+			button_properties.push({
+						text: "TAB",
+						key: { key: 'Tab', code: 'Tab', composed: false, ctrlKey: false, altKey: false, metaKey: false, },
+					});
+			button_properties.push({
+						text: "CTRL-L",
+						key: { key: 'l', code: 'KeyL', composed: true, ctrlKey: true, altKey: false, metaKey: false, },
+					});
+			button_properties.push({
+						text: "\x60 (Backquote)",
+						key: { key: "\x60", code: 'Backquote', composed: false, ctrlKey: false, altKey: false, metaKey: false, },
+					});
+			button_properties.push({
+						text: "\x7e (Tilde)",
+						key: { key: "\x7e", code: 'Tilde', composed: false, ctrlKey: false, altKey: false, metaKey: false, },
+					});
+			
+			for (let i = 0; i < button_properties.length; ++i) {
+				let e = null;
+				if (i >= 12 || this.params.hasSoftFKeys) {
+					e = document.createElement("button");
+					e.style.backgroundColor = this.params.keyboardBackground;
+					e.style.color = this.params.keyboardForeground;
+					e.innerText = button_properties[i].text;
+					e.addEventListener("click", (event) => {
+							this.term.sendKeyByKeyEvent(button_properties[i].key);
+						});
+					this.keyboard_div.appendChild(e);
+				}
+				if (i >= 12) {
+					e.style.gridColumnStart = (i - 12) * 3 + 1;
+					e.style.gridColumnEnd = (i - 12) * 3 + 4;
+				}
+			}
+		}
+		else {
+			this.keyboard_div = null;
+		}
+
+		if (this.params.hasStatusBar) {
+			this.select_all_button.addEventListener("click",
+				(event) => {
+					this.term.selectAll();
+				});
+
+			this.copy_button.addEventListener("click",
+				(event) => {
+					this.term.clipboardCopyAsText();
+				});
+
+			this.copy_as_button.addEventListener("click",
+				(event) => {
+					this.menu.showModal();
+					let r1 = this.copy_as_button.getBoundingClientRect();
+					let r2 = this.menu.getBoundingClientRect();
+					let x = Math.floor(event.x - event.offsetX - r2.width + r1.width);
+					let y = Math.floor(event.y - event.offsetY - r2.height);
+					this.menu.style.left = x + "px";
+					this.menu.style.top = y + "px";
+					});
+
+			this.paste_button.addEventListener("click",
+				(event) => {
+					this.term.clipboardPaste();
+				});
+
+			this.freeze_button.addEventListener("click",
+				(event) => {
+					this.term.toggleFreezeState();
+				});
+		}
+
+		this.menu = document.createElement("dialog");
+		//this.menu.open = false;
+		//this.menu.style.position = "absolute";
+		//this.menu.style.display = "inline-block";
+		//this.menu.style.visibility = "hidden";
+		this.menu.style.height = "max-content"; //"auto";
+		this.menu.style.width = "max-content"; //"auto";
+		this.menu.style.border = "3px solid " + this.params.titleForeground;
+		this.menu.style.margin = "0px";
+		this.menu.style.padding = "0px";
+		this.menu.style.backgroundColor = this.params.titleBackground;
+		this.menu.style.color = this.params.titleForeground;
+		//this.menu.style.font = this.status_fullfont;
+			
+		this.menu.innerText = "Copy as...";
+
+		this.menu_items = {
+			copy_as_is: {
+					text: "Text",
+					fn: () => {
+						this.term.clipboardCopyAsText();
+					}
+				},
+				/*
+			copy_and_trim: {
+					text: "Copy and trim spaces",
+					fn: () => {
+						
+					}
+				}, */
+			copy_as_ansi: {
+					text: "ANSI sequence",
+					fn: () => {
+						this.term.clipboardCopyAsAnsiSequence();
+					}
+				},
+			copy_as_html: {
+					text: "HTML",
+					fn: () => {
+						this.term.clipboardCopyAsHtml();
+					}
+				},
+			copy_as_rich_text: {
+					text: "Rich Text",
+					fn: () => {
+						this.term.clipboardCopyAsRichText();
+					}
+				},
+			quit: {
+					text: "Quit",
+					fn: () => {
+						this.term.clearSelection();
+					}
+				},
+
+		};
+
+		this.menu_div = document.createElement("div");
+		this.menu_div.style.border = "0px";
+		this.menu_div.style.margin = "0px";
+		this.menu_div.style.padding = "0px";
+		this.menu_div.style.display = "grid";
+		this.menu_div.style.gridTemplateColumns = "auto";
+		this.menu.appendChild(this.menu_div);
+
+		for (let key in this.menu_items) {
+			let e = document.createElement("button");
+			e.style.border = "1px solid " + this.params.titleForeground;;
+			e.style.margin = "0px";
+			e.style.padding = "0px";
+			e.style.backgroundColor = this.params.titleBackground;
+			e.style.color = this.params.titleForeground;
+			e.innerText = this.menu_items[key].text; 
+			e.addEventListener("click", (event) => {
+				this.menu_items[key].fn();
+				e.style.color = this.params.titleForeground;
+				e.style.backgroundColor = this.params.titleBackground;
+				this.menu.close();
+			});
+			e.addEventListener("mouseenter",
+				(event) => {
+					e.style.color = this.params.titleBackground;
+					e.style.backgroundColor = this.params.titleForeground;
+				}
+			);
+			e.addEventListener("mouseleave",
+				(event) => {
+					e.style.color = this.params.titleForeground;
+					e.style.backgroundColor = this.params.titleBackground;
+				}
+			);
+			this.menu_items[key].element = e;
+			this.menu_div.appendChild(e);
+		}
+
+		document.body.appendChild(this.menu);
+
+	}
+
+	constructor(term, canvas, params)
+	{
+		// Contructor's parameters and their defaut values:
+
+		// Some handy conventions:
+		// no parameters: apply defaults, create a new terminal in a new div.
+		// string parameter: apply defaults, create a new terminal in the div with the given id.
+		if (! params) {
+			params = "";
+		}
+		if (typeof params == 'string') {
+			params = { containerId: params };
+		}
+
+		// Apply defaults, overwrite with actual parameters
+		this.params = { ...ANSITERM_DEFAULTS, ...params };
+		this.term = term;
+		this.canvas = canvas;
+
+		this._layout();
+	}
+
+	/**
+	 * This method closes (deletes) the terminal's decorations.
+	 */
+	close()
+	{
+		if (this.div) {
+			this.div.remove();
+			this.div = null;
+		}
+		// TODO: unregister AnsiTerm's callbacks. Quite useless...
 	}
 }
-	*/
+
+
 
 /**
  * The AnsiTerm class represents an ANSI terminal emulator.
@@ -248,13 +626,16 @@ class AnsiTermScreen {
  * @param {Object|string} params - Configuration parameters or the ID of the div element to create the terminal in.
  * @param {number} [params.nLines=24] - Number of lines in the terminal.
  * @param {number} [params.nColumns=80] - Number of columns in the terminal.
- * @param {number} [params.fontSize=14] - Font size for the terminal text.
+ * @param {number} [params.historySize=1000] - Size of the history buffer.
+ * @param {number} [params.fontSize=15] - Font size for the terminal text.
  * @param {string} [params.font="monospace"] - Font family for the terminal text.
  * @param {string} [params.statusFont="monospace"] - Font family for the status bar text.
  * @param {string} [params.containerId=""] - ID of the container element to create the terminal in.
  * @param {string} [params.canvasId=""] - ID of the canvas element to use for the terminal.
  * @param {string} [params.url=""] - URL for the terminal's data source.
  * @param {string} [params.channelType=""] - Type of channel for communication.
+ * @param {string} [params.httpSessionHintParam="session"] - Name of an additional parameter to (try to) connect to a particular session.
+ * @param {string} [params.httpSessionHint=""] - Value od the additional parameter to (try to) connect to a particular session. If empty, generates a new one internally.
  * @param {string} [params.httpSource=""] - Source for the terminal's data.
  * @param {string} [params.httpSize=""] - Configuration URL for the terminal.
  * @param {string} [params.httpDest=""] - Destination URL for sending terminal data.
@@ -343,6 +724,7 @@ export class AnsiTerm {
 		this.blink_lists = [[], []];
 		this.blink_list = this.blink_lists[0];
 		this.cursor_off = true;
+		this.viewpoint = 0;
 	}
 
 	_selectscreen(f)
@@ -655,6 +1037,7 @@ export class AnsiTerm {
 				}),
 				"\x18": () => { this._init(); }, // CAN
 				"\x1A": () => { this._init(); }, // SUB
+				"\x00": () => {  },
 				"": () => { this._addparam(); },
 			},
 
@@ -947,366 +1330,32 @@ export class AnsiTerm {
 	//
 	_layout()
 	{
-		this.div = null;
 		this.canvas = null;
-		this.title = null;
-		this.status_div_container = null;
-		this.freeze_div = null;
-		this.freeze_button = null;
-		this.status_div = null;
-		this.version_div = null;
-		this.copy_button = null;
-		this.copy_as_button = null;
-		this.paste_button = null;
-		this.select_all_button = null;
 		this.hidden_input = null;
 		this.clipboard_text_helper = null;
+		
+		this.decoration = null;
+		this.scrollbar = null;
 
 		this.container = null;
 		this.no_container = false;
 
-		if (this.params.containerId != "") {
-			this.container = document.getElementById(this.params.containerId);
-		}
-		if (! this.container) {
-			this.no_container = true;
-			this.params.autocenter = true;
-			this.container = document.body;
-		}
-
 		if (this.params.canvasId != "") {
+			//
+			// Canvas created externally, it is supposed to be decorated by the caller.
+			//
 			this.canvas = document.getElementById(this.params.canvasId);
 		}
 		else {
-			this.div = document.createElement("div");
-			this.div.style.width = "max-content";
-			if (this.params.autocenter) {
-				if (this.no_container) {
-					this.div.style.position = "absolute";
-				}
-				this.div.style.top = "50%";
-				this.div.style.left = "50%";
-				this.div.style.transform = "translate(-50%,-50%)";
-			}
-			this.container.appendChild(this.div);
-			this.div.classList.add("ansi-terminal");
-			this.div.style.display = "grid";
-			this.div.style.gridTemplateColumns = "auto";
-			this.title = document.createElement("div");
-			if (this.params.hasTitleBar) {
-				this.title.style.border = "2px solid black";
-				this.title.style.backgroundColor = this.params.titleBackground;
-				this.title.style.color = this.params.titleForeground;
-				this.title.style.font = this.status_fullfont;
-				this.div.appendChild(this.title);
-			}
-			else {
-				this.title = null;
-			}
+			//
+			// Canvas created internally. We can apply the decoration, if required.
+			//
 			this.canvas = document.createElement("canvas");
-			this.canvas.tabIndex = 0;
-			this.div.appendChild(this.canvas);
-			if (this.params.hasStatusBar) {
-				this.status_div_container = document.createElement("div");
-				this.status_div_container.style.font = this.status_fullfont;
-				this.status_div_container.style.border = "1px solid black";
-				this.status_div_container.style.display = "grid";
-				this.status_div_container.style.gridTemplateColumns
-				= "fit-content(10%) fit-content(30%) auto fit-content(15%) fit-content(10%) fit-content(10%) fit-content(10%) fit-content(10%)";
-				this.div.appendChild(this.status_div_container);
-				this.freeze_button = document.createElement("button");
-				this.freeze_button.style.backgroundColor = this.params.keyboardBackground;
-				this.freeze_button.style.color = this.params.keyboardForeground;
-				this.freeze_button.innerText = "Freeze";
-				this.status_div_container.appendChild(this.freeze_button);
-				this.freeze_div = document.createElement("div");
-				this.freeze_div.style.font = this.status_fullfont;
-				this.freeze_div.style.backgroundColor = this.params.statusBackgroundOk;
-				this.freeze_div.style.color = this.params.statusForegroundOk;
-				this.freeze_div.style.border = "1px solid black";
-				this.freeze_div.style.paddingLeft = "6px";
-				this.freeze_div.style.paddingRight = "6px";
-				this.freeze_div.innerText = "Unfrozen";
-				this.status_div_container.appendChild(this.freeze_div);
-				this.status_div = document.createElement("div");
-				this.status_div.style.font = this.status_fullfont;
-				this.status_div.style.border = "1px solid black";
-				this.status_div.style.paddingLeft = "6px";
-				this.status_div.style.paddingRight = "6px";
-				this.status_div_container.appendChild(this.status_div);
-				this.version_div = document.createElement("div");
-				this.version_div.style.font = this.status_fullfont;
-				this.version_div.style.backgroundColor = this.params.statusBackgroundOk;
-				this.version_div.style.color = this.params.statusForegroundOk;
-				this.version_div.style.border = "1px solid black";
-				this.version_div.style.paddingLeft = "6px";
-				this.version_div.style.paddingRight = "6px";
-				this.version_div.innerText = "xwterm " + ANSITERM_VERSION;
-				this.status_div_container.appendChild(this.version_div);
-				this.select_all_button = document.createElement("button");
-				this.select_all_button.style.backgroundColor = this.params.keyboardBackground;
-				this.select_all_button.style.color = this.params.keyboardForeground;
-				this.select_all_button.innerText = "Select all";
-				this.status_div_container.appendChild(this.select_all_button);
-				this.copy_button = document.createElement("button");
-				this.copy_button.style.backgroundColor = this.params.keyboardBackground;
-				this.copy_button.style.color = this.params.keyboardForeground;
-				this.copy_button.innerText = "Copy";
-				this.status_div_container.appendChild(this.copy_button);
-				this.copy_as_button = document.createElement("button");
-				this.copy_as_button.style.backgroundColor = this.params.keyboardBackground;
-				this.copy_as_button.style.color = this.params.keyboardForeground;
-				this.copy_as_button.innerText = "Copy as...";
-				this.status_div_container.appendChild(this.copy_as_button);
-				this.paste_button = document.createElement("button");
-				this.paste_button.style.backgroundColor = this.params.keyboardBackground;
-				this.paste_button.style.color = this.params.keyboardForeground;
-				this.paste_button.innerText = "Paste";
-				this.status_div_container.appendChild(this.paste_button);
+			if (this.params.hasSoftFKeys || this.params.hasSoftKeyboard || this.params.hasStatusBar || this.params.hasTitleBar) {
+				this.decoration = new AnsiTermDecoration(this, this.canvas, this.params);
 			}
-			else {
-				this.status_div_container = null;
-				this.freeze_div = null;
-				this.freeze_button = null;
-				this.status_div = null;
-				this.version_div = null;
-				this.copy_button = null;
-				this.copy_as_button = null;
-				this.paste_button = null;
-				this.select_all_button = null;
-			}
-
-
-if (false) {
-
-			// Workaround for Safari, and mobiles in general, to
-			// make sure that the soft keyboard is shown when
-			// the user clicks on the canvas.
-			// The canvas is not focusable, so we create a hidden
-			// input field, and we focus it when the user clicks
-			// on the canvas. This will show the soft keyboard.
-			this.hidden_input = document.createElement('input');
-			this.hidden_input.type = 'text';
-			this.hidden_input.style.position = 'absolute';
-			this.hidden_input.style.top = "0px";
-			this.hidden_input.style.left = "0px";
-			this.hidden_input.style.opacity = '0';
-			this.hidden_input.setAttribute("autocomplete", "off");
-			this.hidden_input.setAttribute("autocorrect", "off");
-
-
-			this.hidden_input.style.pointerEvents = 'none';
-			document.body.appendChild(this.hidden_input);
-
-			this.canvas.addEventListener('click', () => {
-				//this.write("Click on canvas");
-				this.hidden_input.style.pointerEvents = 'auto';
-				this.hidden_input.focus();
-				this.hidden_input.style.pointerEvents = 'none';
-			});
-
-			//this.hidden_input.onkeydown = (event) => { this._on_keydown(event); };
-
-			this.hidden_input.addEventListener('input', (event) => {
-				//this.write("Input text: " + this.hidden_input.value + "\r\n");
-				this._send_data(this.hidden_input.value + "\r\n");
-				this.hidden_input.value = ''; // Clear the input after sending
-			});
-}
-
-
-			if (this.params.hasSoftKeyboard) {
-				this.keyboard_div = document.createElement("div");
-				this.keyboard_div.style.display = "grid";
-				this.keyboard_div.style.gridTemplateColumns = "auto auto auto auto auto auto auto auto auto auto auto auto";
-				this.keyboard_div.style.border = "2px solid black";
-				this.div.appendChild(this.keyboard_div);
-
-				let button_properties = [];
-
-				for (let i = 0; i < 12; ++i) {
-					let t = "F" + (i+1);
-					let p = {
-						text: t,
-						key: { key: t, code: t, composed: false, ctrlKey: false, altKey: false, metaKey: false, },
-					};
-					button_properties.push(p);
-				}
-
-				button_properties.push({
-							text: "TAB",
-							key: { key: 'Tab', code: 'Tab', composed: false, ctrlKey: false, altKey: false, metaKey: false, },
-						});
-				button_properties.push({
-							text: "CTRL-L",
-							key: { key: 'l', code: 'KeyL', composed: true, ctrlKey: true, altKey: false, metaKey: false, },
-						});
-				button_properties.push({
-							text: "\x60 (Backquote)",
-							key: { key: "\x60", code: 'Backquote', composed: false, ctrlKey: false, altKey: false, metaKey: false, },
-						});
-				button_properties.push({
-							text: "\x7e (Tilde)",
-							key: { key: "\x7e", code: 'Tilde', composed: false, ctrlKey: false, altKey: false, metaKey: false, },
-						});
-				
-				for (let i = 0; i < button_properties.length; ++i) {
-					let e = null;
-					if (i >= 12 || this.params.hasSoftFKeys) {
-						e = document.createElement("button");
-						e.style.backgroundColor = this.params.keyboardBackground;
-						e.style.color = this.params.keyboardForeground;
-						e.innerText = button_properties[i].text;
-						e.addEventListener("click", (event) => {
-								this.sendKeyByKeyEvent(button_properties[i].key);
-							});
-						this.keyboard_div.appendChild(e);
-					}
-					if (i >= 12) {
-						e.style.gridColumnStart = (i - 12) * 3 + 1;
-						e.style.gridColumnEnd = (i - 12) * 3 + 4;
-					}
-				}
-			}
-			else {
-				this.keyboard_div = null;
-			}
-
-			if (this.params.hasStatusBar) {
-				this.select_all_button.addEventListener("click",
-					(event) => {
-						this.selectAll();
-					});
-
-				this.copy_button.addEventListener("click",
-					(event) => {
-						this._clipboard_copy();
-					});
-
-				this.copy_as_button.addEventListener("click",
-					(event) => {
-						this.menu.showModal();
-						let r1 = this.copy_as_button.getBoundingClientRect();
-						let r2 = this.menu.getBoundingClientRect();
-						let x = Math.floor(event.x - event.offsetX - r2.width + r1.width);
-						let y = Math.floor(event.y - event.offsetY - r2.height);
-						this.menu.style.left = x + "px";
-						this.menu.style.top = y + "px";
-						});
-
-				this.paste_button.addEventListener("click",
-					(event) => {
-						this.clipboardPaste();
-					});
-
-				this.freeze_button.addEventListener("click",
-					(event) => {
-						this.toggleFreezeState();
-					});
-			}
-	
 		}
 
-		this.menu = document.createElement("dialog");
-		//this.menu.open = false;
-		//this.menu.style.position = "absolute";
-		//this.menu.style.display = "inline-block";
-		//this.menu.style.visibility = "hidden";
-		this.menu.style.height = "max-content"; //"auto";
-		this.menu.style.width = "max-content"; //"auto";
-		this.menu.style.border = "3px solid " + this.params.titleForeground;
-		this.menu.style.margin = "0px";
-		this.menu.style.padding = "0px";
-		this.menu.style.backgroundColor = this.params.titleBackground;
-		this.menu.style.color = this.params.titleForeground;
-		//this.menu.style.font = this.status_fullfont;
-			
-		this.menu.innerText = "Copy as...";
-	
-		this.menu_items = {
-			copy_as_is: {
-					text: "Text",
-					fn: () => {
-						this._clipboard_copy();
-					}
-				},
-				/*
-			copy_and_trim: {
-					text: "Copy and trim spaces",
-					fn: () => {
-						
-					}
-				}, */
-			copy_as_ansi: {
-					text: "ANSI sequence",
-					fn: () => {
-						this.clipboardCopyAsAnsiSequence();
-					}
-				},
-			copy_as_html: {
-					text: "HTML",
-					fn: () => {
-						this.clipboardCopyAsHtml();
-					}
-				},
-			copy_as_rich_text: {
-					text: "Rich Text",
-					fn: () => {
-						this.clipboardCopyAsRichText();
-					}
-				},
-			quit: {
-					text: "Quit",
-					fn: () => {
-						this._clear_selection();
-						this.canvas.focus();												
-					}
-				},
-
-		};
-
-
-
-		this.menu_div = document.createElement("div");
-		this.menu_div.style.border = "0px";
-		this.menu_div.style.margin = "0px";
-		this.menu_div.style.padding = "0px";
-		this.menu_div.style.display = "grid";
-		this.menu_div.style.gridTemplateColumns = "auto";
-		this.menu.appendChild(this.menu_div);
-
-		for (let key in this.menu_items) {
-			let e = document.createElement("button");
-			e.style.border = "1px solid " + this.params.titleForeground;;
-			e.style.margin = "0px";
-			e.style.padding = "0px";
-			e.style.backgroundColor = this.params.titleBackground;
-			e.style.color = this.params.titleForeground;
-			e.innerText = this.menu_items[key].text; 
-			e.addEventListener("click", (event) => {
-				this.menu_items[key].fn();
-				e.style.color = this.params.titleForeground;
-				e.style.backgroundColor = this.params.titleBackground;
-				this.menu.close();
-			});
-			e.addEventListener("mouseenter",
-				(event) => {
-					e.style.color = this.params.titleBackground;
-					e.style.backgroundColor = this.params.titleForeground;
-				}
-			);
-			e.addEventListener("mouseleave",
-				(event) => {
-					e.style.color = this.params.titleForeground;
-					e.style.backgroundColor = this.params.titleBackground;
-				}
-			);
-			this.menu_items[key].element = e;
-			this.menu_div.appendChild(e);
-		}
-
-		document.body.appendChild(this.menu);
-		
 		// Set up canvas' sensitivity to mouse events.
 		this.canvas.addEventListener("click", (event) => {
 			this._on_mouse_click(event);
@@ -1367,7 +1416,32 @@ if (false) {
 		this.gc.font = this.fullfont;
 		this.gc.textBaseline = "bottom";
 
-		//this.scrollbar = new GenericScrollBarAdder(this.canvas);
+		if (this.params.historySize > 0) {
+			this.scrollbar = new GenericScrollBarAdder(this.canvas, {vertical: true, horizontal: false});
+			this.scrollbar.verticalScrollbar.setMinValue(0);
+			this.scrollbar.verticalScrollbar.setMaxValue(this.params.nLines - 1);
+			this.scrollbar.verticalScrollbar.setVisibleRangeSize(this.params.nLines);
+			this.scrollbar.verticalScrollbar.setValue(this.params.nLines - 1);
+			this.scrollbar.verticalScrollbar.registerOnChange( (rv)	=> {
+				rv.value = rv.minValue
+				         + (rv.value - rv.minValue)
+						  * ((rv.maxValue - rv.minValue - rv.visibleRangeSize + 1) / (rv.maxValue - rv.minValue));
+				rv.value = Math.floor(rv.value + 0.5);
+				console.log(rv);
+				if (rv.value != this.viewpoint) {
+					if ((this.viewpoint != 0) != (rv.value != 0)) {
+						if (rv.value != 0) {
+							this._inc_freeze();
+						}
+						else {
+							this._dec_freeze();
+						}
+					}
+					this.viewpoint = rv.value;
+					this._redraw();
+				}
+			});
+		}
 
 		this.canvas.focus();
 
@@ -1458,11 +1532,13 @@ if (false) {
 		this.fullfont = this.params.fontSize.toString() + "px " + this.params.font;
 		this.status_fullfont = /* this.params.fontSize.toString() + "px " + */ this.params.statusFont;
 
+		this.history = [];
+		this.viewpoint = 0;
+
 		// Create elements and layout.
 		this._layout();
 		
 		this._create_palette();
-
 
 		this._reset();
 
@@ -1558,8 +1634,9 @@ if (false) {
 		this._clear_selection();
 		this.params.driver.close();
 		this._clear_timer();
-		if (this.div) {
-			this.div.remove();
+		if (this.decoration) {
+			this.decoration.close();
+			this.decoration = null;
 		}
 	}
 
@@ -1746,27 +1823,10 @@ if (false) {
 		}
 	}
 
-	_update_status_element(el, ok, text_ok, text_ko)
-	{
-		if (ok) {
-			el.style.color = this.params.statusForegroundOk;
-			el.style.backgroundColor = this.params.statusBackgroundOk;
-			el.innerText = text_ok;
-		}
-		else {
-			el.style.color = this.params.statusForegroundKo;
-			el.style.backgroundColor = this.params.statusBackgroundKo;
-			el.innerText = text_ko;
-		}
-	}
-
 	_set_status(ok)
 	{
 		if (this.status_ok != ok) {
 			this.on_status_change.forEach(callback => callback(ok));
-			if (this.status_div) {
-				this._update_status_element(this.status_div, ok, "Connected", "Disconnected");
-			}
 			this.status_ok = ok;
 		}
 	}
@@ -1810,9 +1870,6 @@ if (false) {
 			this.incoming_text = "";
 		}
 		this.on_freeze_change.forEach(callback => callback(frozen, this.incoming_text.length, this.freeze_count));
-		if (this.freeze_div) {
-			this._update_status_element(this.freeze_div, !frozen, "Unfrozen", "Frozen [x" + this.freeze_count + "]- " + this.incoming_text.length + " bytes pending");
-		}
 	}
 
 	_inc_freeze()
@@ -1884,12 +1941,6 @@ if (false) {
 	{
 		this.title_text = t;
 		this.on_title_change.forEach(callback => callback(t));
-		if (this.title) {
-			try {
-				this.title.innerText = t;
-			} catch {
-			}
-		}
 	}
 
 	/**
@@ -1983,19 +2034,22 @@ if (false) {
 		if (x0 + width >= this.params.nColumns) {
 			x0 = this.params.nColumns - width;
 		}
-		if (y0 < 0) {
-			y0 = 0;
+		let hl = this.history.length;
+		if (y0 < -hl) {
+			y0 = -hl;
 		}
 		if (y0 + height >= this.params.nLines) {
 			y0 = this.params.nLines - height;
 		}
 
 		//console.log("redraw",x0, y0, width, height);
+		let y0off = y0 < 0 ? -y0 : 0;
 
 		for (let y = y0; y < y0 + height; ++y) {
+			let ly = (y >= 0) ? this.screen[y] : this.history[y + hl];
 			for (let x = x0; x < x0 + width; ++x) {
 
-				let ch = this.screen[y][x];
+				let ch = ly[x];
 				this.params.background = ch.background;
 				this.params.foreground = ch.foreground;
 				this._setbold(ch.bold);
@@ -2004,7 +2058,7 @@ if (false) {
 				this.blink = ch.blink;
 				this.reverse = ch.reverse;
 
-				this._printchar_in_place(ch.ch, x, y);
+				this._printchar_in_place(ch.ch, x, y + y0off);
 
 			}
 		}
@@ -2021,7 +2075,7 @@ if (false) {
 
 	_redraw()
 	{
-		this._redraw_box(0, 0, this.params.nColumns, this.params.nLines);
+		this._redraw_box(0, this.viewpoint, this.params.nColumns, this.params.nLines);
 	}
 
 	_setfeature(a, f)
@@ -2303,9 +2357,39 @@ if (false) {
 		}
 	}
 
+	_display()
+	{
+	}
+
+	_save_history()
+	{
+		if (this.history.length >= this.params.historySize) {
+			this.history.shift();
+		}
+		else {
+			this.scrollbar.verticalScrollbar.setMinValue( - this.history.length);
+		}
+		let line = [];
+		for (let i = 0; i < this.params.nColumns; ++i) {
+			// TODO: preserve blink state
+			line[i] = { ...this.screen[0][i] };
+		}
+		this.history.push(line);
+	}
+
 	_nextline()
 	{
 		if (this.posy >= this.scrollregion_h) {
+			// If the scroll region is not set
+			// we must store the first line
+			// in the history buffer. But we must not do this only if the
+			// current screen is not the alternate screen.
+			if (! this.alternate_screen) {
+				if (this.scrollregion_l == 0 && this.scrollregion_h == this.params.nLines - 1) {
+					this._save_history();
+				}
+			}
+
 			this._scroll();
 		}
 		else {
@@ -3235,6 +3319,15 @@ if (false) {
 	} 
 
 	/**
+	 * This method clears the selection and returns the focus to the terminal.
+	 */
+	clearSelection()
+	{
+		this._clear_selection();
+		this.canvas.focus();
+	}
+
+	/**
 	 * This method selects the entire screen.
 	 * It implements the "Select all" button function.
 	 */
@@ -3422,6 +3515,8 @@ export class AnsiTermDriver
 		this.on_connection_change = null;
 		this.connection_state = true;
 		this.started = false;
+		this.columns = 0;
+		this.rows = 0;
 	}
 
 	/**
@@ -3448,7 +3543,7 @@ export class AnsiTermDriver
 	 */
 	registerOnDataReceived(on_data_received)
 	{
-			this.on_data_received = on_data_received;
+		this.on_data_received = on_data_received;
 	}
 	/**
 	 * Used by AnsiTerm to register a notification callback
@@ -3461,7 +3556,7 @@ export class AnsiTermDriver
 	 */
 	registerOnConnectionChange(on_connection_change)
 	{
-			this.on_connection_change = on_connection_change;
+		this.on_connection_change = on_connection_change;
 	}
 
 	/**
@@ -3578,7 +3673,7 @@ export class AnsiTermDriver
  * NOTE: not exported by the module.
  */
 
-class AnsiTermHttpDriver extends AnsiTermDriver
+export class AnsiTermHttpDriver extends AnsiTermDriver
 {
 	constructor(params)
 	{
@@ -3792,7 +3887,7 @@ class AnsiTermHttpDriver extends AnsiTermDriver
  * NOTE: not exported by the module.
  */
 
-class AnsiTermWebSocketDriver extends AnsiTermDriver
+export class AnsiTermWebSocketDriver extends AnsiTermDriver
 {
 	constructor(params)
 	{
