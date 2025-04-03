@@ -597,6 +597,18 @@ export class AnsiTermDecoration {
 
 		this._layout();
 	}
+
+	/**
+	 * This method closes (deletes) the terminal's decorations.
+	 */
+	close()
+	{
+		if (this.div) {
+			this.div.remove();
+			this.div = null;
+		}
+		// TODO: unregister AnsiTerm's callbacks. Quite useless...
+	}
 }
 
 
@@ -1311,7 +1323,6 @@ export class AnsiTerm {
 	//
 	_layout()
 	{
-		this.div = null;
 		this.canvas = null;
 		this.hidden_input = null;
 		this.clipboard_text_helper = null;
@@ -1322,14 +1333,19 @@ export class AnsiTerm {
 		this.no_container = false;
 
 		if (this.params.canvasId != "") {
+			//
+			// Canvas created externally, it is supposed to be decorated by the caller.
+			//
 			this.canvas = document.getElementById(this.params.canvasId);
 		}
 		else {
+			//
+			// Canvas created internally. We can apply the decoration, if required.
+			//
 			this.canvas = document.createElement("canvas");
-		}
-
-		if (this.params.hasSoftFKeys || this.params.hasSoftKeyboard || this.params.hasStatusBar || this.params.hasTitleBar) {
-			this.decoration = new AnsiTermDecoration(this, this.canvas, this.params);
+			if (this.params.hasSoftFKeys || this.params.hasSoftKeyboard || this.params.hasStatusBar || this.params.hasTitleBar) {
+				this.decoration = new AnsiTermDecoration(this, this.canvas, this.params);
+			}
 		}
 
 		// Set up canvas' sensitivity to mouse events.
@@ -1583,8 +1599,9 @@ export class AnsiTerm {
 		this._clear_selection();
 		this.params.driver.close();
 		this._clear_timer();
-		if (this.div) {
-			this.div.remove();
+		if (this.decoration) {
+			this.decoration.close();
+			this.decoration = null;
 		}
 	}
 
