@@ -247,6 +247,7 @@ class GenericScrollBar {
 		let val = (limit <= 0) ? 0 : (clickPosition / limit);
 		this.setValue(this.min_value + val * (this.max_value - this.min_value));
 		this._signalNewValue();
+		this.controlled_element.focus();
 	}
 
 	_onButtonIntMouseDown(event)
@@ -267,6 +268,7 @@ class GenericScrollBar {
 		this.mouse_down = false;
 		document.removeEventListener("mouseup", this._onDocumentMouseUp.bind(this));
 		document.removeEventListener("mousemove", this._onDocumentMouseMove.bind(this));
+		this.controlled_element.focus();
 	}
 
 	_onDocumentMouseMove(event)
@@ -309,6 +311,7 @@ class GenericScrollBar {
 		if (this.visible_range_size > 0) {
 			this.setValue(this.curr_value - this.visible_range_size);
 			this._signalNewValue();
+			this.controlled_element.focus();
 		}
 	}
 
@@ -317,6 +320,7 @@ class GenericScrollBar {
 		if (this.visible_range_size > 0) {
 			this.setValue(this.curr_value + this.visible_range_size);
 			this._signalNewValue();
+			this.controlled_element.focus();
 		}
 	}
 
@@ -385,7 +389,7 @@ class GenericScrollBar {
 			const m = this.mutable_properties;
 
 			let r = this.div_int.getBoundingClientRect();
-			let v = this.visible_range_size / range;
+			let v = this.visible_range_size / (this.visible_range_size  + range);
 			if (v > 1) {
 				v = 1;
 			}
@@ -525,8 +529,6 @@ class GenericScrollBarAdder {
 			} catch {
 			}
 		}
-		this.controlled_element.style.border = "none";
-		this.controlled_element.style.margin = "0";
 		if (this.vertical) {
 			this.div.style.gridTemplateColumns = "auto auto";
 		}
@@ -539,6 +541,9 @@ class GenericScrollBarAdder {
 		if (this.controlled_element) {
 			this.controlled_element.parentNode.replaceChild(this.div, this.controlled_element);
 			this.div.appendChild(this.controlled_element);
+			this.controlled_element.style.border = "none";
+			this.controlled_element.style.borderRadius = "0";
+			this.controlled_element.style.margin = "0";
 		}
 		if (isIE11()) {
 			this.controlled_element.style.setProperty("-ms-grid-column", "1");

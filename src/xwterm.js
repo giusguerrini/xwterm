@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "0.16.0";
+const ANSITERM_VERSION = "0.17.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -103,7 +103,7 @@ const ANSITERM_VERSION = "0.16.0";
 	https://www.commandlinux.com/man-page/man4/console_codes.4.html
 */			
 
-//import "./scrollbar.js";
+import "./scrollbar.js";
 
 // DEFAULTS
 
@@ -113,7 +113,7 @@ const ANSITERM_DEFAULTS = {
 	nLines:  25, // Number of lines
 	nColumns:  80, // Number of columns
 
-	historySize: 0, //1000, // Number of lines in the history buffer.
+	historySize: 1000, // Number of lines in the history buffer.
 	
 	fontSize:  15, // Font size in pixels. It determines the size of the canvas.
 
@@ -1419,13 +1419,13 @@ export class AnsiTerm {
 		if (this.params.historySize > 0) {
 			this.scrollbar = new GenericScrollBarAdder(this.canvas, {vertical: true, horizontal: false});
 			this.scrollbar.verticalScrollbar.setMinValue(0);
-			this.scrollbar.verticalScrollbar.setMaxValue(this.params.nLines - 1);
+			this.scrollbar.verticalScrollbar.setMaxValue(0 /*this.params.nLines - 1*/);
 			this.scrollbar.verticalScrollbar.setVisibleRangeSize(this.params.nLines);
 			this.scrollbar.verticalScrollbar.setValue(this.params.nLines - 1);
 			this.scrollbar.verticalScrollbar.registerOnChange( (rv)	=> {
 				rv.value = rv.minValue
 				         + (rv.value - rv.minValue)
-						  * ((rv.maxValue - rv.minValue - rv.visibleRangeSize + 1) / (rv.maxValue - rv.minValue));
+						  ; //* ((rv.maxValue - rv.minValue - rv.visibleRangeSize + 1) / (rv.maxValue - rv.minValue));
 				rv.value = Math.floor(rv.value + 0.5);
 				console.log(rv);
 				if (rv.value != this.viewpoint) {
