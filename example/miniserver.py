@@ -1103,7 +1103,7 @@ async def do_GET(request, session):
         await session.activate()
 
         if (SET_SIZE_PARAM in params): 
-            await session.set_size_from_text(params[SET_SIZE_PARAM])
+            session.set_size_from_text(params[SET_SIZE_PARAM])
 
         text = ""
         try:
