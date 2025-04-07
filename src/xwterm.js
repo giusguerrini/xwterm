@@ -1226,6 +1226,15 @@ export class AnsiTerm {
 			"F10": "\x1b[21~",
 			"F11": "\x1b[23~",
 			"F12": "\x1b[24~",
+
+			// IE11 hacks:
+			"Spacebar": " ",
+			"Up": "\x1b[A",
+			"Down": "\x1b[B",
+			"Right": "\x1b[C",
+			"Left": "\x1b[D",
+			"Ins": "\x1b[2~",
+			"Del": "\x1b[3~",
 	};
 
 	static key_translations_app = {
@@ -1397,10 +1406,22 @@ export class AnsiTerm {
 		//[..."\u2500|"].forEach(e => {
 		[..."X|"].forEach(e => {
 				let cm = this.gc.measureText(e);
+			console.log("Text = '" + e + "' cm =");
+			console.log(cm);
 				// Sometimes the measures are not integers, so we
 				// round them to the nearest integer.
 				let w = Math.floor(cm.actualBoundingBoxLeft + cm.actualBoundingBoxRight + 0.5);
 				let h = Math.floor(cm.fontBoundingBoxAscent + cm.fontBoundingBoxDescent + 0.5);
+
+				//// Hacks for IE11
+				if (! w) {
+					w = Math.floor(cm.width + 0.5);
+				}
+				if (! h) {
+					h = Math.floor(this.params.fontSize + 0.5);
+				}
+				////
+	
 				if (w > this.charwidth) {
 					this.charwidth = w;
 				}
@@ -1416,6 +1437,10 @@ export class AnsiTerm {
 		}
 		this.width = this.charwidth * this.params.nColumns;
 		this.height = this.charheight * this.params.nLines;
+
+		console.log("charwidth = " + this.charwidth + " nColumns = " + this.params.nColumns);
+		console.log("charheight = " + this.charheight + " nLines = " + this.params.nLines);
+
 		//this.gc.canvas.width = this.width;
 		//this.gc.canvas.height = this.height;
 		this.gc.canvas.width = this.width;
@@ -2838,8 +2863,8 @@ export class AnsiTerm {
 		let key;
 		let e = {
 			key: ev.key,
-			code: ev.code,
-			composed: ev.composed,
+			code: ev.code || ev.key, // Hack for IE11
+			composed: (("composed" in ev) ? ev.composed : (ev.ctrlKey || ev.altKey || ev.metaKey)), // Hack for IE11
 			ctrlKey: ev.ctrlKey,
 			altKey: ev.altKey,
 			metaKey: ev.metaKey,

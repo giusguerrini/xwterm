@@ -36,8 +36,10 @@ module.exports = {
   resolve: {
     extensions: ['.js'],
   },
-   optimization: {
+/*
+  optimization: {
     minimize: true,
     minimizer: [new TerserPlugin()]
   },
+  */
 };
