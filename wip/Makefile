@@ -1,14 +1,14 @@
 
-all:: src dest dest/scrollbar.js
+all:: src dest dest/xwterm.js
 
-dest/scrollbar.js: src/scrollbar.js package.json babel.config.js webpack.config.js src/example-scroll.js src/index.js
+dest/xwterm.js: src/xwterm.js src/scrollbar.js src/index.js package.json babel.config.js webpack.config.js
 	npx webpack
 
 src/scrollbar.js: ../src/scrollbar.js
 	copy /y ..\src\scrollbar.js src\scrollbar.js
 
-src/example-scroll.js: example-scroll.js
-	copy /y example-scroll.js src\example-scroll.js
+src/xwterm.js: ../src/xwterm.js
+	copy /y ..\src\xwterm.js src\xwterm.js
 
 src/index.js: index.js
 	copy /y index.js src\index.js
@@ -23,7 +23,9 @@ package.json:
 	npm init -y
 	npm install --save-dev @babel/core @babel/cli @babel/preset-env
 	npm install --save-dev @babel/plugin-transform-modules-commonjs
+	npm install --save-dev babel-plugin-transform-remove-strict-mode
 	npm install --save-dev webpack webpack-cli
+	npm install --save-dev terser-webpack-plugin
 	npm install --save-dev babel-loader
 	npm install --save-dev core-js@3 
 	npm install --save-dev jsdoc

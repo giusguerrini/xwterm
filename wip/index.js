@@ -13,5 +13,13 @@ context.keys().forEach(key => {
 Object.assign(window, exportedClasses);
 */
 
-import './scrollbar.js'
+import { AnsiTerm, AnsiTermDriver, AnsiTermDriverHttp, AnsiTermDriverWebsocket} from './xwterm.js';
+
+
+window.AnsiTerm = AnsiTerm;
+window.AnsiTermDriver = AnsiTermDriver;
+window.AnsiTermDriverHttp = AnsiTermDriverHttp;
+window.AnsiTermDriverWebsocket = AnsiTermDriverWebsocket;
+
+
 

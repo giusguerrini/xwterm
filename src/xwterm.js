@@ -606,7 +606,15 @@ export class AnsiTermDecoration {
 	close()
 	{
 		if (this.div) {
-			this.div.remove();
+			if (this.div.remove) {
+				this.div.remove();
+			}
+			else {
+			// Workaround for IE11
+				if (this.div.parentNode) {
+					this.div.parentNode.removeChild(this.div);
+				}
+			}
 			this.div = null;
 		}
 		// TODO: unregister AnsiTerm's callbacks. Quite useless...

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+ <meta charset="UTF-8">
+<style type="text/css">
+	canvas {
+		border: 2px solid #8080ff;
+		margin: 0px auto;
+		text-align: left;
+	}
+	.basic-example {
+		border: 2px solid #8080FF;
+		border-radius: 20px;
+		margin: 20px auto;
+		background-color: #f2f2e0; 
+	}
+	div.basic-example {
+		width: auto;
+		padding: 40px auto;
+		margin: 40px auto;
+	}
+	button.basic-example  {
+		margin: 40px auto;
+		padding: 40px auto;
+	}
+</style>
+</head>
+<body>
+	<div id="main-div" class="basic-example" style="display: grid; grid-template-columns: auto; place-items: center;">
+		<p>Basic terminal example</p>
+		<div style="display: grid; grid-template-columns: auto auto auto; padding: 20px; gap: 20px;">
+			<button onclick="start_terminal('http')">Start terminal using HTTP channel</button>
+			<button onclick="start_terminal('websocket')">Start terminal using WebSocket channel</button>
+			<button onclick="start_terminal('dummy')">Start terminal using Dunny channel</button>
+		</div>
+		<hr>
+		<div id="terminal-div"></div>
+	</div>
+
+	<script src="./dest/xwterm.js"></script>
+	<script>
+
+		var ansi = null;
+
+		function start_terminal(channel_type)
+		{
+			if (ansi) {
+				ansi.close();
+			}
+			
+			ansi = new AnsiTerm.AnsiTerm( 
+			/* Zero-effort: Nothing at all, if you want the program to create a div for you  and apply default properties*/
+		
+					/* User-provided div:
+					"mydiv"
+					*/
+					
+					{
+					containerId: "terminal-div",
+					autocenter: false,
+
+					channelType: channel_type,
+					wsEndpoint: window.location.host.replace(':8000',':8001'), //for websocket, ignored in other cases
+					/* Changing size:
+					*/
+					nLines : 40,
+					nColumns : 120,
+					fontSize : 12,
+					}
+		
+					/* Chaning some more properties:
+					{
+					"nLines" : 40,
+					"nColumns" : 120,
+					"fontSize" : 13, //15
+					"font" : "Courier New",
+					"immediateRefresh" : 70,
+					"fastRefresh" : 500,
+					"slowRefresh" : 2000,
+					}
+					*/
+				);
+		}
+		
+		window.start_terminal = start_terminal;
+
+	</script>
+</body>
+</html>
