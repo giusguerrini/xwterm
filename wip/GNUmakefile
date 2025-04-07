@@ -1,5 +1,5 @@
 
-all:: src dest dest/scrollbar.js
+all:: src dest dest/xwterm.js
 
 dest/xwterm.js: src/xwterm.js src/scrollbar.js src/index.js package.json babel.config.js webpack.config.js
 	npx webpack
