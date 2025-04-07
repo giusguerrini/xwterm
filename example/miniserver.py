@@ -536,7 +536,7 @@ class Shell:
             if not SetHandleInformation(inh, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
                 raise ctypes.WinError(ctypes.get_last_error())
 
-        if False and use_conhost: # Disabled..
+        if False and use_conhost: # Doesn't work...
             winpipe(control_read, control_write, True)
             control_fd = msvcrt.open_osfhandle(control_write.value, os.O_WRONLY)
             control_pipe = os.fdopen(control_fd, 'wb')
@@ -606,12 +606,8 @@ class Shell:
             startupinfo.StartupInfo.hStdOutput = stdout_write
             startupinfo.StartupInfo.hStdError = stdout_write
 
-            if use_conhost:
-                stdin_fd = stdin_write.value
-                stdout_fd = stdout_read.value
-            else:
-                stdin_fd = msvcrt.open_osfhandle(stdin_write.value, os.O_WRONLY)
-                stdout_fd = msvcrt.open_osfhandle(stdout_read.value, os.O_RDONLY)
+            stdin_fd = msvcrt.open_osfhandle(stdin_write.value, os.O_WRONLY)
+            stdout_fd = msvcrt.open_osfhandle(stdout_read.value, os.O_RDONLY)
 
             stdin_pipe = os.fdopen(stdin_fd, 'wb')
             stdout_pipe = os.fdopen(stdout_fd, 'rb')
@@ -642,7 +638,7 @@ class Shell:
             if not success:
                 raise ctypes.WinError(ctypes.get_last_error())
 
-            if use_conhost:
+            if False and use_conhost: # Doesn't work...
                 #
                 # The OpenSSH way is officially unsupported by Microsoft,
                 # but it allows to open pipes in OVERLAPPED mode, so they
