@@ -539,7 +539,7 @@ class Shell:
         if use_conhost:
             winpipe(control_read, control_write, True)
             control_fd = msvcrt.open_osfhandle(control_write.value, os.O_WRONLY)
-            control_pipe = os.fdopen(control_fd, 'wb')NN
+            control_pipe = os.fdopen(control_fd, 'wb')
             process = await asyncio.create_subprocess_exec(
                 'conhost.exe',  '--headless', 
                 '--width', str(DEFAULT_NCOLUMNS), '--height', str(DEFAULT_NLINES),
