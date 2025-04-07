@@ -625,13 +625,16 @@ class Shell:
             # interoperate with asyncio without hacks.
             #
             loop = asyncio.get_running_loop()
-            writer = asyncio.StreamWriter(stdin_pipe, loop=loop)
+            writer_transport, writer_protocol = await loop.connect_write_pipe(lambda: asyncio.streams.FlowControlMixin(loop=loop), stdin_pipe)
+            writer = asyncio.streams.StreamWriter(writer_transport, writer_protocol, None, loop)
             reader = asyncio.StreamReader()
             protocol = asyncio.StreamReaderProtocol(reader)
             await loop.connect_read_pipe(lambda: protocol, stdout_pipe)
             control_fd = msvcrt.open_osfhandle(control_write.value, os.O_WRONLY)
             control_pipe = os.fdopen(control_fd, 'wb')
-            control = asyncio.StreamWriter(control_pipe, loop=loop)
+            control_transport, control_protocol = await loop.connect_write_pipe(lambda: asyncio.streams.FlowControlMixin(loop=loop), control_pipe)
+            control = asyncio.streams.StreamWriter(control_transport, control_protocol, None, loop)
+
 
             proc = {
                     "pi": pi,
