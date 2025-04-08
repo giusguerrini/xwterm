@@ -274,6 +274,8 @@ enable_welcome = True
 # Set to True to emulate what OpenSSH does on Windows.
 # It is not the recommended way to use ConPTY, but it works.
 use_conhost = False #True
+# If True, a direct asyncio pipe is
+conhost_mode = 'thread' # 'subproc', 'pipe'
 
 
 if platform.system() == "Linux":
@@ -536,7 +538,7 @@ class Shell:
             if not SetHandleInformation(inh, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
                 raise ctypes.WinError(ctypes.get_last_error())
 
-        if False and use_conhost: # Doesn't work...
+        if use_conhost and (conhost_mode == 'subproc'): # Doesn't work...
             winpipe(control_read, control_write, True)
             control_fd = msvcrt.open_osfhandle(control_write.value, os.O_WRONLY)
             control_pipe = os.fdopen(control_fd, 'wb')
@@ -638,7 +640,7 @@ class Shell:
             if not success:
                 raise ctypes.WinError(ctypes.get_last_error())
 
-            if False and use_conhost: # Doesn't work...
+            if use_conhost and (conhost_mode == 'pipe'): # Doesn't work...
                 #
                 # The OpenSSH way is officially unsupported by Microsoft,
                 # but it allows to open pipes in OVERLAPPED mode, so they
@@ -1290,6 +1292,7 @@ if __name__ == '__main__':
         print(' '+bold+'-no-http'+comment+'Disable HTTP service')
         print(' '+bold+'-no-websocket'+comment+'Disable WebSocket service')
         print(' '+bold+'-use-conhost'+comment+'Use conhost.exe instead of ConPTY (not officially supported - Windows only)')
+        print(' '+bold+'-conhost-mode'+italic+'thread'+orop+'pipe'+orop+'subproc'+comment+'Internals about conhost usage. Default=thread (the only one that works')
         print(' '+bold+'-fix-aiohttp'+comment+'Launch WebSocket server in a separate process to prevent aiohttp bug')
         print(' '+bold+'-d'+orop+'-debug'+comment+'Enable debug mode')
         print(' '+bold+'-q'+orop+'-quiet'+comment+'Quiet mode, no messages')
@@ -1305,7 +1308,7 @@ if __name__ == '__main__':
         opt = opt.replace('--', '-')
         args = args[1:]
         #print('"' + opt + '"')
-        if opt in [ "-http", "-httpport", "-bind", "-bindaddr", "-ws", "-wsport", "-websocket", "-websocketport" ]:
+        if opt in [ "-http", "-httpport", "-bind", "-bindaddr", "-ws", "-wsport", "-websocket", "-websocketport", "-conhost-mode" ]:
 
             if len(args) == 0:
                 usage()
@@ -1317,6 +1320,8 @@ if __name__ == '__main__':
                 websocket_port = arg
             elif opt in [ "-bind", "-bindaddr" ]:
                 bind_address = arg
+            elif opt in [ "-conhost-mode" ]:
+                conhost_mode = arg
             
         elif opt in [ "-h", "-help", "-no-http", "-no-websocket", "-d", "-debug", "-q", "quiet",
                       "-fix-aiohttp", "-aiohttp-workaround", "-no-welcome", '-use-conhost' ]:
