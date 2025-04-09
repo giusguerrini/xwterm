@@ -1292,7 +1292,7 @@ if __name__ == '__main__':
         print(' '+bold+'-no-http'+comment+'Disable HTTP service')
         print(' '+bold+'-no-websocket'+comment+'Disable WebSocket service')
         print(' '+bold+'-use-conhost'+comment+'Use conhost.exe instead of ConPTY (not officially supported - Windows only)')
-        print(' '+bold+'-conhost-mode'+italic+'thread'+orop+'pipe'+orop+'subproc'+comment+'Internals about conhost usage. Default=thread (the only one that works')
+        print(' '+bold+'-conhost-mode '+italic+'thread'+orop+'pipe'+orop+'subproc'+comment+'Internals about conhost usage. Default=thread (the only one that works')
         print(' '+bold+'-fix-aiohttp'+comment+'Launch WebSocket server in a separate process to prevent aiohttp bug')
         print(' '+bold+'-d'+orop+'-debug'+comment+'Enable debug mode')
         print(' '+bold+'-q'+orop+'-quiet'+comment+'Quiet mode, no messages')
