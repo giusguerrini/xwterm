@@ -409,15 +409,22 @@ class Shell:
         fcntl.ioctl(self.fd, termios.TIOCSWINSZ, s)
  
     def set_size_windows(self, li, co):
-        print("Process ", self.name, ": Size=", li, ",", co)
+        #print("Process ", self.name, ": Size=", li, ",", co, " proc=", self.proc)
 
+        #if hasattr(self.proc, 'control_pipe'):
         if 'control_pipe' in self.proc:
             msg = PTY_SIGNAL_RESIZE_MESSAGE()
             msg.code = PTY_SIGNAL_RESIZE_WINDOW
             msg.x = co
             msg.y = li
-            self.proc.control_pipe.write(msg)
-            self.proc.control_pipe.flush()
+            try:
+                self.proc['control_pipe'].write(msg)
+            except Exception as e:
+                print("Process ", self.name, ": resize write failed: ", e)
+            try:
+                self.proc['control_pipe'].flush()
+            except Exception as e:
+                print("Process ", self.name, ": resize flush failed: ", e)
         else:
             size = COORD(co, li)
             result = ResizePseudoConsole(self.pty, size)
@@ -507,7 +514,7 @@ class Shell:
         control_read = wintypes.HANDLE()
         control_write = wintypes.HANDLE()
 
-        def winpipe(in_ref, out_ref, wr):
+        def winpipe(in_ref, out_ref, wr, over):
             if use_conhost:
                 sa = SECURITY_ATTRIBUTES()
                 sa.bInheritHandle = True
@@ -521,10 +528,11 @@ class Shell:
 
                 f_in = FILE_ATTRIBUTE_NORMAL
                 f_out = PIPE_ACCESS_OUTBOUND
-                if wr:
-                    f_in = f_in | FILE_FLAG_OVERLAPPED
-                else:
-                    f_out = f_out | FILE_FLAG_OVERLAPPED
+                if over:
+                    if wr:
+                        f_in = f_in | FILE_FLAG_OVERLAPPED
+                    else:
+                        f_out = f_out | FILE_FLAG_OVERLAPPED
 
                 out_ref.value = CreateNamedPipeW(ctypes.c_wchar_p(name), f_out, PIPE_TYPE_BYTE | PIPE_WAIT, 1, 4096, 4096, 0, ctypes.byref(sa));
                 in_ref.value = CreateFileW(ctypes.c_wchar_p(name), GENERIC_READ, 0, ctypes.byref(sa), OPEN_EXISTING, f_in, None);
@@ -539,34 +547,37 @@ class Shell:
                 raise ctypes.WinError(ctypes.get_last_error())
 
         if use_conhost and (conhost_mode == 'subproc'): # Doesn't work...
-            winpipe(control_read, control_write, True)
-            control_fd = msvcrt.open_osfhandle(control_write.value, os.O_WRONLY)
-            control_pipe = os.fdopen(control_fd, 'wb')
+            winpipe(control_read, control_write, True, False)
+            os.set_handle_inheritable(control_read.value, True)
+            control_write_fd = msvcrt.open_osfhandle(control_write.value, os.O_WRONLY)
+            control_write_pipe = os.fdopen(control_write_fd, 'wb')
+            print("control_read = ", hex(control_read.value))
             process = await asyncio.create_subprocess_exec(
                 'conhost.exe',  '--headless', 
                 '--width', str(DEFAULT_NCOLUMNS), '--height', str(DEFAULT_NLINES),
-                '--signal', hex(control_read.value), '--', command,
+                #'--signal', hex(control_read.value), ### DAMN! conhost crashes if --signal is specified!
+                '--', command,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
             proc = {
                     "process": process,
-                    "control_pipe": control_pipe,
+                    "control_pipe": control_write_pipe,
                     }
-            reader = process.stdin
-            writer = process.stdout
+            reader = process.stdout
+            writer = process.stdin
             self.pty = None
         else:
             stdin_read = wintypes.HANDLE()
             stdin_write = wintypes.HANDLE()
             stdout_read = wintypes.HANDLE()
             stdout_write = wintypes.HANDLE()
-            winpipe(stdin_read, stdin_write, True)
-            winpipe(stdout_read, stdout_write, False)
+            winpipe(stdin_read, stdin_write, True, True)
+            winpipe(stdout_read, stdout_write, False, True)
 
             if use_conhost:
-                winpipe(control_read, control_write, True)
+                winpipe(control_read, control_write, True, False)
 
             attr_size = SIZE_T()
             if not kernel32.InitializeProcThreadAttributeList(None, 1, 0, ctypes.byref(attr_size)):
@@ -578,7 +589,7 @@ class Shell:
             self.pty = ctypes.c_void_p()
 
             if use_conhost:
-                command = 'conhost.exe --headless --width ' + str(DEFAULT_NCOLUMNS) + ' --height ' + str(DEFAULT_NLINES) + ' --signal ' + hex(control_read.value) + '' + ' -- ' + command
+                command = 'conhost.exe --headless --width ' + str(DEFAULT_NCOLUMNS) + ' --height ' + str(DEFAULT_NLINES) + ' --signal ' + hex(control_read.value) + ' -- ' + command
                 #print(command)
             else:
                 size = COORD(DEFAULT_NCOLUMNS, DEFAULT_NLINES)
@@ -648,6 +659,8 @@ class Shell:
                 #
                 loop = asyncio.get_running_loop()
                 writer_transport, writer_protocol = await loop.connect_write_pipe(lambda: asyncio.streams.FlowControlMixin(loop=loop), stdin_pipe)
+                #writer_transport, writer_protocol = await loop.connect_write_pipe(lambda: SubprocessStreamProtocol(loop=loop), stdin_pipe)
+                #writer_transport, writer_protocol = await loop.connect_write_pipe(lambda: asyncio.SubprocessProtocol(), stdin_pipe)
                 writer = asyncio.streams.StreamWriter(writer_transport, writer_protocol, None, loop)
                 reader = asyncio.StreamReader()
                 protocol = asyncio.StreamReaderProtocol(reader)
@@ -1291,8 +1304,12 @@ if __name__ == '__main__':
         print(' '+bold+'-ws'+orop+'-wsport'+orop+'-websocket'+orop+'-websocketport '+italic+'TCP port'+comment+'TCP port for WebSocket service. Default='+str(DEFAULT_WEBSOCKET_PORT))
         print(' '+bold+'-no-http'+comment+'Disable HTTP service')
         print(' '+bold+'-no-websocket'+comment+'Disable WebSocket service')
-        print(' '+bold+'-use-conhost'+comment+'Use conhost.exe instead of ConPTY (not officially supported - Windows only)')
-        print(' '+bold+'-conhost-mode thread'+orop+'pipe'+orop+'subproc'+comment+'Internals about conhost usage. Default=thread (the only one that works)')
+        print(' '+bold+'-use-conhost'+comment+'(Windows only) Use conhost.exe instead of ConPTY (default, but not officially supported by M$)')
+        print(' '+bold+'-use-conpty'+comment+'(Windows only) Use ConPTY API (recommended by M$, but slow)')
+        print(' '+bold+'-conhost-mode thread'+orop+'pipe'+orop+'subproc'+comment+'Internals about conhost usage:')
+        print(' '+bold+'   subproc (default)'+comment+'fast, but resize signal not working')
+        print(' '+bold+'   pipe'+comment+'not working, it would require some more exports from asyncio')
+        print(' '+bold+'   thread'+comment+'fully working, but slow as with ConPTY')
         print(' '+bold+'-fix-aiohttp'+comment+'Launch WebSocket server in a separate process to prevent aiohttp bug')
         print(' '+bold+'-d'+orop+'-debug'+comment+'Enable debug mode')
         print(' '+bold+'-q'+orop+'-quiet'+comment+'Quiet mode, no messages')
@@ -1324,7 +1341,7 @@ if __name__ == '__main__':
                 conhost_mode = arg
             
         elif opt in [ "-h", "-help", "-no-http", "-no-websocket", "-d", "-debug", "-q", "quiet",
-                      "-fix-aiohttp", "-aiohttp-workaround", "-no-welcome", '-use-conhost' ]:
+                      "-fix-aiohttp", "-aiohttp-workaround", "-no-welcome", '-use-conhost', '-use-conpty' ]:
 
             if opt in [ "-d", "-debug" ]:
                 debug = True
@@ -1342,6 +1359,8 @@ if __name__ == '__main__':
                 enable_welcome = False
             elif opt in [ "-use-conhost" ]:
                 use_conhost = True
+            elif opt in [ "-use-conpty" ]:
+                use_conhost = False
         
         else:
             print('Unknown option: "', opt, '"')
