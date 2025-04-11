@@ -1325,7 +1325,6 @@ if __name__ == '__main__':
         sys.exit(0)
 
     args = [ x.lower() for x in sys.argv[1:] ]
-    print(args)
 
     while len(args) > 0:
 
