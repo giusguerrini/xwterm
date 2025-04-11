@@ -260,7 +260,7 @@ DEFAULT_WEBSOCKET_PORT = 8001
 DEBUG_FLAGS = {"async", "process", "session", "websocket"}
 
 SESSION_IDLE_CHECK_PERIOD = 10
-SESSION_IDLE_TIMEOUT = 1000 #30
+SESSION_IDLE_TIMEOUT = 120 #10
 
 bind_address = DEFAULT_BIND_ADDRESS
 http_port = DEFAULT_HTTP_PORT
@@ -273,9 +273,9 @@ fix_aiohttp = False
 enable_welcome = True
 # Set to True to emulate what OpenSSH does on Windows.
 # It is not the recommended way to use ConPTY, but it works.
-use_conhost = False #True
+use_conhost = True #False, if you want to conform to Microsoft recommendations
 # If True, a direct asyncio pipe is
-conhost_mode = 'thread' # 'subproc', 'pipe'
+conhost_mode = 'subproc' #'thread', 'subproc', 'pipe'
 
 
 if platform.system() == "Linux":
@@ -1291,25 +1291,32 @@ if __name__ == '__main__':
         print('use it in a real production environment, and in particular expose its')
         print('services to the Internet, you do so at your own risk.')
         print('\x1B[0m')
+        if (platform.system() != "Linux") and use_conhost:
+            print('\x1B[96m')
+            print('WARNING: using undocumented feature "conhost.exe" as virtual terminal manager.')
+            print('Although it is considerably faster, it is not officially supported by Microsoft.')
+            print('If you have any troubles, add \x1B[1m-use-conpty\x1B[22m option.')
+            print('\x1B[0m')
 
     def usage():
         normal = '\x1B[0m'
-        bold  = normal + '\x1B[22m\x1B[96m'
+        bold  = normal + '\x1B[1m\x1B[96m'
         italic  = normal + '\x1B[3m\x1B[93m'
         orop = normal + ' | ' + bold
         comment = normal + ' : '
         print('\nUsage:')
-        print(' '+bold+'-bind'+orop+'-bindaddr '+italic+'IP addrress'+comment+'bind address for services. Default='+str(DEFAULT_BIND_ADDRESS))
+        print(' '+bold+'-b'+orop+'-bind'+orop+'-bindaddr '+italic+'IP addrress'+comment+'bind address for services. Default='+str(DEFAULT_BIND_ADDRESS))
         print(' '+bold+'-http'+orop+'-httpport '+italic+'TCP port'+comment+'TCP port for HTTP service. Default='+str(DEFAULT_HTTP_PORT))
         print(' '+bold+'-ws'+orop+'-wsport'+orop+'-websocket'+orop+'-websocketport '+italic+'TCP port'+comment+'TCP port for WebSocket service. Default='+str(DEFAULT_WEBSOCKET_PORT))
         print(' '+bold+'-no-http'+comment+'Disable HTTP service')
         print(' '+bold+'-no-websocket'+comment+'Disable WebSocket service')
-        print(' '+bold+'-use-conhost'+comment+'(Windows only) Use conhost.exe instead of ConPTY (default, but not officially supported by M$)')
-        print(' '+bold+'-use-conpty'+comment+'(Windows only) Use ConPTY API (recommended by M$, but slow)')
-        print(' '+bold+'-conhost-mode thread'+orop+'pipe'+orop+'subproc'+comment+'Internals about conhost usage:')
-        print(' '+bold+'   subproc (default)'+comment+'fast, but resize signal not working')
-        print(' '+bold+'   pipe'+comment+'not working, it would require some more exports from asyncio')
-        print(' '+bold+'   thread'+comment+'fully working, but slow as with ConPTY')
+        if platform.system() != "Linux":
+            print(' '+bold+'-use-conhost'+comment+'(Windows only) Use conhost.exe instead of ConPTY (default, but not officially supported by M$)')
+            print(' '+bold+'-use-conpty'+comment+'(Windows only) Use ConPTY API (recommended by M$, but slow)')
+            print(' '+bold+'-conhost-mode thread'+orop+'pipe'+orop+'subproc'+comment+'Internals about conhost usage:')
+            print(' '+bold+'   subproc (default)'+comment+'fast, but resize signal not working')
+            print(' '+bold+'   pipe'+comment+'experimental, not yet working')
+            print(' '+bold+'   thread'+comment+'fully working, but slow as with ConPTY')
         print(' '+bold+'-fix-aiohttp'+comment+'Launch WebSocket server in a separate process to prevent aiohttp bug')
         print(' '+bold+'-d'+orop+'-debug'+comment+'Enable debug mode')
         print(' '+bold+'-q'+orop+'-quiet'+comment+'Quiet mode, no messages')
@@ -1317,7 +1324,8 @@ if __name__ == '__main__':
         print('')
         sys.exit(0)
 
-    args = sys.argv[1:]
+    args = [ x.lower() for x in sys.argv[1:] ]
+    print(args)
 
     while len(args) > 0:
 
@@ -1325,7 +1333,7 @@ if __name__ == '__main__':
         opt = opt.replace('--', '-')
         args = args[1:]
         #print('"' + opt + '"')
-        if opt in [ "-http", "-httpport", "-bind", "-bindaddr", "-ws", "-wsport", "-websocket", "-websocketport", "-conhost-mode" ]:
+        if opt in [ "-http", "-httpport", "-b", "-bind", "-bindaddr", "-ws", "-wsport", "-websocket", "-websocketport", "-conhost-mode" ]:
 
             if len(args) == 0:
                 usage()
@@ -1335,9 +1343,11 @@ if __name__ == '__main__':
                 http_port = arg
             elif opt in [ "-ws", "-wsport", "-websocket", "-websocketport" ]:
                 websocket_port = arg
-            elif opt in [ "-bind", "-bindaddr" ]:
+            elif opt in [ "-b", "-bind", "-bindaddr" ]:
                 bind_address = arg
             elif opt in [ "-conhost-mode" ]:
+                if not (arg in [ 'thread', 'subproc', 'pipe' ]):
+                    usage()
                 conhost_mode = arg
             
         elif opt in [ "-h", "-help", "-no-http", "-no-websocket", "-d", "-debug", "-q", "quiet",
