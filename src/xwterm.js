@@ -103,7 +103,203 @@ const ANSITERM_VERSION = "0.17.0";
 	https://www.commandlinux.com/man-page/man4/console_codes.4.html
 */			
 
-import "./scrollbar.js";
+// Set to true to use the default scrollbar directly.
+// If false, it tries to load the "scrollbar.js" module.
+
+let default_bar = true; // false;
+
+if (! default_bar) {
+	try {
+		// Try to load the scrollbar module. If it fails, use the default one.
+		await import("./scrollbar.js");
+	} catch {
+		console.log("scrollbar.js not available, falling back to default scrollbar");
+		default_bar = true;
+	}
+}
+
+if (default_bar) {
+
+	console.log("scrollbar.js not available, falling back to default scrollbar");
+
+	class GenericScrollBar {
+		
+		_layout()
+		{
+			this.div = null;
+			this.div_spacer = null;
+			this.div_scroll = null;
+			
+			this.div = document.createElement("div");
+			this.div.classList.add("generic-scrollbar");
+
+			this.div_scroll = document.createElement("div");
+			this.div_scroll.style.display = 'inline-block';
+			this.div_scroll.style.position = 'relative';
+			this.div_scroll.style.overflowY = 'scroll';
+			this.div_scroll.style.height = this.controlled_element.clientHeight + 'px';
+			this.div_scroll.style.boxSizing = 'border-box';
+
+			this.div_spacer = document.createElement("div");
+			this.div_spacer.style.border = 0;
+			this.div_spacer.style.margin = 0;
+			this.div_spacer.style.padding = 0;
+			this.div_spacer.style.backgroundColor = 'transparent';
+			this.div_spacer.style.width = '1px';
+			this.div_spacer.style.height = this.controlled_element.clientHeight + 'px';
+			//this.div_spacer.style.display = 'inline-block';
+			this.div_spacer.style.position = 'absolute';
+			this.div_spacer.style.top = 0;
+			this.div_spacer.style.left = 0;
+			this.div_scroll.appendChild(this.div_spacer);
+
+
+			let style = window.getComputedStyle(this.controlled_element);
+			this.div.style.border = style.border;
+			this.div.style.margin = style.margin;
+			this.div.style.padding = style.padding;
+			//this.div.style.width = (this.controlled_element.width + 20) + "px";
+			this.div.style.height = this.controlled_element.height + "px";
+
+			this.controlled_element.parentNode.replaceChild(this.div, this.controlled_element);
+			this.controlled_element.style.border = "none";
+			this.controlled_element.style.borderRadius = "0";
+			this.controlled_element.style.margin = "0";
+			this.controlled_element.style.padding = "0";
+			this.controlled_element.style.display = 'inline-block';
+			//this.controlled_element.style.position = 'absolute';
+			//this.controlled_element.style.top = 0;
+			//this.controlled_element.style.left = 0;
+			this.div.appendChild(this.controlled_element);
+			this.div.appendChild(this.div_scroll);
+
+			
+			// Hack to force scrollbar to be visibleon Firefox
+			if (this.div_scroll.clientWidth == 0) {
+				this.div_scroll.style.minWidth = '10px';
+			}
+			
+
+			this.scroll_area = this.div_scroll.clientHeight;
+			this.div_spacer.style.height = this.scroll_area + 'px';
+
+		
+			this.div_scroll.addEventListener('scroll', (ev) => {
+				let el = ev.target;
+				
+				let motion_limit = (this.div_scroll.scrollHeight - this.div_scroll.clientHeight); //this._motion_limit();
+				if (motion_limit <= 0) {
+					return;
+				}
+				let r = (el.scrollTop / motion_limit);
+
+				//console.log("scrollTop=" + el.scrollTop + " scrollHeight=" + el.scrollHeight + " clientHeight=" + el.clientHeight + " m=" + motion_limit + " r=" + r);
+
+				let v = r * (this.max_value - this.min_value) + this.min_value;
+			
+				this.curr_value = v;
+
+				let rv = {
+					value: this.curr_value,
+					minValue: this.min_value,
+					maxValue: this.max_value,
+					visibleRangeSize: this.visible_range_size,
+				};
+
+				if (this.on_change) {
+					this.on_change(rv);
+				}
+			});
+		}
+
+		_motion_limit()
+		{
+			return this.div_scroll.clientHeight * (1 - this.div_scroll.clientHeight / this.div_scroll.scrollHeight);
+		}
+
+		constructor(element, params)
+		{
+			this.controlled_element = element;
+			this.min_value = 0;
+			this.min_value = 0;
+			this.curr_value = 0;
+			this.visible_range_size = 0;
+			this.on_change = null;
+
+			this._layout();
+		}
+
+		_update()
+		{
+			if (this.max_value > this.min_value) {
+				if (this.visible_range_size > 0) {
+					let l = (this.max_value - this.min_value + this.visible_range_size) / this.visible_range_size;
+					let s = this.controlled_element.height * l;
+					this.div_spacer.style.height = Math.floor(s - 0.5) + 'px';
+					//let v = Math.floor(((this.curr_value - this.min_value) / (this.max_value - this.min_value)) * this._motion_limit() + 0.5);
+					let v = Math.floor(((this.curr_value - this.min_value) / (this.max_value - this.min_value)) * this.div_scroll.scrollHeight + 0.5);
+					this.div_scroll.scrollTop = v;
+				}
+			}
+		}
+
+		setMinValue(v)
+		{
+			if (v != this.min_value) {
+				this.min_value = v;
+				this._update();
+			}
+		}
+
+		setMaxValue(v)
+		{
+			if (v != this.max_value) {
+				this.max_value = v;
+				this._update();
+			}
+		}
+
+		setValue(v)
+		{
+			if (v != this.curr_value) {
+				this.curr_value = v;
+				this._update();
+			}
+		}
+
+		setVisibleRangeSize(v)
+		{
+			if (this.visible_range_size != v) {
+				this.visible_range_size = v;
+				this._update();
+			}
+		}
+
+		registerOnChange(cb)
+		{
+			this.on_change = cb;
+		}
+	}
+
+	class GenericScrollBarAdder {
+
+		constructor(element, params)
+		{
+			this.controlled_element = element;
+			this.params = params;
+			this.verticalScrollbar = null;
+			this._layout();
+		}
+
+		_layout()
+		{
+			this.verticalScrollbar = new GenericScrollBar(this.controlled_element, this.params);
+		}
+	}
+
+	window.GenericScrollBar = GenericScrollBar;
+	window.GenericScrollBarAdder = GenericScrollBarAdder;
+}
 
 // DEFAULTS
 
@@ -1449,18 +1645,21 @@ export class AnsiTerm {
 		this.gc.font = this.fullfont;
 		this.gc.textBaseline = "bottom";
 
+		if (typeof GenericScrollBarAdder === 'undefined') {
+			this.params.historySize = 0;
+		}
 		if (this.params.historySize > 0) {
 			this.scrollbar = new GenericScrollBarAdder(this.canvas, {vertical: true, horizontal: false});
 			this.scrollbar.verticalScrollbar.setMinValue(0);
 			this.scrollbar.verticalScrollbar.setMaxValue(0 /*this.params.nLines - 1*/);
 			this.scrollbar.verticalScrollbar.setVisibleRangeSize(this.params.nLines);
-			this.scrollbar.verticalScrollbar.setValue(this.params.nLines - 1);
+			this.scrollbar.verticalScrollbar.setValue(0);
 			this.scrollbar.verticalScrollbar.registerOnChange( (rv)	=> {
 				rv.value = rv.minValue
 				         + (rv.value - rv.minValue)
 						  ; //* ((rv.maxValue - rv.minValue - rv.visibleRangeSize + 1) / (rv.maxValue - rv.minValue));
 				rv.value = Math.floor(rv.value + 0.5);
-				console.log(rv);
+				//console.log(rv);
 				if (rv.value != this.viewpoint) {
 					if ((this.viewpoint != 0) != (rv.value != 0)) {
 						if (rv.value != 0) {
@@ -2400,7 +2599,7 @@ export class AnsiTerm {
 			this.history.shift();
 		}
 		else {
-			this.scrollbar.verticalScrollbar.setMinValue( - this.history.length);
+			this.scrollbar.verticalScrollbar.setMinValue( - this.history.length - 1);
 		}
 		let line = [];
 		for (let i = 0; i < this.params.nColumns; ++i) {

@@ -394,6 +394,9 @@ class GenericScrollBar {
 				v = 1;
 			}
 			let l = Math.floor(r[m.motion_size] * v + 0.5);
+			if (l < Number(this.button_size)) {
+				l = Number(this.button_size);
+			}
 			let p = Math.floor((r[m.motion_size] - l) * ((this.curr_value - this.min_value) / range) + 0.5);
 			this.button_int.style[m.min_coord_side] =  p + "px"
 			this.button_int.style[m.motion_size] = l + "px";
