@@ -8,12 +8,14 @@
 - [The code](#the-code)
 
 <h2 id="introduction">Introduction</h2>
+
 In this example, **xwterm** generates a terminal with default size, colors, layout, and ancillary widgets.
 This is also an opportunity to describe the functions implemented by the **xwterm** package.
 By default, the terminal uses the "traditional" dimensions of 80x25 rows and columns, a black background, and medium white foreground text.
 It also uses HTTP as the communication channel.
 
 <h2 id="default-decorations">Default decorations</h2>
+
 Here is a description of the ancillary elements that decorate the terminal:
 
 - A title bar is added at the top of the terminal.

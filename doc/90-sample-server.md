@@ -27,7 +27,13 @@ addresses can be changed using command-line options. In particular:
 - **--ws** *TCP port*: Set the TCP port used by the WebSocket service. Default is `8001`.
 - **--no-http**: Disable the HTTP service.
 - **--no-websocket**: Disable the WebSocket service.
-- **--aiohttp-workaround**: A workaround to prevent a bug in `aiohttp` (see below).
+
+The program also accepts these parameters to adjust some internal details:
+
+- **--aiohttp-workaround**: A workaround to prevent a bug in `aiohttp`. See [Known Limitations and Issues](#known-limitations-and-issues) for details.
+- **--use-conpty**: (Windows only) Use *ConPTY* API to create virtual terminals. See [Internals](#internals) for details.
+- **--use-conhost**: (Windows only) Use *conhost.exe* to create virtual terminals. See [Internals](#internals) for details.
+- **--conhost-mode** *subproc | thread | pipe*: (Windows only) If **--use-conhost** is specified, this option configures how *conhost.exe* is used. See [Internals](#internals) for details.
 
 To start the server, go to the `example` folder and launch `./miniserver.py` (on Linux),
 or `python miniserver.py` (on Windows 10). The HTTP service URL is `http://127.0.0.1:8000`,
@@ -57,14 +63,27 @@ manage each session, the class `AsyncJob` has been defined. Its purpose is to ke
 tasks and manage their lifecycle as a single unit.
 
 Each session also owns a virtual terminal and a command interpreter (`/bin/bash` or `C:\Windows\System32\cmd.exe`) running in it.
-On Linux, the traditional **pty** interoperates seamlessly with **asyncio**, on Windows, a certain effort of integration
-is needed. The main problem is that Windows' **ConPTY** subsystem doesn't support `OVERLAPPED` operations, which are
-at the basis of Python's **asyncio**. The only solution I found is to create a pair of threads to transfer data from (or to,
-respectively) the virtual terminal to (or from) a pair of `asyncio.Queue` objects, and then "embed" this in a pair of
-simulated `asyncio.StreamReader/Writer` objects (i.e., a local class that pretends to be an async stream by implementing the minimal
-interface).  
-Moreover, to access **ConPTY** services, the program invokes many low-level calls to `kernel32.dll` through the **ctypes**
-Python module, so it contains a bunch of Windows-specific code.
+This design ensures that the server can operate on Windows while maintaining similar functionality to its Linux counterpart.
+
+### Linux-Specific Implementation Details
+On Linux, the traditional **pty** API is used. It interoperates seamlessly with **asyncio** module.
+
+### Windows-Specific Implementation Details
+On Windows, the official API for creating virtual terminals is **ConPTY**. However, as we will see, its usage is challenging and has induced me to look for alternatives (*NOTE* virtual terminal support for Windows in Python does exist, but it doesn't tntegrate well with **asyncio**). Surprisingly, there is an official package maintained and distributed by Microsoft, in which virtual terminals are generated through a different API. It's the OpenSSH port on Windows ([here](https://github.com/PowerShell/openssh-portable)). When it needs a virtual terminal, it launches the program **conhost.exe**, with *sdtdin* and *stdout* redirected to pipes. It also includes some command-line options to specify the program to run in the terminal, the size of the virtual screen, and a *pipe HANDLE* through which the controlling process can send resize requests. More surprisingly, in some support forums (sponsored by Microsoft), they state that 'OpenSSH should stop using conhost.' However, OpenSSH relies on conhost for a reason: it enables the creation of pipes in OVERLAPPED mode, which **ConPTY** does not support.
+Anyway, **miniserver.py** supports both **conhost** (the default) and **ConPTY** (safer, but slower). The command line options **--use-conpty** and **--use-conhost** allow the user to select which API to use.
+
+#### ConPTY
+The integration with the **ConPTY** subsystem requires some considerations. The program uses the **ctypes** module to interact with low-level Windows APIs, such as `kernel32.dll`, to create and manage virtual terminals. This approach introduces some complexity and platform-specific code. Key points include:
+
+- **Thread Management**: Two threads are created per session to handle data transfer between the virtual terminal and `asyncio.Queue` objects. These threads simulate asynchronous streams to maintain compatibility with the `asyncio` framework.
+- **ConPTY Limitations**: The lack of support for `OVERLAPPED` operations in ConPTY necessitates this workaround. This limitation complicates the implementation but ensures functional compatibility with the `asyncio` event loop.
+- **Error Handling**: Special care is taken to handle edge cases and errors specific to the Windows environment, such as process cleanup and resource management.
+
+This approach works, but it's slow. Specifically, some programs (e.g. [Midnight Commander](https://github.com/adamyg/mcwin32)) frequently redraw the entire screen, which takes about two seconds to complete.
+
+#### conhost
+
+Since **conhost** allows OVERLAPPED pipes, its integration with **asyncio** is easier: we can use **asyncio.create_subprocess_exec** to launch it. There is still a problem with resize: **asyncio.create_subprocess_exec** seems unable to share additional handles, so resize commands can't be sent.
 
 <h2 id="known-limitations-and-issues">Known Limitations and Issues</h2>
 
