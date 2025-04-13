@@ -113,14 +113,12 @@ if (! default_bar) {
 		// Try to load the scrollbar module. If it fails, use the default one.
 		await import("./scrollbar.js");
 	} catch {
-		console.log("scrollbar.js not available, falling back to default scrollbar");
+		console.log("scrollbar.js not available, falling back to platform scrollbar");
 		default_bar = true;
 	}
 }
 
 if (default_bar) {
-
-	console.log("scrollbar.js not available, falling back to default scrollbar");
 
 	class GenericScrollBar {
 		
@@ -2238,6 +2236,12 @@ export class AnsiTerm {
 		}
 	}
 
+	_line_by_index(y)
+	{
+		y += this.viewpoint;
+		return (y >= 0) ? this.screen[y] : this.history[y + this.params.historySize];
+	}
+
 	_redraw_box(x0, y0, width, height)
 	{
 		let bg = this.params.background;
@@ -2266,19 +2270,19 @@ export class AnsiTerm {
 		if (x0 + width >= this.params.nColumns) {
 			x0 = this.params.nColumns - width;
 		}
-		let hl = this.history.length;
-		if (y0 < -hl) {
-			y0 = -hl;
+		if (y0 < 0) {
+			y0 = 0;
 		}
 		if (y0 + height >= this.params.nLines) {
 			y0 = this.params.nLines - height;
 		}
 
 		//console.log("redraw",x0, y0, width, height);
-		let y0off = y0 < 0 ? -y0 : 0;
 
 		for (let y = y0; y < y0 + height; ++y) {
-			let ly = (y >= 0) ? this.screen[y] : this.history[y + hl];
+
+			let ly = this._line_by_index(y);
+			
 			for (let x = x0; x < x0 + width; ++x) {
 
 				let ch = ly[x];
@@ -2290,7 +2294,7 @@ export class AnsiTerm {
 				this.blink = ch.blink;
 				this.reverse = ch.reverse;
 
-				this._printchar_in_place(ch.ch, x, y + y0off);
+				this._printchar_in_place(ch.ch, x, y);
 
 			}
 		}
@@ -2307,7 +2311,7 @@ export class AnsiTerm {
 
 	_redraw()
 	{
-		this._redraw_box(0, this.viewpoint, this.params.nColumns, this.params.nLines);
+		this._redraw_box(0, 0, this.params.nColumns, this.params.nLines);
 	}
 
 	_setfeature(a, f)
@@ -3335,14 +3339,16 @@ export class AnsiTerm {
 			let xi = this.selection_start % this.params.nColumns;
 			let yi = Math.floor(this.selection_start / this.params.nColumns);
 			let l = "";
+			let li = this._line_by_index(yi);
 			for (let i = this.selection_start; i <= this.selection_end; ++i) {
-				l += character_handler(this.screen[yi][xi]);
+				l += character_handler(li[xi]);
 				++xi;
 				if (xi >= this.params.nColumns) {
 					t += lf(l);
 					l = "";
 					xi = 0;
 					++yi;
+					li = this._line_by_index(yi);
 				}
 			}
 			t += lf(l);
