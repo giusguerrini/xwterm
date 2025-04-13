@@ -105,7 +105,7 @@ to enable the custom scrollbar, it is enough to import **scollbar.js** before **
 	<html lang="en">
 	  ...
 	  <script type="module">
-	    <span style="background-color: yellow;">import "./scrollbar.js";</span>
+	    import "./scrollbar.js";
 	    import { AnsiTerm } from "./xwterm.js";
 	    var ansi = new AnsiTerm();
 	  </script>
