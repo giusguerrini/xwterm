@@ -53,7 +53,14 @@ addresses can be changed using command-line options. In particular:</p>
 <li><strong>--ws</strong> <em>TCP port</em>: Set the TCP port used by the WebSocket service. Default is <code>8001</code>.</li>
 <li><strong>--no-http</strong>: Disable the HTTP service.</li>
 <li><strong>--no-websocket</strong>: Disable the WebSocket service.</li>
-<li><strong>--aiohttp-workaround</strong>: A workaround to prevent a bug in <code>aiohttp</code> (see below).</li>
+</ul>
+<p>The program also accepts these parameters to adjust some internal details:</p>
+<ul>
+<li><strong>--aiohttp-workaround</strong>: A workaround to prevent a bug in <code>aiohttp</code>. See <a href="#known-limitations-and-issues">Known Limitations and Issues</a> for details.</li>
+<li><strong>--use-conpty</strong>: (Windows only) Use <em>ConPTY</em> API to create virtual terminals. See <a href="#internals">Internals</a> for details.</li>
+<li><strong>--use-conhost</strong>: (Windows only) Use <em>conhost.exe</em> to create virtual terminals. See <a href="#internals">Internals</a> for details.</li>
+<li><strong>--conhost-mode</strong> <em>subproc | thread | pipe</em>: (Windows only) If <strong>--use-conhost</strong> is specified, this option configures how <em>conhost.exe</em> is used. See <a href="#internals">Internals</a> for details.</li>
+<li><strong>--initial-size</strong> <em>colums</em>x<em>lines</em> : Initial size of thevirtual screen.</li>
 </ul>
 <p>To start the server, go to the <code>example</code> folder and launch <code>./miniserver.py</code> (on Linux),
 or <code>python miniserver.py</code> (on Windows 10). The HTTP service URL is <code>http://127.0.0.1:8000</code>,
@@ -80,14 +87,22 @@ that implement async traffic management in both directions. Since a number of as
 manage each session, the class <code>AsyncJob</code> has been defined. Its purpose is to keep track of a set of related
 tasks and manage their lifecycle as a single unit.</p>
 <p>Each session also owns a virtual terminal and a command interpreter (<code>/bin/bash</code> or <code>C:\Windows\System32\cmd.exe</code>) running in it.
-On Linux, the traditional <strong>pty</strong> interoperates seamlessly with <strong>asyncio</strong>, on Windows, a certain effort of integration
-is needed. The main problem is that Windows' <strong>ConPTY</strong> subsystem doesn't support <code>OVERLAPPED</code> operations, which are
-at the basis of Python's <strong>asyncio</strong>. The only solution I found is to create a pair of threads to transfer data from (or to,
-respectively) the virtual terminal to (or from) a pair of <code>asyncio.Queue</code> objects, and then &quot;embed&quot; this in a pair of
-simulated <code>asyncio.StreamReader/Writer</code> objects (i.e., a local class that pretends to be an async stream by implementing the minimal
-interface).<br>
-Moreover, to access <strong>ConPTY</strong> services, the program invokes many low-level calls to <code>kernel32.dll</code> through the <strong>ctypes</strong>
-Python module, so it contains a bunch of Windows-specific code.</p>
+This design ensures that the server can operate on Windows while maintaining similar functionality to its Linux counterpart.</p>
+<h3 id="linux-specific-implementation-details">Linux-Specific Implementation Details</h3>
+<p>On Linux, the traditional <strong>pty</strong> API is used. It interoperates seamlessly with <strong>asyncio</strong> module.</p>
+<h3 id="windows-specific-implementation-details">Windows-Specific Implementation Details</h3>
+<p>On Windows, the official API for creating virtual terminals is <strong>ConPTY</strong>. However, as we will see, its usage is challenging and has induced me to look for alternatives (<em>NOTE</em> virtual terminal support for Windows in Python does exist, but it doesn't tntegrate well with <strong>asyncio</strong>). Surprisingly, there is an official package maintained and distributed by Microsoft, in which virtual terminals are generated through a different API. It's the OpenSSH port on Windows (<a href="https://github.com/PowerShell/openssh-portable">here</a>). When it needs a virtual terminal, it launches the program <strong>conhost.exe</strong>, with <em>sdtdin</em> and <em>stdout</em> redirected to pipes. It also includes some command-line options to specify the program to run in the terminal, the size of the virtual screen, and a <em>pipe HANDLE</em> through which the controlling process can send resize requests. More surprisingly, in some support forums (sponsored by Microsoft), they state that 'OpenSSH should stop using conhost'. However, OpenSSH relies on conhost for a reason: it enables the creation of pipes in OVERLAPPED mode, which <strong>ConPTY</strong> does not support.
+Anyway, <strong>miniserver.py</strong> supports both <strong>conhost</strong> (the default) and <strong>ConPTY</strong> (safer, but slower). The command line options <strong>--use-conpty</strong> and <strong>--use-conhost</strong> allow the user to select which API to use.</p>
+<h4 id="conpty">ConPTY</h4>
+<p>The integration with the <strong>ConPTY</strong> subsystem requires some considerations. The program uses the <strong>ctypes</strong> module to interact with low-level Windows APIs, such as <code>kernel32.dll</code>, to create and manage virtual terminals. This approach introduces some complexity and platform-specific code. Key points include:</p>
+<ul>
+<li><strong>Thread Management</strong>: Two threads are created per session to handle data transfer between the virtual terminal and <code>asyncio.Queue</code> objects. These threads simulate asynchronous streams to maintain compatibility with the <code>asyncio</code> framework.</li>
+<li><strong>ConPTY Limitations</strong>: The lack of support for <code>OVERLAPPED</code> operations in ConPTY necessitates this workaround. This limitation complicates the implementation but ensures functional compatibility with the <code>asyncio</code> event loop.</li>
+<li><strong>Error Handling</strong>: Special care is taken to handle edge cases and errors specific to the Windows environment, such as process cleanup and resource management.</li>
+</ul>
+<p>This approach works, but it's slow. Specifically, some programs (e.g. <a href="https://github.com/adamyg/mcwin32">Midnight Commander</a>) frequently redraw the entire screen, which takes about two seconds to complete.</p>
+<h4 id="conhost">conhost</h4>
+<p>Since <strong>conhost</strong> allows OVERLAPPED pipes, its integration with <strong>asyncio</strong> is easier: we can use <strong>asyncio.create_subprocess_exec</strong> to launch it. There is still a problem with resize: <strong>asyncio.create_subprocess_exec</strong> seems unable to share additional handles, so resize commands can't be sent.</p>
 <h2 id="known-limitations-and-issues">Known Limitations and Issues</h2>
 <p>By design, the server is a single thread running a number of <em>async</em> tasks (Note: this is not completely true on Windows,
 where a couple of threads per session are created, but they are just ancillary threads whose usage I would have avoided if I could.
@@ -103,9 +118,11 @@ officially resolved. At least, I couldn't find any mention of it in aiohttp's ch
 This problem happens only if both HTTP and WebSocket services are active.
 If you are experiencing this issue, you can add the option <strong>--aiohttp-workaround</strong> as a workaround.
 With this option, the WebSocket server is managed by a separate process running in the background.</li>
-<li>On Windows 10, after the first session has been established, the program becomes
+<li>On Windows, after the first session has been established, the program becomes
 insensitive to CTRL-C and must be killed via Task Manager. This problem is probably related
 to the ConPTY subsystem; maybe some cleanup/detach code is required after the child process has been launched.</li>
+<li>On Windows, if <strong>conhost</strong> API is used, the screen size received by <em>xwtern</em> is ignored. Screen size alway has the default value (120x40).
+The default value can be changed by adding the command line option <strong>--initial-size</strong></li>
 </ul>
 </article>
 
@@ -120,7 +137,7 @@ to the ConPTY subsystem; maybe some cleanup/detach code is required after the ch
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Thu Apr 03 2025 23:19:40 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Sun Apr 13 2025 22:54:28 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>

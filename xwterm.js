@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "0.16.0";
+const ANSITERM_VERSION = "0.17.2";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -103,7 +103,224 @@ const ANSITERM_VERSION = "0.16.0";
 	https://www.commandlinux.com/man-page/man4/console_codes.4.html
 */			
 
-//import "./scrollbar.js";
+// Set to true to use the default scrollbar directly.
+// If false, it tries to load the "scrollbar.js" module.
+
+let try_include_bar = false;
+
+let default_bar = false;
+
+if (typeof window.GenericScrollBarAdder === 'undefined') {
+	if (try_include_bar) {
+		/*
+		 * Terser doesn't like this...
+
+		console.log("\"scrollbar.js\" not found in global scope, trying to load it");
+		try {
+			// Try to load the minified version of the scrollbar module first.
+			await import("./scrollbar.min.js");
+			console.log("\"scrollbar.min.js\" not found, trying \"scrollbar.js\"");
+		} catch {
+			try {
+				// Try to load the non-minified scrollbar module. If it fails, use the default one.
+				await import("./scrollbar.js");
+			} catch {
+				console.log("\"scrollbar.js\" not available, falling back to platform scrollbar");
+				default_bar = true;
+			}
+		}
+		*/
+	}
+	else {
+		console.log("\"scrollbar.js\" not found in global scope, falling back to platform scrollbar");
+		default_bar = true;
+	}
+}
+else {
+	console.log("Using \"scrollbar.js\" from global scope");
+	default_bar = false;
+}
+
+if (default_bar) {
+
+	class GenericScrollBar {
+		
+		_layout()
+		{
+			this.div = null;
+			this.div_spacer = null;
+			this.div_scroll = null;
+			
+			this.div = document.createElement("div");
+			this.div.classList.add("generic-scrollbar");
+
+			this.div_scroll = document.createElement("div");
+			this.div_scroll.style.display = 'inline-block';
+			this.div_scroll.style.position = 'relative';
+			this.div_scroll.style.overflowY = 'scroll';
+			this.div_scroll.style.height = this.controlled_element.clientHeight + 'px';
+			this.div_scroll.style.boxSizing = 'border-box';
+
+			this.div_spacer = document.createElement("div");
+			this.div_spacer.style.border = 0;
+			this.div_spacer.style.margin = 0;
+			this.div_spacer.style.padding = 0;
+			this.div_spacer.style.backgroundColor = 'transparent';
+			this.div_spacer.style.width = '1px';
+			this.div_spacer.style.height = this.controlled_element.clientHeight + 'px';
+			//this.div_spacer.style.display = 'inline-block';
+			this.div_spacer.style.position = 'absolute';
+			this.div_spacer.style.top = 0;
+			this.div_spacer.style.left = 0;
+			this.div_scroll.appendChild(this.div_spacer);
+
+
+			let style = window.getComputedStyle(this.controlled_element);
+			this.div.style.border = style.border;
+			this.div.style.margin = style.margin;
+			this.div.style.padding = style.padding;
+			//this.div.style.width = (this.controlled_element.width + 20) + "px";
+			this.div.style.height = this.controlled_element.height + "px";
+
+			this.controlled_element.parentNode.replaceChild(this.div, this.controlled_element);
+			this.controlled_element.style.border = "none";
+			this.controlled_element.style.borderRadius = "0";
+			this.controlled_element.style.margin = "0";
+			this.controlled_element.style.padding = "0";
+			this.controlled_element.style.display = 'inline-block';
+			//this.controlled_element.style.position = 'absolute';
+			//this.controlled_element.style.top = 0;
+			//this.controlled_element.style.left = 0;
+			this.div.appendChild(this.controlled_element);
+			this.div.appendChild(this.div_scroll);
+
+			
+			// Hack to force scrollbar to be visibleon Firefox
+			if (this.div_scroll.clientWidth == 0) {
+				this.div_scroll.style.minWidth = '10px';
+			}
+			
+
+			this.scroll_area = this.div_scroll.clientHeight;
+			this.div_spacer.style.height = this.scroll_area + 'px';
+
+		
+			this.div_scroll.addEventListener('scroll', (ev) => {
+				let el = ev.target;
+				
+				let motion_limit = (this.div_scroll.scrollHeight - this.div_scroll.clientHeight); //this._motion_limit();
+				if (motion_limit <= 0) {
+					return;
+				}
+				let r = (el.scrollTop / motion_limit);
+
+				//console.log("scrollTop=" + el.scrollTop + " scrollHeight=" + el.scrollHeight + " clientHeight=" + el.clientHeight + " m=" + motion_limit + " r=" + r);
+
+				let v = r * (this.max_value - this.min_value) + this.min_value;
+			
+				this.curr_value = v;
+
+				let rv = {
+					value: this.curr_value,
+					minValue: this.min_value,
+					maxValue: this.max_value,
+					visibleRangeSize: this.visible_range_size,
+				};
+
+				if (this.on_change) {
+					this.on_change(rv);
+				}
+			});
+		}
+
+		_motion_limit()
+		{
+			return this.div_scroll.clientHeight * (1 - this.div_scroll.clientHeight / this.div_scroll.scrollHeight);
+		}
+
+		constructor(element, params)
+		{
+			this.controlled_element = element;
+			this.min_value = 0;
+			this.min_value = 0;
+			this.curr_value = 0;
+			this.visible_range_size = 0;
+			this.on_change = null;
+
+			this._layout();
+		}
+
+		_update()
+		{
+			if (this.max_value > this.min_value) {
+				if (this.visible_range_size > 0) {
+					let l = (this.max_value - this.min_value + this.visible_range_size) / this.visible_range_size;
+					let s = this.controlled_element.height * l;
+					this.div_spacer.style.height = Math.floor(s - 0.5) + 'px';
+					//let v = Math.floor(((this.curr_value - this.min_value) / (this.max_value - this.min_value)) * this._motion_limit() + 0.5);
+					let v = Math.floor(((this.curr_value - this.min_value) / (this.max_value - this.min_value)) * this.div_scroll.scrollHeight + 0.5);
+					this.div_scroll.scrollTop = v;
+				}
+			}
+		}
+
+		setMinValue(v)
+		{
+			if (v != this.min_value) {
+				this.min_value = v;
+				this._update();
+			}
+		}
+
+		setMaxValue(v)
+		{
+			if (v != this.max_value) {
+				this.max_value = v;
+				this._update();
+			}
+		}
+
+		setValue(v)
+		{
+			if (v != this.curr_value) {
+				this.curr_value = v;
+				this._update();
+			}
+		}
+
+		setVisibleRangeSize(v)
+		{
+			if (this.visible_range_size != v) {
+				this.visible_range_size = v;
+				this._update();
+			}
+		}
+
+		registerOnChange(cb)
+		{
+			this.on_change = cb;
+		}
+	}
+
+	class GenericScrollBarAdder {
+
+		constructor(element, params)
+		{
+			this.controlled_element = element;
+			this.params = params;
+			this.verticalScrollbar = null;
+			this._layout();
+		}
+
+		_layout()
+		{
+			this.verticalScrollbar = new GenericScrollBar(this.controlled_element, this.params);
+		}
+	}
+
+	window.GenericScrollBar = GenericScrollBar;
+	window.GenericScrollBarAdder = GenericScrollBarAdder;
+}
 
 // DEFAULTS
 
@@ -113,7 +330,7 @@ const ANSITERM_DEFAULTS = {
 	nLines:  25, // Number of lines
 	nColumns:  80, // Number of columns
 
-	historySize: 0, //1000, // Number of lines in the history buffer.
+	historySize: 1000, // Number of lines in the history buffer.
 	
 	fontSize:  15, // Font size in pixels. It determines the size of the canvas.
 
@@ -606,7 +823,15 @@ export class AnsiTermDecoration {
 	close()
 	{
 		if (this.div) {
-			this.div.remove();
+			if (this.div.remove) {
+				this.div.remove();
+			}
+			else {
+			// Workaround for IE11
+				if (this.div.parentNode) {
+					this.div.parentNode.removeChild(this.div);
+				}
+			}
 			this.div = null;
 		}
 		// TODO: unregister AnsiTerm's callbacks. Quite useless...
@@ -1218,6 +1443,15 @@ export class AnsiTerm {
 			"F10": "\x1b[21~",
 			"F11": "\x1b[23~",
 			"F12": "\x1b[24~",
+
+			// IE11 hacks:
+			"Spacebar": " ",
+			"Up": "\x1b[A",
+			"Down": "\x1b[B",
+			"Right": "\x1b[C",
+			"Left": "\x1b[D",
+			"Ins": "\x1b[2~",
+			"Del": "\x1b[3~",
 	};
 
 	static key_translations_app = {
@@ -1389,10 +1623,22 @@ export class AnsiTerm {
 		//[..."\u2500|"].forEach(e => {
 		[..."X|"].forEach(e => {
 				let cm = this.gc.measureText(e);
+			//console.log("Text = '" + e + "' cm =");
+			//console.log(cm);
 				// Sometimes the measures are not integers, so we
 				// round them to the nearest integer.
 				let w = Math.floor(cm.actualBoundingBoxLeft + cm.actualBoundingBoxRight + 0.5);
 				let h = Math.floor(cm.fontBoundingBoxAscent + cm.fontBoundingBoxDescent + 0.5);
+
+				//// Hacks for IE11
+				if (! w) {
+					w = Math.floor(cm.width + 0.5);
+				}
+				if (! h) {
+					h = Math.floor(this.params.fontSize + 0.5);
+				}
+				////
+	
 				if (w > this.charwidth) {
 					this.charwidth = w;
 				}
@@ -1408,6 +1654,10 @@ export class AnsiTerm {
 		}
 		this.width = this.charwidth * this.params.nColumns;
 		this.height = this.charheight * this.params.nLines;
+
+		console.log("charwidth = " + this.charwidth + " nColumns = " + this.params.nColumns);
+		console.log("charheight = " + this.charheight + " nLines = " + this.params.nLines);
+
 		//this.gc.canvas.width = this.width;
 		//this.gc.canvas.height = this.height;
 		this.gc.canvas.width = this.width;
@@ -1416,18 +1666,21 @@ export class AnsiTerm {
 		this.gc.font = this.fullfont;
 		this.gc.textBaseline = "bottom";
 
+		if (typeof window.GenericScrollBarAdder === 'undefined') {
+			this.params.historySize = 0;
+		}
 		if (this.params.historySize > 0) {
-			this.scrollbar = new GenericScrollBarAdder(this.canvas, {vertical: true, horizontal: false});
+			this.scrollbar = new window.GenericScrollBarAdder(this.canvas, {vertical: true, horizontal: false});
 			this.scrollbar.verticalScrollbar.setMinValue(0);
-			this.scrollbar.verticalScrollbar.setMaxValue(this.params.nLines - 1);
+			this.scrollbar.verticalScrollbar.setMaxValue(0 /*this.params.nLines - 1*/);
 			this.scrollbar.verticalScrollbar.setVisibleRangeSize(this.params.nLines);
-			this.scrollbar.verticalScrollbar.setValue(this.params.nLines - 1);
+			this.scrollbar.verticalScrollbar.setValue(0);
 			this.scrollbar.verticalScrollbar.registerOnChange( (rv)	=> {
 				rv.value = rv.minValue
 				         + (rv.value - rv.minValue)
-						  * ((rv.maxValue - rv.minValue - rv.visibleRangeSize + 1) / (rv.maxValue - rv.minValue));
+						  ; //* ((rv.maxValue - rv.minValue - rv.visibleRangeSize + 1) / (rv.maxValue - rv.minValue));
 				rv.value = Math.floor(rv.value + 0.5);
-				console.log(rv);
+				//console.log(rv);
 				if (rv.value != this.viewpoint) {
 					if ((this.viewpoint != 0) != (rv.value != 0)) {
 						if (rv.value != 0) {
@@ -2006,6 +2259,12 @@ export class AnsiTerm {
 		}
 	}
 
+	_line_by_index(y)
+	{
+		y += this.viewpoint;
+		return (y >= 0) ? this.screen[y] : this.history[y + this.params.historySize];
+	}
+
 	_redraw_box(x0, y0, width, height)
 	{
 		let bg = this.params.background;
@@ -2034,19 +2293,19 @@ export class AnsiTerm {
 		if (x0 + width >= this.params.nColumns) {
 			x0 = this.params.nColumns - width;
 		}
-		let hl = this.history.length;
-		if (y0 < -hl) {
-			y0 = -hl;
+		if (y0 < 0) {
+			y0 = 0;
 		}
 		if (y0 + height >= this.params.nLines) {
 			y0 = this.params.nLines - height;
 		}
 
 		//console.log("redraw",x0, y0, width, height);
-		let y0off = y0 < 0 ? -y0 : 0;
 
 		for (let y = y0; y < y0 + height; ++y) {
-			let ly = (y >= 0) ? this.screen[y] : this.history[y + hl];
+
+			let ly = this._line_by_index(y);
+			
 			for (let x = x0; x < x0 + width; ++x) {
 
 				let ch = ly[x];
@@ -2058,7 +2317,7 @@ export class AnsiTerm {
 				this.blink = ch.blink;
 				this.reverse = ch.reverse;
 
-				this._printchar_in_place(ch.ch, x, y + y0off);
+				this._printchar_in_place(ch.ch, x, y);
 
 			}
 		}
@@ -2075,7 +2334,7 @@ export class AnsiTerm {
 
 	_redraw()
 	{
-		this._redraw_box(0, this.viewpoint, this.params.nColumns, this.params.nLines);
+		this._redraw_box(0, 0, this.params.nColumns, this.params.nLines);
 	}
 
 	_setfeature(a, f)
@@ -2367,7 +2626,7 @@ export class AnsiTerm {
 			this.history.shift();
 		}
 		else {
-			this.scrollbar.verticalScrollbar.setMinValue( - this.history.length);
+			this.scrollbar.verticalScrollbar.setMinValue( - this.history.length - 1);
 		}
 		let line = [];
 		for (let i = 0; i < this.params.nColumns; ++i) {
@@ -2830,8 +3089,8 @@ export class AnsiTerm {
 		let key;
 		let e = {
 			key: ev.key,
-			code: ev.code,
-			composed: ev.composed,
+			code: ev.code || ev.key, // Hack for IE11
+			composed: (("composed" in ev) ? ev.composed : (ev.ctrlKey || ev.altKey || ev.metaKey)), // Hack for IE11
 			ctrlKey: ev.ctrlKey,
 			altKey: ev.altKey,
 			metaKey: ev.metaKey,
@@ -3103,14 +3362,16 @@ export class AnsiTerm {
 			let xi = this.selection_start % this.params.nColumns;
 			let yi = Math.floor(this.selection_start / this.params.nColumns);
 			let l = "";
+			let li = this._line_by_index(yi);
 			for (let i = this.selection_start; i <= this.selection_end; ++i) {
-				l += character_handler(this.screen[yi][xi]);
+				l += character_handler(li[xi]);
 				++xi;
 				if (xi >= this.params.nColumns) {
 					t += lf(l);
 					l = "";
 					xi = 0;
 					++yi;
+					li = this._line_by_index(yi);
 				}
 			}
 			t += lf(l);
