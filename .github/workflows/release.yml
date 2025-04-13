@@ -22,8 +22,11 @@ jobs:
       - name: Install terser
         run: npm install terser -g
 
-      - name: Minify JavaScript
-        run: terser src/scrollbar.js src/xwterm.js -o dist/xwterm.min.js
+      - name: Minify xwterm.js
+        run: terser src/xwterm.js -o dist/xwterm.min.js
+      
+      - name: Minify scrollbar.js
+        run: terser src/scrollbar.js -o dist/scrollbar.min.js
 
       - name: Install JSdoc
         run: npm install jsdoc -g
@@ -39,7 +42,7 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Upload minified file
+      - name: Upload minified xwterm.js
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.XWTERM_TOKEN }}
@@ -47,6 +50,16 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: dist/xwterm.min.js
           asset_name: xwterm.min.js
+          asset_content_type: application/javascript
+
+      - name: Upload minified scrollbar.js
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.XWTERM_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/scrollbar.min.js
+          asset_name: scrollbar.min.js
           asset_content_type: application/javascript
 
       - name: Create documentation

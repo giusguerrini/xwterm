@@ -6,6 +6,7 @@
 - [Setup](#setup)
 - [Usage](#usage)
 - [Sample server](#sample-server)
+- [About scrollbar](#about-scrollbar)
 - [Full documentation](#full-documentation)
 - [Live example](#live-example)
 - [Screenshots](#screenshots)
@@ -93,6 +94,24 @@ The server implements both HTTP and WebSocket services on TCP port 8000 and 8001
 respectively. By default, the server accepts local connections only
 
 A detailed description of the server is here: [Sample server](https://giusguerrini.github.io/xwterm/tutorial-90-sample-server.html)
+
+## About scrollbar
+The terminal implements a history buffer whose size is configurable (default: 1000 lines). To navigate through the history, a scrollbar is provided.
+**AnsiTerm** utilizes the standard scrollbar widget provided by the platform, which may vary in appearance depending on the browser and system configuration.
+Although in the majority of cases this is satisfactory, there might be situations where a fixed layout is necessary, irrespective of the platform.
+For such cases, an implementation of a custom scrollbar is given in the additional source **src/scrollbar.js**, designed to ensure a consistent appearance across platforms. **AnsiTerm** (i.e., **xwterm.js**) looks for a public definition of **GenericScrollBarAdder** class, which is the main class exported by **scrollbar.js** module. If the class is not available, **AnsoTerm** defaults to an internal implementation that uses the plain, platform-provided scrollbar. So,
+to enable the custom scrollbar, it is enough to import **scollbar.js** before **xterm.js**:
+
+	<html lang="en">
+	  ...
+	  <script type="module">
+	    <span style="background-color: yellow;">import "./scrollbar.js";</span>
+	    import { AnsiTerm } from "./xwterm.js";
+	    var ansi = new AnsiTerm();
+	  </script>
+	  ...
+	</html>
+
 
 ## Full documentation
 A (still incomplete) documentation of the package, mainly classes and their methods, is here:

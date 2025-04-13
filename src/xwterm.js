@@ -106,16 +106,35 @@ const ANSITERM_VERSION = "0.17.0";
 // Set to true to use the default scrollbar directly.
 // If false, it tries to load the "scrollbar.js" module.
 
-let default_bar = true; // false;
+let try_include_bar = false;
 
-if (! default_bar) {
-	try {
-		// Try to load the scrollbar module. If it fails, use the default one.
-		await import("./scrollbar.js");
-	} catch {
-		console.log("scrollbar.js not available, falling back to platform scrollbar");
+let default_bar = false;
+
+if (typeof window.GenericScrollBarAdder === 'undefined') {
+	if (try_include_bar) {
+		console.log("\"scrollbar.js\" not found in global scope, trying to load it");
+		try {
+			// Try to load the minified version of the scrollbar module first.
+			await import("./scrollbar.min.js");
+			console.log("\"scrollbar.min.js\" not found, trying \"scrollbar.js\"");
+		} catch {
+			try {
+				// Try to load the non-minified scrollbar module. If it fails, use the default one.
+				await import("./scrollbar.js");
+			} catch {
+				console.log("\"scrollbar.js\" not available, falling back to platform scrollbar");
+				default_bar = true;
+			}
+		}
+	}
+	else {
+		console.log("\"scrollbar.js\" not found in global scope, falling back to platform scrollbar");
 		default_bar = true;
 	}
+}
+else {
+	console.log("Using \"scrollbar.js\" from global scope");
+	default_bar = false;
 }
 
 if (default_bar) {
@@ -1600,8 +1619,8 @@ export class AnsiTerm {
 		//[..."\u2500|"].forEach(e => {
 		[..."X|"].forEach(e => {
 				let cm = this.gc.measureText(e);
-			console.log("Text = '" + e + "' cm =");
-			console.log(cm);
+			//console.log("Text = '" + e + "' cm =");
+			//console.log(cm);
 				// Sometimes the measures are not integers, so we
 				// round them to the nearest integer.
 				let w = Math.floor(cm.actualBoundingBoxLeft + cm.actualBoundingBoxRight + 0.5);
@@ -1643,11 +1662,11 @@ export class AnsiTerm {
 		this.gc.font = this.fullfont;
 		this.gc.textBaseline = "bottom";
 
-		if (typeof GenericScrollBarAdder === 'undefined') {
+		if (typeof window.GenericScrollBarAdder === 'undefined') {
 			this.params.historySize = 0;
 		}
 		if (this.params.historySize > 0) {
-			this.scrollbar = new GenericScrollBarAdder(this.canvas, {vertical: true, horizontal: false});
+			this.scrollbar = new window.GenericScrollBarAdder(this.canvas, {vertical: true, horizontal: false});
 			this.scrollbar.verticalScrollbar.setMinValue(0);
 			this.scrollbar.verticalScrollbar.setMaxValue(0 /*this.params.nLines - 1*/);
 			this.scrollbar.verticalScrollbar.setVisibleRangeSize(this.params.nLines);

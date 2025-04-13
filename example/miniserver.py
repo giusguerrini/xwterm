@@ -262,6 +262,8 @@ DEBUG_FLAGS = {"async", "process", "session", "websocket"}
 SESSION_IDLE_CHECK_PERIOD = 10
 SESSION_IDLE_TIMEOUT = 120 #10
 
+initial_nlines = DEFAULT_NLINES
+initial_ncolumns = DEFAULT_NCOLUMNS
 bind_address = DEFAULT_BIND_ADDRESS
 http_port = DEFAULT_HTTP_PORT
 websocket_port = DEFAULT_WEBSOCKET_PORT
@@ -454,7 +456,7 @@ class Shell:
         flag = fcntl.fcntl(fd, fcntl.F_GETFD)
         fcntl.fcntl(fd, fcntl.F_SETFL, flag | os.O_NONBLOCK)
 
-        self.set_size(DEFAULT_NLINES, DEFAULT_NCOLUMNS)
+        self.set_size(initial_nlines, initial_ncolumns)
 
         #os.write(fd, bytes("\n", "UTF-8"))
         loop = asyncio.get_running_loop()
@@ -497,7 +499,7 @@ class Shell:
 # this process:
 #
 # command = 'conhost.exe --headless --width '
-#         + str(DEFAULT_NCOLUMNS) + ' --height ' + str(DEFAULT_NLINES)
+#         + str(initial_ncolumns) + ' --height ' + str(initial_nlines)
 #         + ' --signal 0x' + hex(control_read.value) + '' + ' -- ' + command
 #
 # where "control_write" is the write side of the third pipe. It brings
@@ -554,7 +556,7 @@ class Shell:
             print("control_read = ", hex(control_read.value))
             process = await asyncio.create_subprocess_exec(
                 'conhost.exe',  '--headless', 
-                '--width', str(DEFAULT_NCOLUMNS), '--height', str(DEFAULT_NLINES),
+                '--width', str(initial_ncolumns), '--height', str(initial_nlines),
                 #'--signal', hex(control_read.value), ### DAMN! conhost crashes if --signal is specified!
                 '--', command,
                 stdin=asyncio.subprocess.PIPE,
@@ -589,10 +591,10 @@ class Shell:
             self.pty = ctypes.c_void_p()
 
             if use_conhost:
-                command = 'conhost.exe --headless --width ' + str(DEFAULT_NCOLUMNS) + ' --height ' + str(DEFAULT_NLINES) + ' --signal ' + hex(control_read.value) + ' -- ' + command
+                command = 'conhost.exe --headless --width ' + str(initial_ncolumns) + ' --height ' + str(initial_nlines) + ' --signal ' + hex(control_read.value) + ' -- ' + command
                 #print(command)
             else:
-                size = COORD(DEFAULT_NCOLUMNS, DEFAULT_NLINES)
+                size = COORD(initial_ncolumns, initial_nlines)
 
                 rv = CreatePseudoConsole(size, stdin_read, stdout_write, 0, ctypes.byref(self.pty))
                 if rv != 0:
@@ -1317,6 +1319,8 @@ if __name__ == '__main__':
             print(' '+bold+'   subproc (default)'+comment+'fast, but resize signal not working')
             print(' '+bold+'   pipe'+comment+'experimental, not yet working')
             print(' '+bold+'   thread'+comment+'fully working, but slow as with ConPTY')
+        print(' '+bold+'-initial-size'+orop+'-default-size '+italic+'columns'+normal+'x'+italic+'lines'+comment+'Initial screen size. Default='+str(DEFAULT_NCOLUMNS)+'x'+str(DEFAULT_NLINES))
+        print(' '+bold+'-no-welcome'+comment+'Disable welcome message')
         print(' '+bold+'-fix-aiohttp'+comment+'Launch WebSocket server in a separate process to prevent aiohttp bug')
         print(' '+bold+'-d'+orop+'-debug'+comment+'Enable debug mode')
         print(' '+bold+'-q'+orop+'-quiet'+comment+'Quiet mode, no messages')
@@ -1332,7 +1336,8 @@ if __name__ == '__main__':
         opt = opt.replace('--', '-')
         args = args[1:]
         #print('"' + opt + '"')
-        if opt in [ "-http", "-httpport", "-b", "-bind", "-bindaddr", "-ws", "-wsport", "-websocket", "-websocketport", "-conhost-mode" ]:
+        if opt in [ "-http", "-httpport", "-b", "-bind", "-bindaddr", "-ws", "-wsport", "-websocket", "-websocketport",
+                    "-conhost-mode", "-initial-size", "-defailt-silze" ]:
 
             if len(args) == 0:
                 usage()
@@ -1348,6 +1353,15 @@ if __name__ == '__main__':
                 if not (arg in [ 'thread', 'subproc', 'pipe' ]):
                     usage()
                 conhost_mode = arg
+            elif opt in [ "-initial-size", "-defailt-silze" ]:
+                try:
+                    initial_ncolumns, initial_nlines = arg.split("x")
+                    initial_ncolumns = int(initial_ncolumns)
+                    initial_nlines = int(initial_nlines)
+                except:
+                    usage()
+                if initial_ncolumns < 1 or initial_nlines < 1:
+                    usage()
             
         elif opt in [ "-h", "-help", "-no-http", "-no-websocket", "-d", "-debug", "-q", "quiet",
                       "-fix-aiohttp", "-aiohttp-workaround", "-no-welcome", '-use-conhost', '-use-conpty' ]:

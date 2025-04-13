@@ -34,6 +34,7 @@ The program also accepts these parameters to adjust some internal details:
 - **--use-conpty**: (Windows only) Use *ConPTY* API to create virtual terminals. See [Internals](#internals) for details.
 - **--use-conhost**: (Windows only) Use *conhost.exe* to create virtual terminals. See [Internals](#internals) for details.
 - **--conhost-mode** *subproc | thread | pipe*: (Windows only) If **--use-conhost** is specified, this option configures how *conhost.exe* is used. See [Internals](#internals) for details.
+- **--initial-size** *colums*x*lines* : Initial size of thevirtual screen.
 
 To start the server, go to the `example` folder and launch `./miniserver.py` (on Linux),
 or `python miniserver.py` (on Windows 10). The HTTP service URL is `http://127.0.0.1:8000`,
@@ -69,7 +70,7 @@ This design ensures that the server can operate on Windows while maintaining sim
 On Linux, the traditional **pty** API is used. It interoperates seamlessly with **asyncio** module.
 
 ### Windows-Specific Implementation Details
-On Windows, the official API for creating virtual terminals is **ConPTY**. However, as we will see, its usage is challenging and has induced me to look for alternatives (*NOTE* virtual terminal support for Windows in Python does exist, but it doesn't tntegrate well with **asyncio**). Surprisingly, there is an official package maintained and distributed by Microsoft, in which virtual terminals are generated through a different API. It's the OpenSSH port on Windows ([here](https://github.com/PowerShell/openssh-portable)). When it needs a virtual terminal, it launches the program **conhost.exe**, with *sdtdin* and *stdout* redirected to pipes. It also includes some command-line options to specify the program to run in the terminal, the size of the virtual screen, and a *pipe HANDLE* through which the controlling process can send resize requests. More surprisingly, in some support forums (sponsored by Microsoft), they state that 'OpenSSH should stop using conhost.' However, OpenSSH relies on conhost for a reason: it enables the creation of pipes in OVERLAPPED mode, which **ConPTY** does not support.
+On Windows, the official API for creating virtual terminals is **ConPTY**. However, as we will see, its usage is challenging and has induced me to look for alternatives (*NOTE* virtual terminal support for Windows in Python does exist, but it doesn't tntegrate well with **asyncio**). Surprisingly, there is an official package maintained and distributed by Microsoft, in which virtual terminals are generated through a different API. It's the OpenSSH port on Windows ([here](https://github.com/PowerShell/openssh-portable)). When it needs a virtual terminal, it launches the program **conhost.exe**, with *sdtdin* and *stdout* redirected to pipes. It also includes some command-line options to specify the program to run in the terminal, the size of the virtual screen, and a *pipe HANDLE* through which the controlling process can send resize requests. More surprisingly, in some support forums (sponsored by Microsoft), they state that 'OpenSSH should stop using conhost'. However, OpenSSH relies on conhost for a reason: it enables the creation of pipes in OVERLAPPED mode, which **ConPTY** does not support.
 Anyway, **miniserver.py** supports both **conhost** (the default) and **ConPTY** (safer, but slower). The command line options **--use-conpty** and **--use-conhost** allow the user to select which API to use.
 
 #### ConPTY
@@ -100,6 +101,8 @@ officially resolved. At least, I couldn't find any mention of it in aiohttp's ch
 This problem happens only if both HTTP and WebSocket services are active.
 If you are experiencing this issue, you can add the option **--aiohttp-workaround** as a workaround.
 With this option, the WebSocket server is managed by a separate process running in the background.
-- On Windows 10, after the first session has been established, the program becomes
+- On Windows, after the first session has been established, the program becomes
 insensitive to CTRL-C and must be killed via Task Manager. This problem is probably related
-to the ConPTY subsystem; maybe some cleanup/detach code is required after the child process has been launched. 
+to the ConPTY subsystem; maybe some cleanup/detach code is required after the child process has been launched.
+- On Windows, if **conhost** API is used, the screen size received by *xwtern* is ignored. Screen size alway has the default value (120x40).
+The default value can be changed by adding the command line option **--initial-size**
