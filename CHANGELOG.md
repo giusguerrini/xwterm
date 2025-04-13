@@ -1,8 +1,8 @@
 # Changelog
-## [0.17.0] - 2025-04-14
+## [0.17.1] - 2025-04-14
 - Added history and scrollbar.
 - Added optional custom scrollbar (as separate file).
-- Improved miniserver.py.
+- Improved miniserver.py for Windows.
 
 ## [0.16.0] - 2025-04-04
 - Fixed processing of title in Windows, where the string may contain a \x00
