@@ -1,5 +1,5 @@
 # Changelog
-## [0.17.1] - 2025-04-14
+## [0.17.2] - 2025-04-14
 - Added history and scrollbar.
 - Added optional custom scrollbar (as separate file).
 - Improved miniserver.py for Windows.

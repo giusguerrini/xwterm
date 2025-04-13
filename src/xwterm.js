@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "0.17.0";
+const ANSITERM_VERSION = "0.17.2";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -112,6 +112,9 @@ let default_bar = false;
 
 if (typeof window.GenericScrollBarAdder === 'undefined') {
 	if (try_include_bar) {
+		/*
+		 * Terser doesn't like this...
+
 		console.log("\"scrollbar.js\" not found in global scope, trying to load it");
 		try {
 			// Try to load the minified version of the scrollbar module first.
@@ -126,6 +129,7 @@ if (typeof window.GenericScrollBarAdder === 'undefined') {
 				default_bar = true;
 			}
 		}
+		*/
 	}
 	else {
 		console.log("\"scrollbar.js\" not found in global scope, falling back to platform scrollbar");
