@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>xwterm / AnsiTerm: Class: AnsiTermWebSocketDriver</title>
+    <title>xwterm / AnsiTerm: Class: AnsiTermGenericScrollBarAdder</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Class: AnsiTermWebSocketDriver</h1>
+    <h1 class="page-title">Class: AnsiTermGenericScrollBarAdder</h1>
 
     
 
@@ -28,12 +28,15 @@
 
 <header>
     
-        <h2><span class="attribs"><span class="type-signature"></span></span>AnsiTermWebSocketDriver<span class="signature">()</span><span class="type-signature"></span></h2>
+        <h2><span class="attribs"><span class="type-signature"></span></span>AnsiTermGenericScrollBarAdder<span class="signature">()</span><span class="type-signature"></span></h2>
         
-            <div class="class-description"><p>This class implements the WebSocket protocol driver for AnsiTerm.
-It is activated by specifying &quot;websocket&quot; in &quot;channelType&quot; AnsiTerm's constructor
-parameter.</p>
-<p>NOTE: not exported by the module.</p></div>
+            <div class="class-description"><p>The AnsiTermGenericScrollBarAdder class is used to decorate a terminal
+with a scrollbar. It creates a new scrollbar element and attaches it to the
+terminal's controlled element. Platform-provided scrollbar elements are
+used here, which may vary in appearence depending on the browser and the OS.
+If you need a repeteable layout, you should use &quot;scrollbar.js&quot; and
+set the &quot;internalScrollbar&quot; parameter of AnsiTerm to false.</p>
+<p>At the moment, it only vertical scrollbar is implemented.</p></div>
         
     
 </header>
@@ -48,7 +51,7 @@ parameter.</p>
     
 
     
-    <h4 class="name" id="AnsiTermWebSocketDriver"><span class="type-signature"></span>new AnsiTermWebSocketDriver<span class="signature">()</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="AnsiTermGenericScrollBarAdder"><span class="type-signature"></span>new AnsiTermGenericScrollBarAdder<span class="signature">()</span><span class="type-signature"></span></h4>
     
 
     
@@ -96,7 +99,7 @@ parameter.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line4187">line 4187</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line284">line 284</a>
     </li></ul></dd>
     
 
@@ -133,13 +136,6 @@ parameter.</p>
 
     
 
-    
-        <h3 class="subsection-title">Classes</h3>
-
-        <dl>
-            <dt><a href="AnsiTermWebSocketDriver.html">AnsiTermWebSocketDriver</a></dt>
-            <dd></dd>
-        </dl>
     
 
     
