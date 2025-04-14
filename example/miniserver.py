@@ -495,12 +495,12 @@ class Shell:
     async def run_windows(self):
 
 #
-# NOTE: OpenSSH for Windows creates tree NAMED PIPES and then launches
+# NOTE: OpenSSH for Windows creates three NAMED PIPES and then launches
 # this process:
 #
 # command = 'conhost.exe --headless --width '
 #         + str(initial_ncolumns) + ' --height ' + str(initial_nlines)
-#         + ' --signal 0x' + hex(control_read.value) + '' + ' -- ' + command
+#         + ' --signal ' + hex(control_read.value) + '' + ' -- ' + command
 #
 # where "control_write" is the write side of the third pipe. It brings
 # screen size events.

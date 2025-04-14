@@ -62,7 +62,7 @@ This is the HTML code that implements the example. Let's describe the relevant p
 
 ```javascript
 <script type="module">
-	import { AnsiTerm } from "./xwterm.js";
+	import "./xwterm.js";
 ```
 
 **Create an instance of the `AnsiTerm` class and store it in a variable...**

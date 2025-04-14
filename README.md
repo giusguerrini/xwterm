@@ -103,14 +103,14 @@ For such cases, an implementation of a custom scrollbar is given in the addition
 a consistent appearance across platforms. **AnsiTerm** (i.e., **xwterm.js**) looks for a public definition of **GenericScrollBarAdder**
 class, which is the main class exported by **scrollbar.js** module. If the class is not available, **AnsiTerm** defaults to an internal
 implementation that uses the plain, platform-provided scrollbar. So, to enable the custom scrollbar, it is enough to import
-**scollbar.js** before **xterm.js**:
+**scollbar.js** before **xterm.js** and set to **false** the **internalScrollbar** parameter:
 
 	<html lang="en">
 	  ...
 	  <script type="module">
 	    import "./scrollbar.js";
 	    import "./xwterm.js";
-	    var ansi = new AnsiTerm();
+	    var ansi = new AnsiTerm( { internalScrollbar: false } );
 	  </script>
 	  ...
 	</html>

@@ -81,7 +81,7 @@ Example (minimal):
 ```
 
 ```javascript
-	import { AnsiTerm, AnsiTermDriver } from "./xwterm.js";
+	import "./xwterm.js";
 
 	class CustomDriver extends AnsiTermDriver 
 	{

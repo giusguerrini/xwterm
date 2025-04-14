@@ -1,6 +1,10 @@
 # Changelog
+## [0.18.0] - 2025-04-15
+- Added a parameter to select the type of scrollbar.
+- Modified examples accordingly.
+
 ## [0.17.3] - 2025-04-14
-- Fixed a bug in history management (wring index).
+- Fixed a bug in history management (wrong index).
 - Simplified import of AnsiTerm class.
 
 ## [0.17.2] - 2025-04-14

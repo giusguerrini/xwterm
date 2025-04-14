@@ -17,18 +17,24 @@
 	div.basic-example {
 		width: auto;
 		padding: 40px auto;
-		margin: 40px auto;
+		margin: 20px auto;
 	}
 	button.basic-example  {
 		margin: 40px auto;
-		padding: 40px auto;
+		padding: 20px auto;
 	}
 </style>
 </head>
 <body>
 	<div id="main-div" class="basic-example" style="display: grid; grid-template-columns: auto; place-items: center;">
-		<p>Basic terminal example</p>
-		<div style="display: grid; grid-template-columns: auto auto auto; padding: 20px; gap: 20px;">
+		<div style="display: flex; align-items: center; margin: 0px;">
+			<h1 style="margin-right: 30px;">Basic terminal example</h1>
+			<label>
+				<input type="checkbox" id="custom-scrollbar-checkbox" onchange="toggle_scrollbar()">
+				Use "scrollbar.js" instead of platform scrollbar
+			</label>
+		</div>
+		<div style="display: grid; grid-template-columns: auto auto auto; padding: 20px; gap: 10px;">
 			<button onclick="start_terminal('http')">Start terminal using HTTP channel</button>
 			<button onclick="start_terminal('websocket')">Start terminal using WebSocket channel</button>
 			<button onclick="start_terminal('dummy')">Start terminal using Dummy channel</button>
@@ -38,6 +44,19 @@
 	</div>
 
 	<script type="module">
+
+		var standard_scrollbar = true;
+
+		export function toggle_scrollbar()
+		{
+			if (standard_scrollbar) {
+				standard_scrollbar = false;
+			} else {
+				standard_scrollbar = true;
+			}
+		}
+
+		window.toggle_scrollbar = toggle_scrollbar;
 
 		import "./scrollbar.js";
 
@@ -62,6 +81,8 @@
 					containerId: "terminal-div",
 					autocenter: false,
 
+					internalScrollbar: standard_scrollbar,
+			
 					channelType: channel_type,
 					wsEndpoint: window.location.host.replace(':8000',':8001'), //for websocket, ignored in other cases
 					/* Changing size:
@@ -69,6 +90,8 @@
 					nLines : 40,
 					nColumns : 120,
 					fontSize : 12,
+
+					blinkIsBold: false
 					}
 		
 					/* Chaning some more properties:
