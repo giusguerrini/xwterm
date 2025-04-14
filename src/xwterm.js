@@ -2261,8 +2261,9 @@ export class AnsiTerm {
 
 	_line_by_index(y)
 	{
+		let l = this.history.length;
 		y += this.viewpoint;
-		return (y >= 0) ? this.screen[y] : this.history[y + this.params.historySize];
+		return (y >= 0) ? this.screen[y] : ((y < -l) ? this.history[0] : this.history[l+y]);
 	}
 
 	_redraw_box(x0, y0, width, height)
@@ -4259,4 +4260,10 @@ export class AnsiTermWebSocketDriver extends AnsiTermDriver
 	}
 
 }
+
+window.AnsiTerm = AnsiTerm;
+window.AnsiTermDecoration = AnsiTermDecoration;
+window.AnsiTermDriver = AnsiTermDriver;
+window.AnsiTermHttpDriver = AnsiTermHttpDriver;
+window.AnsiTermWebSocketDriver = AnsiTermWebSocketDriver;
 

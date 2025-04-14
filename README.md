@@ -42,7 +42,7 @@ only a terminal with default properties:
 	  <body>
 	  </body>
 	  <script type="module">
-	    import { AnsiTerm } from "./xwterm.js";
+	    import "./xwterm.js";
 	    var ansi = new AnsiTerm();
 	  </script>
 	</html>
@@ -99,14 +99,17 @@ A detailed description of the server is here: [Sample server](https://giusguerri
 The terminal implements a history buffer whose size is configurable (default: 1000 lines). To navigate through the history, a scrollbar is provided.
 **AnsiTerm** utilizes the standard scrollbar widget provided by the platform, which may vary in appearance depending on the browser and system configuration.
 Although in the majority of cases this is satisfactory, there might be situations where a fixed layout is necessary, irrespective of the platform.
-For such cases, an implementation of a custom scrollbar is given in the additional source **src/scrollbar.js**, designed to ensure a consistent appearance across platforms. **AnsiTerm** (i.e., **xwterm.js**) looks for a public definition of **GenericScrollBarAdder** class, which is the main class exported by **scrollbar.js** module. If the class is not available, **AnsoTerm** defaults to an internal implementation that uses the plain, platform-provided scrollbar. So,
-to enable the custom scrollbar, it is enough to import **scollbar.js** before **xterm.js**:
+For such cases, an implementation of a custom scrollbar is given in the additional source **src/scrollbar.js**, designed to ensure
+a consistent appearance across platforms. **AnsiTerm** (i.e., **xwterm.js**) looks for a public definition of **GenericScrollBarAdder**
+class, which is the main class exported by **scrollbar.js** module. If the class is not available, **AnsiTerm** defaults to an internal
+implementation that uses the plain, platform-provided scrollbar. So, to enable the custom scrollbar, it is enough to import
+**scollbar.js** before **xterm.js**:
 
 	<html lang="en">
 	  ...
 	  <script type="module">
 	    import "./scrollbar.js";
-	    import { AnsiTerm } from "./xwterm.js";
+	    import "./xwterm.js";
 	    var ansi = new AnsiTerm();
 	  </script>
 	  ...

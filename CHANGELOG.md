@@ -1,4 +1,8 @@
 # Changelog
+## [0.17.3] - 2025-04-14
+- Fixed a bug in history management (wring index).
+- Simplified import of AnsiTerm class.
+
 ## [0.17.2] - 2025-04-14
 - Added history and scrollbar.
 - Added optional custom scrollbar (as separate file).
