@@ -1681,7 +1681,7 @@ export class AnsiTerm {
 
 					let dy = this.viewpoint - rv.value;
 
-					console.log("Olb viewpoint: " + this.viewpoint + " new: " + rv.value);
+					//console.log("Olb viewpoint: " + this.viewpoint + " new: " + rv.value);
 
 					this.viewpoint = rv.value;
 
@@ -1716,11 +1716,11 @@ export class AnsiTerm {
 								}
 							}
 						}
-
+/*
 						console.log("Old blink list:");
 						console.log(this.blink_list);
 						console.log("New blink list:");
-						console.log(bl);
+						console.log(bl); */
 
 						// ...almost working... almost...					
 
