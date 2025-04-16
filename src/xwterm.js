@@ -1678,31 +1678,36 @@ export class AnsiTerm {
 							this._dec_freeze();
 						}
 					}
-					
-					if (false) {
+
+					let dy = this.viewpoint - rv.value;
+
+					console.log("Olb viewpoint: " + this.viewpoint + " new: " + rv.value);
+
+					this.viewpoint = rv.value;
+
+					if (! this.params.blinkIsBold) {
 						// TODO: Adjust blink_list: add to the list the lines
 						// that are visible now, and remove the lines that
 						// aren't visible anymore.
 
-						let dy = this.viewpoint - rv.value;
-
 						let bl = [];
 
 						Object.keys(this.blink_list).forEach((v, i, a) => {
-							let xy = v.split(",");
-							let y = parseInt(xy[1]);
-							if ((dy > 0 && y <= this.params.nLines - 1 - dy)
-							|| (dy < 0 && y >= dy)) {
-								bl[v] = this.blink_list[v];
+							let y = this.blink_list[v].y;
+							if ((dy > 0 && y < this.params.nLines - dy)
+							 || (dy < 0 && y >= -dy)) {
+								bl[v] = { x: this.blink_list[v].x, y: this.blink_list[v].y + dy };
 							}
 						});
 
 						let ystart = 0;
 						let yend = dy;
+
 						if (dy < 0) {
-							let ystart = this.params.nLines + dy;
-							let yend = this.params.nLines;
+							ystart = this.params.nLines + dy - 1;
+							yend = this.params.nLines - 1;
 						}
+
 						for (let y = ystart; y < yend; ++y) {
 							let li = this._line_by_index(y);
 							for (let x = 0; x < this.params.nColumns; ++x) {
@@ -1711,17 +1716,18 @@ export class AnsiTerm {
 								}
 							}
 						}
-						
+
+						console.log("Old blink list:");
+						console.log(this.blink_list);
+						console.log("New blink list:");
+						console.log(bl);
+
 						// ...almost working... almost...					
 
 						this.blink_list = bl;
 						this.blink_lists[this.alternate_screen ? 1 : 0] = bl;					
 
 					}
-
-					this.viewpoint = rv.value;
-
-		
 
 					this._redraw();
 				}
@@ -2450,7 +2456,7 @@ export class AnsiTerm {
 		Object.keys(this.blink_list).forEach((v, i, a) => {
 			if (v) {
 				let x = this.blink_list[v].x;
-				let y = this.blink_list[v].y - this.viewpoint;
+				let y = this.blink_list[v].y;
 				let li = this._line_by_index(y);
 				let ch = li[x];
 				let fg = ch.foreground;
