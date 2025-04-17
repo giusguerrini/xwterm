@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "0.18.0";
+const ANSITERM_VERSION = "0.19.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -1696,7 +1696,9 @@ export class AnsiTerm {
 							let y = this.blink_list[v].y;
 							if ((dy > 0 && y < this.params.nLines - dy)
 							 || (dy < 0 && y >= -dy)) {
-								bl[v] = { x: this.blink_list[v].x, y: this.blink_list[v].y + dy };
+								let x = this.blink_list[v].x;
+								y += dy;
+								this._add_to_blink_list(x, y, bl);
 							}
 						});
 
@@ -1712,7 +1714,7 @@ export class AnsiTerm {
 							let li = this._line_by_index(y);
 							for (let x = 0; x < this.params.nColumns; ++x) {
 								if (li[x].blink) {
-									bl[x + "," + y] = { x: x, y: y};
+									this._add_to_blink_list(x, y, bl);
 								}
 							}
 						}
@@ -1738,6 +1740,16 @@ export class AnsiTerm {
 
 		this.canvas.focus();
 
+	}
+
+	_add_to_blink_list(x, y, bl)
+	{
+		bl[x + "," + y] = { x: x, y: y};
+	}
+
+	_remove_from_blink_list(x, y, bl)
+	{
+		delete bl[x + "," + y];
 	}
 
 	/**
@@ -2088,10 +2100,10 @@ export class AnsiTerm {
 		this.screen[y][x] = src;
 		if (src.blink != blink) {
 			if (blink) {
-				delete this.blink_list[x + "," + y];
+				this._remove_from_blink_list(x, y, this.blink_list);
 			}
 			else {
-				this.blink_list[x + "," + y] = { x: x, y: y};
+				this._add_to_blink_list(x, y, this.blink_list);
 			}
 		}
 	}

@@ -22,7 +22,7 @@
 # find any citation in aiohttp's changelog.
 #
 
-VERSION = '1.1'
+VERSION = '1.2'
 
 import os
 import sys
@@ -116,6 +116,22 @@ else:
         DWORD,
         wintypes.HANDLE,
     ]
+
+    DuplicateHandle = kernel32.DuplicateHandle;
+    DuplicateHandle.argtypes = [
+        wintypes.HANDLE,
+        wintypes.HANDLE,
+        wintypes.HANDLE,
+        ctypes.POINTER(wintypes.HANDLE),
+        DWORD,
+        BOOL,
+        DWORD,
+    ]
+    
+    DUPLICATE_CLOSE_SOURCE = 0x0001
+    DUPLICATE_SAME_ACCESS = 0x0002
+    GetCurrentProcess = -1
+
 
     class STARTUPINFOW(Structure):
         _fields_ = [
@@ -551,13 +567,15 @@ class Shell:
         if use_conhost and (conhost_mode == 'subproc'): # Doesn't work...
             winpipe(control_read, control_write, True, False)
             os.set_handle_inheritable(control_read.value, True)
+            control_read_fd = msvcrt.open_osfhandle(control_read.value, os.O_RDONLY)
+            control_read_pipe = os.fdopen(control_read_fd, 'rb')
             control_write_fd = msvcrt.open_osfhandle(control_write.value, os.O_WRONLY)
             control_write_pipe = os.fdopen(control_write_fd, 'wb')
-            print("control_read = ", hex(control_read.value))
+            #print("control_read = ", hex(control_read.value))
             process = await asyncio.create_subprocess_exec(
                 'conhost.exe',  '--headless', 
                 '--width', str(initial_ncolumns), '--height', str(initial_nlines),
-                #'--signal', hex(control_read.value), ### DAMN! conhost crashes if --signal is specified!
+                '--signal', hex(control_read.value), ### DAMN! conhost crashes if --signal is specified!
                 '--', command,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
