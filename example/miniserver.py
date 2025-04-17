@@ -130,7 +130,6 @@ else:
     
     DUPLICATE_CLOSE_SOURCE = 0x0001
     DUPLICATE_SAME_ACCESS = 0x0002
-    GetCurrentProcess = -1
 
 
     class STARTUPINFOW(Structure):
@@ -564,7 +563,7 @@ class Shell:
             if not SetHandleInformation(inh, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
                 raise ctypes.WinError(ctypes.get_last_error())
 
-        if use_conhost and (conhost_mode == 'subproc'): # Doesn't work...
+        if use_conhost and (conhost_mode == 'subproc'):
             winpipe(control_read, control_write, True, False)
             os.set_handle_inheritable(control_read.value, True)
             control_read_fd = msvcrt.open_osfhandle(control_read.value, os.O_RDONLY)
@@ -575,7 +574,7 @@ class Shell:
             process = await asyncio.create_subprocess_exec(
                 'conhost.exe',  '--headless', 
                 '--width', str(initial_ncolumns), '--height', str(initial_nlines),
-                '--signal', hex(control_read.value), ### DAMN! conhost crashes if --signal is specified!
+                #'--signal', hex(control_read.value), ### DAMN! conhost crashes if --signal is specified!
                 '--', command,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
