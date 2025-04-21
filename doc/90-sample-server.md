@@ -84,13 +84,16 @@ This approach works, but it's slow. Specifically, some programs (e.g. [Midnight 
 
 #### conhost
 
-Since **conhost** allows OVERLAPPED pipes, its integration with **asyncio** is easier: we can use **asyncio.create_subprocess_exec** to launch it. There is still a problem with resize: **asyncio.create_subprocess_exec** seems unable to share additional handles, so resize commands can't be sent.
+Since **conhost** allows OVERLAPPED pipes, its integration with **asyncio** is easier: we can use **asyncio.create_subprocess_exec** to launch it. There is still a problem with resize: **asyncio.create_subprocess_exec** seems unable to share additional handles, so resize commands can't be sent. The problem is that **asyncio.create_subprocess_exec** seems to do its best to make the inheritance of additional handles impossible.
+The only solution I've found is to create a named pipe and a helper process that receives the name of the pipe as a command-line argument,
+opens it, and then launches conhost.exe using **subprocess.Popen**, which allows arbitrary handle inheritance. The helper process is a new instance of **miniserver.py** itself with the "secret" argument **--conhost-helper**. In this way, at the cost of an additional process,
+the transfer of data to and from the terminal is reasonably fast.
 
 <h2 id="known-limitations-and-issues">Known Limitations and Issues</h2>
 
-By design, the server is a single thread running a number of *async* tasks (Note: this is not completely true on Windows,
-where a couple of threads per session are created, but they are just ancillary threads whose usage I would have avoided if I could.
-They don't perform real CPU load partitioning).  
+By design, the server is a single thread running a number of *async* tasks (Note: this is not completely true on Windows if ConPTY
+is used. In that case a couple of threads per session are created, but they are just ancillary threads whose usage I would
+have avoided if I could. They don't perform real CPU load partitioning).  
 Since the server has been written for testing and debugging purposes, security and resource
 control have been neglected. Additionally, there are these known bugs:
 - aiohttp has a known issue, described here: [aiohttp-issue-6978](https://github.com/aio-libs/aiohttp/issues/6978).
@@ -101,8 +104,6 @@ officially resolved. At least, I couldn't find any mention of it in aiohttp's ch
 This problem happens only if both HTTP and WebSocket services are active.
 If you are experiencing this issue, you can add the option **--aiohttp-workaround** as a workaround.
 With this option, the WebSocket server is managed by a separate process running in the background.
-- On Windows, after the first session has been established, the program becomes
-insensitive to CTRL-C and must be killed via Task Manager. This problem is probably related
+- On Windows, after the first session has been established, the program may become
+insensitive to CTRL-C and must be killed via Task Manager or by closing its termina. This problem is probably related
 to the ConPTY subsystem; maybe some cleanup/detach code is required after the child process has been launched.
-- On Windows, if **conhost** API is used, the screen size received by *xwtern* is ignored. Screen size alway has the default value (120x40).
-The default value can be changed by adding the command line option **--initial-size**

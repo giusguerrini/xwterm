@@ -1,4 +1,8 @@
 # Changelog
+## [0.19.0] - 2025-04-21
+- miniserver.py fully working with both "conhost" API (default, faster)
+and "ConPTY" API (slower, but recommended by Microsoft).
+
 ## [0.18.0] - 2025-04-15
 - Added a parameter to select the type of scrollbar.
 - Modified examples accordingly.
