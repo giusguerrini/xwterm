@@ -39,7 +39,7 @@ import json
 import websockets
 import threading
 import logging
-#import subprocess
+import subprocess
 #import pathlib
 try:
     import io
@@ -93,6 +93,7 @@ else:
     FILE_ATTRIBUTE_NORMAL = 0x00000080
 
     GENERIC_READ = 0x80000000
+    GENERIC_WRITE = 0x40000000
 
     OPEN_EXISTING = 3
 
@@ -131,14 +132,6 @@ else:
     DUPLICATE_CLOSE_SOURCE = 0x0001
     DUPLICATE_SAME_ACCESS = 0x0002
 
-    SetNamedPipeHandleState = kernel32.SetNamedPipeHandleState
-    SetNamedPipeHandleState.argtypes = [
-        wintypes.HANDLE,  # hNamedPipe
-        ctypes.POINTER(wintypes.DWORD),  # lpMode
-        ctypes.POINTER(wintypes.DWORD),  # lpMaxCollectionCount
-        ctypes.POINTER(wintypes.DWORD)   # lpCollectDataTimeout
-    ]
-    SetNamedPipeHandleState.restype = wintypes.BOOL
 
     class STARTUPINFOW(Structure):
         _fields_ = [
@@ -217,7 +210,11 @@ else:
 
 
     CreatePipe = kernel32.CreatePipe
-    CreatePipe.argtypes = [ctypes.POINTER(wintypes.HANDLE), ctypes.POINTER(wintypes.HANDLE), ctypes.POINTER(ctypes.c_void_p), wintypes.DWORD,]
+    CreatePipe.argtypes = [
+        ctypes.POINTER(wintypes.HANDLE),
+        ctypes.POINTER(wintypes.HANDLE), 
+        ctypes.POINTER(SECURITY_ATTRIBUTES),
+        wintypes.DWORD,]
 
     CreateNamedPipeW = kernel32.CreateNamedPipeW
     CreateNamedPipeW.argtypes = [
@@ -231,10 +228,10 @@ else:
         ctypes.POINTER(SECURITY_ATTRIBUTES), # lpSecurityAttributes
     ]
 
+    PIPE_ACCESS_INBOUND = 0x00000001
     PIPE_ACCESS_OUTBOUND = 0x00000002
     PIPE_TYPE_BYTE = 0x00000000
     PIPE_WAIT = 0x00000000
-    PIPE_NOWAIT = 0x00000001
 
     w32_pipe_count = 0
 
@@ -293,6 +290,7 @@ http_port = DEFAULT_HTTP_PORT
 websocket_port = DEFAULT_WEBSOCKET_PORT
 debug = False
 enable_http = True
+conhost_helper_pipe = None
 enable_websocket = True
 quiet = False
 fix_aiohttp = False
@@ -436,10 +434,29 @@ class Shell:
  
     def set_size_windows(self, li, co):
         #print("Process ", self.name, ": Size=", li, ",", co, " proc=", self.proc)
-        size = COORD(co, li)
-        result = ResizePseudoConsole(self.pty, size)
-        if result != 0:
-            raise ctypes.WinError(ctypes.get_last_error())
+        if 'control_pipe' in self.proc:
+            msg = PTY_SIGNAL_RESIZE_MESSAGE()
+            msg.code = PTY_SIGNAL_RESIZE_WINDOW
+            msg.x = co
+            msg.y = li
+            try:
+                msgb = ctypes.string_at(ctypes.byref(msg), ctypes.sizeof(msg))
+                print("Process ", self.name, ": resize, msg=", msgb)
+                self.proc['control_pipe'].write(msgb)
+                print("Process ", self.name, ": resize done")
+            except Exception as e:
+                print("Process ", self.name, ": resize write failed: ", e)
+            try:
+                print("Process ", self.name, ": resize flush")
+                self.proc['control_pipe'].flush()
+                print("Process ", self.name, ": resize flush done")
+            except Exception as e:
+                print("Process ", self.name, ": resize flush failed: ", e)
+        else:
+            size = COORD(co, li)
+            result = ResizePseudoConsole(self.pty, size)
+            if result != 0:
+                raise ctypes.WinError(ctypes.get_last_error())
 
     def set_size(self, li, co):
         print("Process ", self.name, ": Size=", li, ",", co)
@@ -500,6 +517,100 @@ class Shell:
         self.kill = end_shell
         self.pty = None
 
+    def conhost_helper(pipe, command, width, height):
+        print("conhost_helper: pipe=", pipe, " command=", command, " width=", width, " height=", height)
+        try:
+            handle = HANDLE()
+            #Shell.winpipe_server(pipe, handle, False, False);
+            Shell.winpipe_client(pipe, handle, False, False);
+            print("Helper pipe handle: ", handle.value)
+            #duplicate = HANDLE()
+            #process = HANDLE(kernel32.GetCurrentProcess())
+            #if not DuplicateHandle(process, handle, process, ctypes.byref(duplicate), 0, True, DUPLICATE_SAME_ACCESS):
+            #    raise ctypes.WinError(ctypes.get_last_error())
+            #if not SetHandleInformation(duplicate, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
+            #    raise ctypes.WinError(ctypes.get_last_error())
+            command = [ 'conhost.exe',  '--headless', '--width', width, '--height', height,
+                        #'--signal', hex(duplicate.value),
+                        '--signal', hex(handle.value),
+                        '--', command ]
+            process = subprocess.Popen(command,
+                    stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr,
+                    close_fds=False)
+            print("process ", process, " started, command=", command)
+            process.wait()
+            print("process ", process, " terminated")
+        except Exception as e:
+            print(e)
+
+    def winpipename():
+        global w32_pipe_count
+        name = "\\\\.\\Pipe\\miniserver." + str(kernel32.GetCurrentProcessId()) + "." + str(w32_pipe_count)
+        w32_pipe_count = w32_pipe_count + 1
+        return name
+
+    def winpipe_client(pipe, h_ref, wr, over):
+        sa = SECURITY_ATTRIBUTES()
+        sa.bInheritHandle = True
+        sa.lpSecurityDescriptor = None
+        sa.nLength = ctypes.sizeof(sa)
+
+        f = FILE_ATTRIBUTE_NORMAL
+        if over:
+            f = f | FILE_FLAG_OVERLAPPED
+
+        if wr:
+            mode = GENERIC_WRITE
+        else:
+            mode = GENERIC_READ
+
+        h_ref.value = CreateFileW(ctypes.c_wchar_p(pipe), mode, 0, ctypes.byref(sa), OPEN_EXISTING, f, None)
+        #if inh:
+        #    if not SetHandleInformation(h_ref, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
+        #        raise ctypes.WinError(ctypes.get_last_error())
+
+    def winpipe_server(pipe, h_ref, wr, over):
+        sa = SECURITY_ATTRIBUTES()
+        sa.bInheritHandle = True
+        sa.lpSecurityDescriptor = None
+        sa.nLength = ctypes.sizeof(sa)
+
+        if wr:
+            f = PIPE_ACCESS_OUTBOUND
+        else:
+            f = PIPE_ACCESS_INBOUND
+        if over:
+            f = f | FILE_FLAG_OVERLAPPED
+
+        h_ref.value = CreateNamedPipeW(ctypes.c_wchar_p(pipe), f, PIPE_TYPE_BYTE | PIPE_WAIT, 1, 4096, 4096, 0, ctypes.byref(sa))
+        #if inh:
+        #    if not SetHandleInformation(h_ref, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
+        #        raise ctypes.WinError(ctypes.get_last_error())
+
+    def winpipe(in_ref, out_ref, wr, over, anon):
+        if not anon:
+            pipe = Shell.winpipename()
+            if not (out_ref is None):
+                Shell.winpipe_server(pipe, out_ref, wr, over)
+            if not (in_ref is None):
+                Shell.winpipe_client(pipe, in_ref, not wr, over)
+        else:
+            sa = SECURITY_ATTRIBUTES()
+            sa.bInheritHandle = True
+            sa.lpSecurityDescriptor = None
+            sa.nLength = ctypes.sizeof(sa)
+            pipe = ''
+            if not CreatePipe(ctypes.byref(in_ref), ctypes.byref(out_ref), ctypes.byref(sa), 0):
+                raise ctypes.WinError(ctypes.get_last_error())
+        #if wr:
+        #    inh = in_ref
+        #else:
+        #    inh = out_ref
+        #if inh:
+        #    if not SetHandleInformation(inh, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
+        #        raise ctypes.WinError(ctypes.get_last_error())
+        return pipe
+
     async def run_windows(self):
 
 #
@@ -524,175 +635,253 @@ class Shell:
         control_read = wintypes.HANDLE()
         control_write = wintypes.HANDLE()
 
-        def winpipe(in_ref, out_ref, wr, nonbl):
-            if not CreatePipe(ctypes.byref(in_ref), ctypes.byref(out_ref), None, 1):
-                raise ctypes.WinError(ctypes.get_last_error())
-            if wr:
-                inh = in_ref
-                nbl = out_ref
+        if use_conhost and (conhost_mode == 'subproc' or conhost_mode == 'helper'):
+            #pipename = Shell.winpipe(control_read, control_write, True, False, False)
+            if conhost_mode == 'helper':
+                pipename = Shell.winpipename()
+                control_write_pipe = None
+                Shell.winpipe_server(pipename, control_write, True, False);
+                control_write_fd = msvcrt.open_osfhandle(control_write.value, os.O_WRONLY)
+                control_write_pipe = os.fdopen(control_write_fd, 'wb')
+                args = [ os.path.realpath(sys.executable), sys.argv[0],
+                         '--conhost-helper', pipename, command,
+                         str(initial_ncolumns), str(initial_nlines) ]
+                print(args)
             else:
-                inh = out_ref
-                nbl = in_ref
-            if not SetHandleInformation(inh, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT):
+                pipename = Shell.winpipe(control_read, control_write, True, False, False)
+                control_write_fd = msvcrt.open_osfhandle(control_write.value, os.O_WRONLY)
+                control_write_pipe = os.fdopen(control_write_fd, 'wb')
+                args = [ 'conhost.exe', '--headless',
+                         '--width', str(initial_ncolumns), '--height', str(initial_nlines),
+                         '--signal', hex(control_read.value),
+                         '--', command ]
+            process = await asyncio.create_subprocess_exec(
+                *args,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE)
+            proc = {
+                    "process": process,
+                    "control_pipe": control_write_pipe,
+                    }
+            reader = process.stdout
+            writer = process.stdin
+            self.pty = None
+        else:
+            stdin_read = wintypes.HANDLE()
+            stdin_write = wintypes.HANDLE()
+            stdout_read = wintypes.HANDLE()
+            stdout_write = wintypes.HANDLE()
+            Shell.winpipe(stdin_read, stdin_write, True, True, not use_conhost)
+            Shell.winpipe(stdout_read, stdout_write, False, True, not use_conhost)
+
+            if use_conhost:
+                Shell.winpipe(control_read, control_write, True, False, False)
+
+            attr_size = SIZE_T()
+            if not kernel32.InitializeProcThreadAttributeList(None, 1, 0, ctypes.byref(attr_size)):
+                #raise ctypes.WinError(ctypes.get_last_error())
+                pass
+            attr_list = ctypes.create_string_buffer(attr_size.value)
+            if not kernel32.InitializeProcThreadAttributeList(attr_list, 1, 0, ctypes.byref(attr_size)):
                 raise ctypes.WinError(ctypes.get_last_error())
-            mode = DWORD()
-            if nonbl:
-                mode.value = PIPE_NOWAIT
-                if not SetNamedPipeHandleState(nbl, ctypes.byref(mode), None, None):
+            self.pty = ctypes.c_void_p()
+
+            if use_conhost:
+                command = 'conhost.exe --headless --width ' + str(initial_ncolumns) + ' --height ' + str(initial_nlines) + ' --signal ' + hex(control_read.value) + ' -- ' + command
+                #print(command)
+            else:
+                size = COORD(initial_ncolumns, initial_nlines)
+
+                rv = CreatePseudoConsole(size, stdin_read, stdout_write, 0, ctypes.byref(self.pty))
+                if rv != 0:
                     raise ctypes.WinError(ctypes.get_last_error())
-            
 
-        stdin_read = wintypes.HANDLE()
-        stdin_write = wintypes.HANDLE()
-        stdout_read = wintypes.HANDLE()
-        stdout_write = wintypes.HANDLE()
-        winpipe(stdin_read, stdin_write, True, False)
-        winpipe(stdout_read, stdout_write, False, False)
+                success = True
+                success = kernel32.UpdateProcThreadAttribute(
+                        attr_list,
+                        0,
+                        PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
+                        self.pty,
+                        ctypes.sizeof(ctypes.c_void_p),
+                        None,
+                        None)
+                if not success:
+                    raise ctypes.WinError(ctypes.get_last_error())
 
-        attr_size = SIZE_T()
-        if not kernel32.InitializeProcThreadAttributeList(None, 1, 0, ctypes.byref(attr_size)):
-            #raise ctypes.WinError(ctypes.get_last_error())
-            pass
-        attr_list = ctypes.create_string_buffer(attr_size.value)
-        if not kernel32.InitializeProcThreadAttributeList(attr_list, 1, 0, ctypes.byref(attr_size)):
-            raise ctypes.WinError(ctypes.get_last_error())
-        self.pty = ctypes.c_void_p()
+            startupinfo = STARTUPINFOWEX()
+            startupinfo.StartupInfo.cb = ctypes.sizeof(startupinfo)
+            startupinfo.lpAttributeList = ctypes.cast(ctypes.addressof(attr_list), ctypes.c_void_p)
 
-        size = COORD(initial_ncolumns, initial_nlines)
+            startupinfo.StartupInfo.dwFlags = STARTF_USESTDHANDLES
+            startupinfo.StartupInfo.hStdInput = stdin_read
+            startupinfo.StartupInfo.hStdOutput = stdout_write
+            startupinfo.StartupInfo.hStdError = stdout_write
 
-        rv = CreatePseudoConsole(size, stdin_read, stdout_write, 0, ctypes.byref(self.pty))
-        if rv != 0:
-            raise ctypes.WinError(ctypes.get_last_error())
+            stdin_fd = msvcrt.open_osfhandle(stdin_write.value, os.O_WRONLY)
+            stdout_fd = msvcrt.open_osfhandle(stdout_read.value, os.O_RDONLY)
 
-        success = kernel32.UpdateProcThreadAttribute(
-                attr_list,
-                0,
-                PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
-                self.pty,
-                ctypes.sizeof(ctypes.c_void_p),
+            stdin_pipe = os.fdopen(stdin_fd, 'wb')
+            stdout_pipe = os.fdopen(stdout_fd, 'rb')
+
+            pi = PROCESS_INFORMATION()
+
+            flags = EXTENDED_STARTUPINFO_PRESENT
+            if use_conhost:
+                flags = flags | CREATE_NO_WINDOW
+
+            success = CreateProcessW(
                 None,
-                None)
-        if not success:
-            raise ctypes.WinError(ctypes.get_last_error())
+                ctypes.c_wchar_p(command),
+                None,
+                None,
+                use_conhost,
+                flags,
+                None,
+                None,
+                ctypes.byref(startupinfo),
+                ctypes.byref(pi))
 
-        startupinfo = STARTUPINFOWEX()
-        startupinfo.StartupInfo.cb = ctypes.sizeof(startupinfo)
-        startupinfo.lpAttributeList = ctypes.cast(ctypes.addressof(attr_list), ctypes.c_void_p)
+            kernel32.CloseHandle(stdin_read)
+            kernel32.CloseHandle(stdout_write)
+    #            kernel32.CloseHandle(stderr_write)
 
-        startupinfo.StartupInfo.dwFlags = STARTF_USESTDHANDLES
-        startupinfo.StartupInfo.hStdInput = stdin_read
-        startupinfo.StartupInfo.hStdOutput = stdout_write
-        startupinfo.StartupInfo.hStdError = stdout_write
 
-        stdin_fd = msvcrt.open_osfhandle(stdin_write.value, os.O_WRONLY)
-        stdout_fd = msvcrt.open_osfhandle(stdout_read.value, os.O_RDONLY)
+            if not success:
+                raise ctypes.WinError(ctypes.get_last_error())
 
-        stdin_pipe = os.fdopen(stdin_fd, 'wb')
-        stdout_pipe = os.fdopen(stdout_fd, 'rb')
+            if use_conhost and (conhost_mode == 'pipe'): # Doesn't work...
+                #
+                # The OpenSSH way is officially unsupported by Microsoft,
+                # but it allows to open pipes in OVERLAPPED mode, so they
+                # interoperate with asyncio without hacks.
+                #
+                loop = asyncio.get_running_loop()
+                writer_transport, writer_protocol = await loop.connect_write_pipe(lambda: asyncio.streams.FlowControlMixin(loop=loop), stdin_pipe)
+                #writer_transport, writer_protocol = await loop.connect_write_pipe(lambda: SubprocessStreamProtocol(loop=loop), stdin_pipe)
+                #writer_transport, writer_protocol = await loop.connect_write_pipe(lambda: asyncio.SubprocessProtocol(), stdin_pipe)
+                writer = asyncio.streams.StreamWriter(writer_transport, writer_protocol, None, loop)
+                reader = asyncio.StreamReader()
+                protocol = asyncio.StreamReaderProtocol(reader)
+                await loop.connect_read_pipe(lambda: protocol, stdout_pipe)
+                control_fd = msvcrt.open_osfhandle(control_write.value, os.O_WRONLY)
+                control_pipe = os.fdopen(control_fd, 'wb')
+                control_transport, control_protocol = await loop.connect_write_pipe(lambda: asyncio.streams.FlowControlMixin(loop=loop), control_pipe)
+                control = asyncio.streams.StreamWriter(control_transport, control_protocol, None, loop)
 
-        pi = PROCESS_INFORMATION()
 
-        flags = EXTENDED_STARTUPINFO_PRESENT
+                proc = {
+                        "pi": pi,
+                        "stdin_pipe": stdin_pipe,
+                        "stdout_pipe": stdout_pipe,
+                        "control_pipe": control_pipe,
+                        "control": control
+                        }
 
-        success = CreateProcessW(
-            None,
-            ctypes.c_wchar_p(command),
-            None,
-            None,
-            False,
-            flags,
-            None,
-            None,
-            ctypes.byref(startupinfo),
-            ctypes.byref(pi))
+            else:
+                #
+                # Since ConPty only implements synchronous I/O, we have to create a pair of threads
+                # to integrate the pseudoterminal in asyncio :-(
+                # Not handy.
+                #
+                # Ok, let's try (NO, I WILL NOT USE POLLING, even though this is just a test program).
+                #
+                # asyncio provides an "run_coroutine_threadsafe"... the only thing that can make thareds
+                # and coroutines interoperate.
+                #
 
-        kernel32.CloseHandle(stdin_read)
-        kernel32.CloseHandle(stdout_write)
+                stdin_queue = asyncio.Queue()
+                stdout_queue = asyncio.Queue()
 
-        if not success:
-            raise ctypes.WinError(ctypes.get_last_error())
+                loop = asyncio.get_running_loop()
 
-        #
-        # Since ConPty only implements synchronous I/O, we have to create a pair of threads
-        # to integrate the pseudoterminal in asyncio :-(
-        # Not handy.
-        #
-        # Ok, let's try (NO, I WILL NOT USE POLLING, even though this is just a test program).
-        #
-        # asyncio provides "run_coroutine_threadsafe" and "to_threa"... the only things that
-        # can make thareds and coroutines interoperate.
-        #
-
-        class QueueStreamReader:
-            def __init__(self):
-                self.buffer = b''
-
-            async def read(self, n=-1):
-                if True:
-                    def piperead():
-                        return stdout_pipe.read(1)
-                    result = await asyncio.to_thread(piperead)
-                else:
-                    while len(self.buffer) < n or n == -1:
-                        if len(self.buffer) > 0:
-                            def piperead():
-                                d = b''
-                                while True:
-                                    try:
-                                        b = os.read(stdout_pipe.fileno(), 1)
-                                        if not b:
-                                            break
-                                        d += b
-                                    except BlockingIOError:
-                                        break
-                                return d
-                            data = await asyncio.to_thread(piperead)
-                            if len(data) == 0:
-                                break
-                        else:    
+                def read_from_process_thr():
+                    try:
+                        while True:
                             data = stdout_pipe.read(1)
-                        self.buffer += data
-                    if n == -1:
-                        result, self.buffer = self.buffer, b''
-                    else:
-                        result, self.buffer = self.buffer[:n], self.buffer[n:]
-                return result
+                            #print("R>> ", data)
+                            asyncio.run_coroutine_threadsafe(stdout_queue.put(data), loop).result()
+                            #print("R<<")
+                    except (asyncio.CancelledError, GeneratorExit):
+                        raise
+                    except Exception as e:
+                        print(e)
+                        pass
 
-        reader = QueueStreamReader()
+                th_read = threading.Thread(target=read_from_process_thr)
+                th_read.start()
 
-        class QueueStreamWriter:
-            def __init__(self):
-                self.buffer = b''
+                class QueueStreamReader:
+                    def __init__(self, queue):
+                        self.queue = queue
+                        self.buffer = b''
 
-            def write(self, data):
-                self.buffer += data
+                    async def read(self, n=-1):
+                        while len(self.buffer) < n or n == -1:
+                            if len(self.buffer) > 0:
+                                try:
+                                    data = await self.queue.get_nowait()
+                                except asyncio.QueueEmpty:
+                                    break
+                                except:
+                                    raise
+                            else:    
+                                data = await self.queue.get()
+                            if data is None:
+                                break
+                            self.buffer += data
+                        if n == -1:
+                            result, self.buffer = self.buffer, b''
+                        else:
+                            result, self.buffer = self.buffer[:n], self.buffer[n:]
+                        return result
 
-            async def drain(self):
-                try:
-                    def pipewrite():
-                        try:
-                            stdin_pipe.write(self.buffer)
+                reader = QueueStreamReader(stdout_queue)
+
+
+                def write_to_process_thr():
+                    try:
+                        async def queue_get():
+                            data = await stdin_queue.get()
+                            return data
+                        while True:
+                            data = asyncio.run_coroutine_threadsafe(queue_get(), loop).result()
+                            if data is None:
+                                break
+                            stdin_pipe.write(data)
                             stdin_pipe.flush()
-                        except (asyncio.CancelledError, GeneratorExit):
-                            raise
-                        except Exception as e:
-                            print(e)
-                            pass
-                    await asyncio.to_thread(pipewrite)
-                except (asyncio.CancelledError, GeneratorExit):
-                    raise
-                except Exception as e:
-                    print(e)
-                    pass
-                self.buffer = b''
+                    except (asyncio.CancelledError, GeneratorExit):
+                        raise
+                    except Exception as e:
+                        print(e)
+                        pass
+
+                th_write = threading.Thread(target=write_to_process_thr)
+                th_write.start()
+
+                class QueueStreamWriter:
+                    def __init__(self, queue):
+                        self.queue = queue
+                        self.buffer = b''
+
+                    def write(self, data):
+                        self.buffer += data
+
+                    async def drain(self):
+                        await self.queue.put(self.buffer)
+                        self.buffer = b''
 
 
-        writer = QueueStreamWriter()
-        proc = {
-                "pi": pi,
-                "stdin_pipe": stdin_pipe,
-                "stdout_pipe": stdout_pipe
-                }
+                writer = QueueStreamWriter(stdin_queue)
+                proc = {
+                        "pi": pi,
+                        "th_read": th_read,
+                        "th_write": th_write,
+                        "stdin_queue": stdin_queue,
+                        "stdout_queue": stdout_queue,
+                        "stdin_pipe": stdin_pipe,
+                        "stdout_pipe": stdout_pipe
+                        }
 
         reader_err = None
         
@@ -1258,7 +1447,7 @@ if __name__ == '__main__':
             elif opt in [ "-b", "-bind", "-bindaddr" ]:
                 bind_address = arg
             elif opt in [ "-conhost-mode" ]:
-                if not (arg in [ 'thread', 'subproc', 'pipe' ]):
+                if not (arg in [ 'thread', 'subproc', 'pipe', 'helper' ]):
                     usage()
                 conhost_mode = arg
             elif opt in [ "-initial-size", "-defailt-silze" ]:
@@ -1293,6 +1482,15 @@ if __name__ == '__main__':
             elif opt in [ "-use-conpty" ]:
                 use_conhost = False
         
+        elif opt in [ "-conhost-helper" ]:
+            if len(args) != 4:
+                usage()
+            conhost_helper_pipe = args[0]
+            conhost_helper_command = args[1]
+            conhost_helper_width = args[2]
+            conhost_helper_height = args[3]
+            args = args[4:]
+
         else:
             print('Unknown option: "', opt, '"')
             usage()
@@ -1301,6 +1499,11 @@ if __name__ == '__main__':
     def no_print(*args):
         pass
 
+
+    if conhost_helper_pipe:
+        print("conhost_helper")
+        Shell.conhost_helper(conhost_helper_pipe, conhost_helper_command, conhost_helper_width, conhost_helper_height)
+        sys.exit(0)
 
 # An ugly hack to prevent a bug that affects some versions of aiohttp,
 # in which the websocket listener task is terminated (and never awaited, too)
