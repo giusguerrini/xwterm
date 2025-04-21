@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "0.18.0";
+const ANSITERM_VERSION = "0.19.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -1678,50 +1678,58 @@ export class AnsiTerm {
 							this._dec_freeze();
 						}
 					}
-					
-					if (false) {
+
+					let dy = this.viewpoint - rv.value;
+
+					//console.log("Olb viewpoint: " + this.viewpoint + " new: " + rv.value);
+
+					this.viewpoint = rv.value;
+
+					if (! this.params.blinkIsBold) {
 						// TODO: Adjust blink_list: add to the list the lines
 						// that are visible now, and remove the lines that
 						// aren't visible anymore.
 
-						let dy = this.viewpoint - rv.value;
-
 						let bl = [];
 
 						Object.keys(this.blink_list).forEach((v, i, a) => {
-							let xy = v.split(",");
-							let y = parseInt(xy[1]);
-							if ((dy > 0 && y <= this.params.nLines - 1 - dy)
-							|| (dy < 0 && y >= dy)) {
-								bl[v] = this.blink_list[v];
+							let y = this.blink_list[v].y;
+							if ((dy > 0 && y < this.params.nLines - dy)
+							 || (dy < 0 && y >= -dy)) {
+								let x = this.blink_list[v].x;
+								y += dy;
+								this._add_to_blink_list(x, y, bl);
 							}
 						});
 
 						let ystart = 0;
 						let yend = dy;
+
 						if (dy < 0) {
-							let ystart = this.params.nLines + dy;
-							let yend = this.params.nLines;
+							ystart = this.params.nLines + dy - 1;
+							yend = this.params.nLines - 1;
 						}
+
 						for (let y = ystart; y < yend; ++y) {
 							let li = this._line_by_index(y);
 							for (let x = 0; x < this.params.nColumns; ++x) {
 								if (li[x].blink) {
-									bl[x + "," + y] = { x: x, y: y};
+									this._add_to_blink_list(x, y, bl);
 								}
 							}
 						}
-						
+/*
+						console.log("Old blink list:");
+						console.log(this.blink_list);
+						console.log("New blink list:");
+						console.log(bl); */
+
 						// ...almost working... almost...					
 
 						this.blink_list = bl;
 						this.blink_lists[this.alternate_screen ? 1 : 0] = bl;					
 
 					}
-
-					this.viewpoint = rv.value;
-
-		
 
 					this._redraw();
 				}
@@ -1732,6 +1740,16 @@ export class AnsiTerm {
 
 		this.canvas.focus();
 
+	}
+
+	_add_to_blink_list(x, y, bl)
+	{
+		bl[x + "," + y] = { x: x, y: y};
+	}
+
+	_remove_from_blink_list(x, y, bl)
+	{
+		delete bl[x + "," + y];
 	}
 
 	/**
@@ -2082,10 +2100,10 @@ export class AnsiTerm {
 		this.screen[y][x] = src;
 		if (src.blink != blink) {
 			if (blink) {
-				delete this.blink_list[x + "," + y];
+				this._remove_from_blink_list(x, y, this.blink_list);
 			}
 			else {
-				this.blink_list[x + "," + y] = { x: x, y: y};
+				this._add_to_blink_list(x, y, this.blink_list);
 			}
 		}
 	}
@@ -2450,7 +2468,7 @@ export class AnsiTerm {
 		Object.keys(this.blink_list).forEach((v, i, a) => {
 			if (v) {
 				let x = this.blink_list[v].x;
-				let y = this.blink_list[v].y - this.viewpoint;
+				let y = this.blink_list[v].y;
 				let li = this._line_by_index(y);
 				let ch = li[x];
 				let fg = ch.foreground;
