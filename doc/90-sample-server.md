@@ -33,8 +33,7 @@ The program also accepts these parameters to adjust some internal details:
 - **--aiohttp-workaround**: A workaround to prevent a bug in `aiohttp`. See [Known Limitations and Issues](#known-limitations-and-issues) for details.
 - **--use-conpty**: (Windows only) Use *ConPTY* API to create virtual terminals. See [Internals](#internals) for details.
 - **--use-conhost**: (Windows only) Use *conhost.exe* to create virtual terminals. See [Internals](#internals) for details.
-- **--conhost-mode** *subproc | thread | pipe*: (Windows only) If **--use-conhost** is specified, this option configures how *conhost.exe* is used. See [Internals](#internals) for details.
-- **--initial-size** *colums*x*lines* : Initial size of thevirtual screen.
+- **--initial-size** *colums*x*lines* : Initial size of the virtual screen.
 
 To start the server, go to the `example` folder and launch `./miniserver.py` (on Linux),
 or `python miniserver.py` (on Windows 10). The HTTP service URL is `http://127.0.0.1:8000`,
@@ -82,7 +81,7 @@ The integration with the **ConPTY** subsystem requires some considerations. The 
 
 This approach works, but it's slow. Specifically, some programs (e.g. [Midnight Commander](https://github.com/adamyg/mcwin32)) frequently redraw the entire screen, which takes about two seconds to complete.
 
-#### conhost
+#### Conhost
 
 Since **conhost** allows OVERLAPPED pipes, its integration with **asyncio** is easier: we can use **asyncio.create_subprocess_exec** to launch it. There is still a problem with resize: **asyncio.create_subprocess_exec** seems unable to share additional handles, so resize commands can't be sent. The problem is that **asyncio.create_subprocess_exec** seems to do its best to make the inheritance of additional handles impossible.
 The only solution I've found is to create a named pipe and a helper process that receives the name of the pipe as a command-line argument,
@@ -105,5 +104,5 @@ This problem happens only if both HTTP and WebSocket services are active.
 If you are experiencing this issue, you can add the option **--aiohttp-workaround** as a workaround.
 With this option, the WebSocket server is managed by a separate process running in the background.
 - On Windows, after the first session has been established, the program may become
-insensitive to CTRL-C and must be killed via Task Manager or by closing its termina. This problem is probably related
+insensitive to CTRL-C and must be killed via Task Manager or by closing its terminal. This problem is probably related
 to the ConPTY subsystem; maybe some cleanup/detach code is required after the child process has been launched.

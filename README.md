@@ -10,6 +10,7 @@
 - [Full documentation](#full-documentation)
 - [Live example](#live-example)
 - [Screenshots](#screenshots)
+- [Coding conventions](#coding-conventions)
 - [Caveats](#caveats)
 - [TODO](#todo)
 - [Enjoy](#enjoy)
@@ -131,6 +132,10 @@ full support of graphics functions (Midnight Commander, htop, vim):
 ![Midnight Commander](./doc/xwterm-screenshot-mc.png)
 ![Htop](./doc/xwterm-screenshot-htop.png)
 ![Vim](./doc/xwterm-screenshot-vim.png)
+
+## Coding conventions
+If you want to contribute, please take a look at the coding rules used in this project first:
+[Coding conventions](https://giusguerrini.github.io/xwterm/tutorial-60-coding-conventions.html)
 
 ## Caveats
 Please remember that this project is in its early stage.
