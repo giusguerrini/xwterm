@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "0.19.0";
+const ANSITERM_VERSION = "0.19.1";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -58,44 +58,7 @@ const ANSITERM_VERSION = "0.19.0";
  are stored in a list that updates whenever a character changes
  its blinking state.
 
-
-----------------------
-
-
- Coding conventions:
- - Although modern JavaScript implements private methods,
-  for the sake of compatibility I prefer not to use them.
-  In this source, methods that are intended to be private
-  are prefixed by an underscore.
-  This rule does not apply to non-function members whose
-  intended scope is "private". Plain lowercase
-  identifiers are preferred for them.
- - Method and members intendended to be public are camelCase.
- - Classes are PascalCase.
- - Constants are UPPERCASE.
- NOTE: I'm not sure if this is a good idea. I may change it in
- the future. I am not an enthusiast of rigid coding conventions
- (and there are some that I dislike, e.g, useless prefixes like
- "m_" for members, "C" for classes... Furthermore, I dislike
- horrors like this:
- 
-	for (iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere = 0;
-	     iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere < fArrayOfThingsIAmLookingFor.length;
-	     ++iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere) {
-
-		if (fArrayOfThingsIAmLookingFor[iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere]
-		 == fTheThingIAmLookingForButIAmNotSureIfItIsThere) {
-			break;
-		}
-	}
-
-  Today's screens are wide, but, please, just use a plain "i" for index. Please).
-
- Beside my personal quirks, I'll impose at least two rules:
- 1) always put semi-colons at the end of statements,
- 2) always use braces for control structures.
-
- ----------------------
+-------------------------------------------
 
  For a full description of XTerm/ANSI sequences see:
 	

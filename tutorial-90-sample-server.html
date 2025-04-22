@@ -59,8 +59,7 @@ addresses can be changed using command-line options. In particular:</p>
 <li><strong>--aiohttp-workaround</strong>: A workaround to prevent a bug in <code>aiohttp</code>. See <a href="#known-limitations-and-issues">Known Limitations and Issues</a> for details.</li>
 <li><strong>--use-conpty</strong>: (Windows only) Use <em>ConPTY</em> API to create virtual terminals. See <a href="#internals">Internals</a> for details.</li>
 <li><strong>--use-conhost</strong>: (Windows only) Use <em>conhost.exe</em> to create virtual terminals. See <a href="#internals">Internals</a> for details.</li>
-<li><strong>--conhost-mode</strong> <em>subproc | thread | pipe</em>: (Windows only) If <strong>--use-conhost</strong> is specified, this option configures how <em>conhost.exe</em> is used. See <a href="#internals">Internals</a> for details.</li>
-<li><strong>--initial-size</strong> <em>colums</em>x<em>lines</em> : Initial size of thevirtual screen.</li>
+<li><strong>--initial-size</strong> <em>colums</em>x<em>lines</em> : Initial size of the virtual screen.</li>
 </ul>
 <p>To start the server, go to the <code>example</code> folder and launch <code>./miniserver.py</code> (on Linux),
 or <code>python miniserver.py</code> (on Windows 10). The HTTP service URL is <code>http://127.0.0.1:8000</code>,
@@ -101,7 +100,7 @@ Anyway, <strong>miniserver.py</strong> supports both <strong>conhost</strong> (t
 <li><strong>Error Handling</strong>: Special care is taken to handle edge cases and errors specific to the Windows environment, such as process cleanup and resource management.</li>
 </ul>
 <p>This approach works, but it's slow. Specifically, some programs (e.g. <a href="https://github.com/adamyg/mcwin32">Midnight Commander</a>) frequently redraw the entire screen, which takes about two seconds to complete.</p>
-<h4 id="conhost">conhost</h4>
+<h4 id="conhost">Conhost</h4>
 <p>Since <strong>conhost</strong> allows OVERLAPPED pipes, its integration with <strong>asyncio</strong> is easier: we can use <strong>asyncio.create_subprocess_exec</strong> to launch it. There is still a problem with resize: <strong>asyncio.create_subprocess_exec</strong> seems unable to share additional handles, so resize commands can't be sent. The problem is that <strong>asyncio.create_subprocess_exec</strong> seems to do its best to make the inheritance of additional handles impossible.
 The only solution I've found is to create a named pipe and a helper process that receives the name of the pipe as a command-line argument,
 opens it, and then launches conhost.exe using <strong>subprocess.Popen</strong>, which allows arbitrary handle inheritance. The helper process is a new instance of <strong>miniserver.py</strong> itself with the &quot;secret&quot; argument <strong>--conhost-helper</strong>. In this way, at the cost of an additional process,
@@ -122,7 +121,7 @@ This problem happens only if both HTTP and WebSocket services are active.
 If you are experiencing this issue, you can add the option <strong>--aiohttp-workaround</strong> as a workaround.
 With this option, the WebSocket server is managed by a separate process running in the background.</li>
 <li>On Windows, after the first session has been established, the program may become
-insensitive to CTRL-C and must be killed via Task Manager or by closing its termina. This problem is probably related
+insensitive to CTRL-C and must be killed via Task Manager or by closing its terminal. This problem is probably related
 to the ConPTY subsystem; maybe some cleanup/detach code is required after the child process has been launched.</li>
 </ul>
 </article>
@@ -132,13 +131,13 @@ to the ConPTY subsystem; maybe some cleanup/detach code is required after the ch
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AnsiTerm.html">AnsiTerm</a></li><li><a href="AnsiTermDecoration.html">AnsiTermDecoration</a></li><li><a href="AnsiTermDriver.html">AnsiTermDriver</a></li><li><a href="AnsiTermGenericScrollBar.html">AnsiTermGenericScrollBar</a></li><li><a href="AnsiTermGenericScrollBarAdder.html">AnsiTermGenericScrollBarAdder</a></li><li><a href="AnsiTermHttpDriver.html">AnsiTermHttpDriver</a></li><li><a href="AnsiTermWebSocketDriver.html">AnsiTermWebSocketDriver</a></li></ul><h3>Tutorials</h3><ul><li><a href="tutorial-10-basic-page.html">10-basic-page</a></li><li><a href="tutorial-40-communication-drivers.html">40-communication-drivers</a></li><li><a href="tutorial-90-sample-server.html">90-sample-server</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AnsiTerm.html">AnsiTerm</a></li><li><a href="AnsiTermDecoration.html">AnsiTermDecoration</a></li><li><a href="AnsiTermDriver.html">AnsiTermDriver</a></li><li><a href="AnsiTermGenericScrollBar.html">AnsiTermGenericScrollBar</a></li><li><a href="AnsiTermGenericScrollBarAdder.html">AnsiTermGenericScrollBarAdder</a></li><li><a href="AnsiTermHttpDriver.html">AnsiTermHttpDriver</a></li><li><a href="AnsiTermWebSocketDriver.html">AnsiTermWebSocketDriver</a></li></ul><h3>Tutorials</h3><ul><li><a href="tutorial-10-basic-page.html">10-basic-page</a></li><li><a href="tutorial-40-communication-drivers.html">40-communication-drivers</a></li><li><a href="tutorial-60-coding-conventions.html">60-coding-conventions</a></li><li><a href="tutorial-90-sample-server.html">90-sample-server</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Mon Apr 21 2025 21:55:20 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Tue Apr 22 2025 21:54:49 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>
