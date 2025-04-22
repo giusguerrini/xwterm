@@ -28,105 +28,68 @@
 </header>
 
 <article>
-    <h1 id="xwterm---communication-drivers"><strong>xwterm</strong> - Communication drivers</h1>
+    <h1 id="xwterm---coding-conventions"><strong>xwterm</strong> - Coding conventions</h1>
+<p><strong>For contributors</strong></p>
 <h2 id="table-of-contents">Table of Contents</h2>
 <ul>
 <li><a href="#introduction">Introduction</a></li>
-<li><a href="#http">HTTP</a></li>
-<li><a href="#websocket">WebSocket</a></li>
-<li><a href="#dummy-protocol">Dummy protocol</a></li>
-<li><a href="#custom-protocol">Custom protocol</a></li>
+<li><a href="#language">Language</a></li>
+<li><a href="#classes">Classes</a></li>
+<li><a href="#public-methods">Public methods</a></li>
+<li><a href="#private-methods">Private methods</a></li>
+<li><a href="#coding-style">Coding style</a></li>
 </ul>
 <h2 id="Introduction">Introduction</h2>
-<p>The terminal can use these kinds of channels to communicate with the server
-(<em>NOTE: Here we use the term &quot;server&quot; in an extensive sense, to indicate any form of data source and destination that is suitable to be managed by a terminal.</em>)</p>
-<ul>
-<li>HTTP</li>
-<li>WebSocket</li>
-<li>Dummy</li>
-<li>Custom protocol</li>
-</ul>
-<p>The communication layer is represented by a (sort of) abstract class which provides the common interface.
-Real protocol drivers extend the base class to implement the specific operations.</p>
-<h2 id="http">HTTP</h2>
-<p>This is the default.
-The terminal obtains the stream of characters by periodically sending HTTP GET
-requests, and sends terminal events (e.g., key events) to the host by sending HTTP POST
-requests. Also, the terminal needs to communicate its initial size to the host through
-an additional parameter in GET request. By default, the terminal generates these
-requests:</p>
-<ul>
-<li><code>/?size=</code><em>lines</em>x<em>columns</em>: configure the screen size (e.g., <code>/?size=40x120</code>).</li>
-<li><code>/?console</code>: requests pending character to display.</li>
-<li><code>/</code>: the POST request containing the stream of terminal events (mainly keys).</li>
-</ul>
-<p>These defaults can be changed by specifying these parameters:</p>
-<ul>
-<li><code>httpSize</code>: specifies the request by which the terminal sends the screen size. The strings
-<code>?lines?</code> and <code>?columns?</code> are used as placeholders for the actual number of
-lines and columns. The default is <code>/?size=?lines?x?columns?</code>.</li>
-<li><code>httpSource</code>: The request to get the stream of pending characters. Default is <code>/?console</code>.</li>
-<li><code>httpDest</code>: The POST request to send terminal events. Default is <code>/</code>.</li>
-</ul>
-<h2 id="websocket">WebSocket</h2>
-<p>The terminal receives characters and sends events through a WebSocket connection. Data are encoded
-as JSON objects. By default these JSON tags are used:</p>
-<ul>
-<li><code>text</code> for both incoming and outgoing characters,</li>
-<li><code>size</code> for screen size settings.</li>
-</ul>
-<p>Default settings can be changed by specifying these parameters:</p>
-<ul>
-<li><code>wsEndpoint</code>: the server endpoint in the form <em>host:port</em>,</li>
-<li><code>wsDataTag</code>: the JSON field for characters in both directions,</li>
-<li><code>wsSizeTag</code>: the JSON field containing the screen size,</li>
-<li><code>wsSizeData</code>: the format of scren sie string, as in <code>config</code> HTTP parameter described above.</li>
-</ul>
-<h2 id="dummy-protocol">Dummy protocol</h2>
-<p>This is a pseudo-protocol that just sends back to the terminal the data it receives.</p>
-<h2 id="custom-protocol">Custom protocol</h2>
-<p>The programmer has the ability to write its own communication driver for xwterm. Here are the
-required steps:</p>
-<ul>
-<li>Write a JavaScript class containing the code that implements the protocol. The class must
-extend <code>AnsiTermDriver</code> (it is the &quot;dummy&quot; protocol described above).</li>
-<li>Instantiate an object of the class.</li>
-<li>Assign the object to AnsiTerm's configuration parameter <code>driver</code>.</li>
-</ul>
-<p>If the parameter <code>driver</code> is not null, the terminal ignores <code>channelType</code> and all
-protocol-specific parameters (but you can set <code>channelType</code> to &quot;custom&quot; for clarity).</p>
-<p>Example (minimal):</p>
-<pre class="prettyprint source lang-html"><code>	&lt;script type=&quot;module&quot;>
-</code></pre>
-<pre class="prettyprint source lang-javascript"><code>	import &quot;./xwterm.js&quot;;
+<p>In this section I will describe the coding rules used in <strong>xwterm</strong>.</p>
+<p>In general, I am not an enthusiast of rigid coding rules, especially those that were not invented by me. However,
+there are some simple, widely known conventions that I have decided to adopt in this project.
+Contributors are encouraged to adhere to them - unless doing so distracts from adding new, smart, and innovative features.</p>
+<h2 id="language">Language</h2>
+<p>Since the primary targets of this project are modern browsers, we can assume that JavaScript ES6 syntax is supported.
+I recommend applying basic OOP principles (e.g., classes and simple inheritance) while avoiding the proliferation of
+small classes that perform only trivial operations.</p>
+<p>For callbacks (e.g., deferred actions, group operations, timeouts...), I suggest using the new syntax <code>() =&gt;</code>, which
+eliminates headaches when used within methods.</p>
+<p>Constants, when needed, should be written in UPPERCASE. Where to place a constant (e.g., global scope or class local
+scope) depends on the meaning of the symbol and individual preference.</p>
+<h2 id="classes">Classes</h2>
+<p>Class names are <strong>PascalCase</strong>.
+As mentioned above, classes should be &quot;big enough.&quot; I do not recommend splitting the program into microscopic
+classes that contain only a few fields and elementary methods. A JavaScript dictionary is often a better and
+more readable choice.</p>
+<h2 id="public-methods">Public methods</h2>
+<p>Method and members intendended to be public are <strong>camelCase</strong>.</p>
+<h2 id="private-methods">Private methods</h2>
+<p>Although modern JavaScript implements private methods, for the sake of compatibility I prefer not to use them.
+In this project, methods that are intended to be private are prefixed by an underscore.
+This rule does not apply to non-function members whose intended scope is &quot;private&quot;. Plain lowercase
+identifiers are preferred for them.</p>
+<h2 id="coding-style">Coding style</h2>
+<p>As mentioned above, I am not a fan of rigid, abstract coding conventions. The purpose of coding conventions should
+be readability, because while writing code is hard, reading it is even harder.</p>
+<p>I have often encountered long and detailed &quot;coding manuals&quot; from corporate Quality Departments.
+These manuals tend to focus on trivial formalities, failing miserably at making the source code clean and understandable.</p>
+<p>I understand that this is a matter of personal taste, but in my experience, some so-called &quot;best practices&quot; make
+code worse. For example: unnecessary prefixes and descriptive identifiers that fail to actually clarify anything.
+Let's consider this fragment of code:</p>
+<pre class="prettyprint source lang-javascript"><code>	for (iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere = 0;
+	     iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere &lt; fArrayOfThingsIAmLookingFor.length;
+	     ++iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere) {
 
-	class CustomDriver extends AnsiTermDriver 
-	{
-		constructor(params)
-		{
-			super(params);
-		}
-
-		start()
-		{ 
-			super.start();
-			this._set_connection_state(true); // Signal &quot;connected&quot; to the terminal
-			this._new_data(&quot;Hello!\r\n&quot;); // Send data to the terminal
-		}
-
-		_tx(text)
-		{
-			console.log(&quot;From xwterm: &quot; + text);
+		if (fArrayOfThingsIAmLookingFor[iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere]
+		 == fTheThingIAmLookingForButIAmNotSureIfItIsThere) {
+			break;
 		}
 	}
-	
-	var ansi = new AnsiTerm( { nLines: 40, nColumns: 120, driver: new CustomDriver() } );
 </code></pre>
-<pre class="prettyprint source lang-html"><code>	&lt;/script>
-</code></pre>
-<p>A simple but more interesting example is in <code>example/jsconsole.html</code>.
-Also, you can study <code>xwterm.js</code> itself, where HTTP and WebSocket driver are defined (<code>AnsiTermHttpDriver</code>
-and <code>AnsiTermWeSocketDriver</code> respectively).</p>
+<p>Some QAs would consider this a &quot;conformat code&quot;. Any questions?</p>
+<p>Today's screens are wide, but, please, just use a plain &quot;i&quot; for index. Please.</p>
+<p>Beside my personal quirks, I'll impose at least two rules:</p>
+<ul>
+<li>Always put semicolons at the end of statements: do not rely on JavaScript's inconsistent handling of EOL.</li>
+<li>Always use braces for control structures: do not rely on your focus when adding the second line
+of a conditional.</li>
+</ul>
 </article>
 
 </section>
@@ -140,7 +103,7 @@ and <code>AnsiTermWeSocketDriver</code> respectively).</p>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Tue Apr 22 2025 21:54:49 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Tue Apr 22 2025 22:05:41 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>
