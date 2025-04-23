@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multiple terminals</title>
+  <style>
+  </style>
+</head>
+<body>
+  <div>
+    <button id="open-terminal" onclick="open_terminal()">Open Terminal</button>
+  </div>
+  <script type="module">
+
+    import "./xwterm.js";
+
+    let terminal_count = 0;
+
+    class Terminal {
+      constructor() {
+        ++terminal_count;
+        console.log("Terminal " + terminal_count);
+        this.terminal = document.createElement('dialog');
+        this.terminal.style.position = "absolute";
+        this.terminal.style.padding = "0px";
+        this.terminal.style.margin = "0px";
+        this.terminal.style.overflow = "visible";
+        this.terminal.innerHTML = `
+        <div style="display: grid; grid-tamplate-columns: auto; border: 1px solid gray; margin: 0px; padding: 0px;">
+          <div id="title${terminal_count}" style="display: grid; grid-template-columns: auto auto; border: 1px solid gray; padding: 10px; background-color: #0000ff; color: #ffffff;">
+            <div>Terminal ${terminal_count}</div>
+            <button id="button${terminal_count}" style="border: 1px solid white; padding: 0px; margin: 0px; background-color: #ff0000; color: #ffffff; width: 30px; height: 30px; justify-self: end">X</button>
+          </div>
+          <canvas id="term${terminal_count}"></canvas>
+        </div>
+        `;
+        document.body.appendChild(this.terminal);
+        this.ansi = new AnsiTerm({
+          canvasId: "term" + terminal_count,
+          nLines : 25,
+          nColumns : 80,
+          fontSize : 12,
+          hasTitleBar: false,
+          hasStatusBar: false,
+          hasSoftFKeys: false,          
+        });
+        this.title = document.getElementById("title" + terminal_count);
+        this.title.addEventListener("mousedown", (e) => {
+          this.start_ex = e.screenX;
+          this.start_ey = e.screenY;
+          this.start_x = parseInt(this.terminal.style.left || 0);
+          this.start_y = parseInt(this.terminal.style.top || 0);
+          //console.log(e);
+          e.preventDefault();
+          e.stopPropagation();
+          let f = (e) => {
+            //console.log(e);
+            let x = e.screenX - this.start_ex + this.start_x;
+            let y = e.screenY - this.start_ey + this.start_y;
+            //console.log(x, y);
+            this.terminal.style.left = (x) + "px";
+            this.terminal.style.top = (y) + "px";
+            e.preventDefault();
+            e.stopPropagation();
+          };
+          document.body.addEventListener("mousemove", f);
+          let f2 = (e) => {
+            document.body.removeEventListener("mousemove", f);
+            document.body.removeEventListener("mouseup", f2);
+            e.preventDefault();
+            e.stopPropagation();
+            //document.body.focus();
+          };
+          document.body.addEventListener("mouseup", f2);
+        });
+        this.button = document.getElementById("button" + terminal_count);
+        this.button.addEventListener("click", (e) => {
+          this.ansi.close();
+          this.ansi = null;
+          this.terminal.close();
+          this.terminal.remove();
+          this.terminal = null;
+          this.title = null;
+          this.button = null;
+        });
+        this.terminal.show();
+      }
+    }
+    function open_terminal() {
+      new Terminal();
+    }
+    window.open_terminal = open_terminal;
+  </script>
+</body>
+</html>
+
