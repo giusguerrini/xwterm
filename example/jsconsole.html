@@ -26,8 +26,13 @@
 </style>
 </head>
 <body>
-	<div id="main-div" class="basic-example" style="display: grid; grid-template-columns: auto; place-items: center;">
-		<h3>JavaScript Terminal</h3>
+	<div class="basic-example" style="display: grid; grid-template-columns: auto 1fr;">
+		<div style="position: relative;">
+			<button style="position: absolute; top:10%; padding: 40px" onclick="window.history.back();">BACK</button>
+		</div>
+		<div id="main-div" class="basic-example" style="display: grid; grid-template-columns: auto; place-items: center; margin-bottom: 40px;">
+			<h3>JavaScript Terminal</h3>
+		</div>
 	</div>
 <script type="module">
 
@@ -125,7 +130,10 @@
 		hasSoftFKeys: false,
 		}
 	);
-	
+	let spc = document.createElement("div");
+	spc.style.height = "20px";
+	spc.style.width = "100%";
+	document.getElementById("main-div").appendChild(spc);
 </script>
 </body>
 </html>

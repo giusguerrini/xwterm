@@ -9,7 +9,8 @@
 </head>
 <body>
   <div>
-    <button id="open-terminal" onclick="open_terminal()">Open Terminal</button>
+    <button onclick="window.history.back();">BACK</button>
+    <button id="open-terminal" onclick="open_terminal()">NEW TERMINAL</button>
   </div>
   <script type="module">
 
@@ -29,7 +30,7 @@
         this.terminal.innerHTML = `
         <div style="display: grid; grid-tamplate-columns: auto; border: 1px solid gray; margin: 0px; padding: 0px;">
           <div id="title${terminal_count}" style="align-items: center; display: grid; grid-template-columns: auto 1fr auto; border: 1px solid gray; margin: 1px; padding: 1px; background-color: #0000ff; color: #ffffff;">
-            <div style="color: #FF00FF; height: 100%; justify-content: center; padding-right: 20px">[${terminal_count}]</div>
+            <div style="color: #FF00FF; padding-right: 20px">[${terminal_count}]</div>
             <div id="ansititle${terminal_count}"></div>
             <button id="button${terminal_count}" style="border: 1px solid white; padding: 0px; margin: 0px; background-color: #ff0000; color: #ffffff; width: 30px; height: 30px; justify-self: end">X</button>
           </div>
