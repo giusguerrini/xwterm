@@ -26,23 +26,28 @@
 </style>
 </head>
 <body>
-	<div id="main-div" class="basic-example" style="display: grid; grid-template-columns: auto; place-items: center;">
-		<div style="display: flex; align-items: center; margin: 0px;">
-			<h1 style="margin-right: 30px;">Basic terminal example</h1>
-			<label>
-				<input type="checkbox" id="custom-scrollbar-checkbox" onchange="toggle_scrollbar()">
-				Use "scrollbar.js" instead of platform scrollbar
-			</label>
+	<div class="basic-example" style="display: grid; grid-template-columns: auto 1fr;">
+		<div style="position: relative;">
+			<button style="position: absolute; top:10%; padding: 40px" onclick="window.history.back();">BACK</button>
 		</div>
-		<div style="display: grid; grid-template-columns: auto auto auto; padding: 20px; gap: 10px;">
-			<button onclick="start_terminal('http')">Start terminal using HTTP channel</button>
-			<button onclick="start_terminal('websocket')">Start terminal using WebSocket channel</button>
-			<button onclick="start_terminal('dummy')">Start terminal using Dummy channel</button>
-		</div>
-		<hr>
-		<div id="terminal-div"></div>
-	</div>
 
+		<div id="main-div" class="basic-example" style="display: grid; grid-template-columns: auto; place-items: center; padding-bottom: 40px;">
+			<div style="display: flex; align-items: center; margin: 0px;">
+				<h1 style="margin-right: 30px;">Basic terminal example</h1>
+				<label>
+					<input type="checkbox" id="custom-scrollbar-checkbox" onchange="toggle_scrollbar()">
+					Use "scrollbar.js" instead of platform scrollbar
+				</label>
+			</div>
+			<div style="display: grid; grid-template-columns: auto auto auto; padding: 20px; gap: 10px;">
+				<button onclick="start_terminal('http')">Start terminal using HTTP channel</button>
+				<button onclick="start_terminal('websocket')">Start terminal using WebSocket channel</button>
+				<button onclick="start_terminal('dummy')">Start terminal using Dummy channel</button>
+			</div>
+			<hr>
+			<div id="terminal-div"></div>
+		</div>
+	</div>
 	<script type="module">
 
 		var standard_scrollbar = true;

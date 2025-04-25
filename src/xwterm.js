@@ -94,6 +94,7 @@ class AnsiTermGenericScrollBar {
 		this.div_scroll.style.display = 'inline-block';
 		this.div_scroll.style.position = 'relative';
 		this.div_scroll.style.overflowY = 'scroll';
+		// Temporary, timeout callback will be used to set the actual size
 		this.div_scroll.style.height = this.controlled_element.clientHeight + 'px';
 		this.div_scroll.style.boxSizing = 'border-box';
 
@@ -103,6 +104,7 @@ class AnsiTermGenericScrollBar {
 		this.div_spacer.style.padding = 0;
 		this.div_spacer.style.backgroundColor = 'transparent';
 		this.div_spacer.style.width = '1px';
+		// Temporary, timeout callback will be used to set the actual size
 		this.div_spacer.style.height = this.controlled_element.clientHeight + 'px';
 		//this.div_spacer.style.display = 'inline-block';
 		this.div_spacer.style.position = 'absolute';
@@ -117,8 +119,9 @@ class AnsiTermGenericScrollBar {
 		this.div.style.padding = style.padding;
 		//this.div.style.width = (this.controlled_element.width + 20) + "px";
 		this.div.style.height = this.controlled_element.height + "px";
-
-		this.controlled_element.parentNode.replaceChild(this.div, this.controlled_element);
+		if (this.controlled_element.parentNode) {
+			this.controlled_element.parentNode.replaceChild(this.div, this.controlled_element);
+		}
 		this.controlled_element.style.border = "none";
 		this.controlled_element.style.borderRadius = "0";
 		this.controlled_element.style.margin = "0";
@@ -141,6 +144,12 @@ class AnsiTermGenericScrollBar {
 		this.div_spacer.style.height = this.scroll_area + 'px';
 
 	
+		this.timer0 = setTimeout(() => {
+			this.div_scroll.style.height = this.controlled_element.clientHeight + 'px';
+			this.div_spacer.style.height = this.controlled_element.clientHeight + 'px';
+			this.timer0 = null;
+		}, 0);
+
 		this.div_scroll.addEventListener('scroll', (ev) => {
 			let el = ev.target;
 			
@@ -832,6 +841,95 @@ export class AnsiTermDecoration {
  * @param {boolean} [params.hasStatusBar=true] - Whether the terminal has a status bar.
  * @param {boolean} [params.hasSoftKeyboard=false] - Whether the terminal has a soft keyboard.
  * @param {boolean} [params.hasSoftFKeys=false] - Whether the terminal has soft function keys.
+ */
+/**
+ * The `AnsiTerm` class implements a terminal emulator capable of interpreting
+ * ANSI escape sequences and rendering the corresponding output on an HTML5 canvas.
+ * It supports features such as cursor movement, text attributes (e.g., bold, italic, underline),
+ * color management, scrolling regions, and keyboard input handling.
+ *
+ * This class is designed to be highly configurable and extensible, allowing developers
+ * to integrate it into web applications requiring terminal-like functionality.
+ *
+ * ### Features:
+ * - ANSI escape sequence interpretation.
+ * - Support for 16-color and 256-color palettes.
+ * - Cursor movement and text attributes (bold, italic, underline, reverse, blink).
+ * - Scrolling regions and history buffer.
+ * - Clipboard integration (copy as text, ANSI sequences, or HTML).
+ * - Mouse-based text selection.
+ * - Configurable keyboard input handling.
+ * - Communication with a backend via REST, WebSocket, or custom drivers.
+ *
+ * ### Usage:
+ * To create an instance of `AnsiTerm`, provide a configuration object or a container ID:
+ * 
+ * ```javascript
+ * const term = new AnsiTerm({
+ *   nLines: 24,
+ *   nColumns: 80,
+ *   containerId: "terminal-container",
+ *   fontSize: 14,
+ *   font: "monospace",
+ *   background: "black",
+ *   foreground: "white",
+ * });
+ * ```
+ *
+ * The terminal can then be used to render text, handle keyboard input, and communicate
+ * with a backend server.
+ *
+ * ### Example:
+ * ```javascript
+ * term.write("Hello, World!\n");
+ * term.registerOnTitleChange((title) => {
+ *   console.log("Title changed to:", title);
+ * });
+ * term.sendText("ls -la\n");
+ * ```
+ *
+ * ### Parameters:
+ * - `params` (optional): A configuration object or a string representing the container ID.
+ *   If no parameters are provided, default settings are applied.
+ *
+ * ### Configuration Options:
+ * - `nLines` (number): Number of lines in the terminal (default: 25).
+ * - `nColumns` (number): Number of columns in the terminal (default: 80).
+ * - `fontSize` (number): Font size in pixels (default: 14).
+ * - `font` (string): Font family (default: "monospace").
+ * - `background` (string): Background color (default: "black").
+ * - `foreground` (string): Foreground color (default: "white").
+ * - `containerId` (string): ID of the container element for the terminal.
+ * - `driver` (object): Custom driver for communication (default: null).
+ * - `channelType` (string): Communication channel type ("rest", "websocket", "dummy").
+ * - `historySize` (number): Number of lines to keep in the history buffer (default: 1000).
+ *
+ * ### Methods:
+ * - `write(text)`: Writes a sequence of characters to the terminal.
+ * - `sendText(text)`: Sends a sequence of characters to the backend.
+ * - `focus()`: Sets focus on the terminal to receive keyboard input.
+ * - `close()`: Closes the terminal and its communication channel.
+ * - `registerOnTitleChange(callback)`: Registers a callback for title changes.
+ * - `registerOnStatusChange(callback)`: Registers a callback for status changes.
+ * - `registerOnFreezeChange(callback)`: Registers a callback for freeze state changes.
+ * - `clearSelection()`: Clears the current text selection.
+ * - `selectAll()`: Selects the entire screen.
+ * - `clipboardCopyAsText()`: Copies the selection to the clipboard as plain text.
+ * - `clipboardCopyAsAnsiSequence()`: Copies the selection to the clipboard as ANSI sequences.
+ * - `clipboardCopyAsHtml()`: Copies the selection to the clipboard as HTML.
+ * - `clipboardCopyAsRichText()`: Copies the selection to the clipboard as Rich Text.
+ * - `clipboardPaste()`: Pastes text from the clipboard into the terminal.
+ * - `toggleFreezeState()`: Toggles the freeze state of the terminal.
+ *
+ * ### Events:
+ * - `onTitleChange`: Triggered when the terminal title changes.
+ * - `onStatusChange`: Triggered when the communication status changes.
+ * - `onFreezeChange`: Triggered when the freeze state changes.
+ *
+ * ### Notes:
+ * - The terminal supports mouse-based text selection and clipboard integration.
+ * - The `AnsiTerm` class is designed to be extensible, allowing developers to
+ *   implement custom drivers and event handlers.
  */
 export class AnsiTerm {
 
@@ -1525,7 +1623,8 @@ export class AnsiTerm {
 			// Canvas created internally. We can apply the decoration, if required.
 			//
 			this.canvas = document.createElement("canvas");
-			if (this.params.hasSoftFKeys || this.params.hasSoftKeyboard || this.params.hasStatusBar || this.params.hasTitleBar) {
+			//if (this.params.hasSoftFKeys || this.params.hasSoftKeyboard || this.params.hasStatusBar || this.params.hasTitleBar)
+			{
 				this.decoration = new AnsiTermDecoration(this, this.canvas, this.params);
 			}
 		}
@@ -1891,6 +1990,25 @@ export class AnsiTerm {
 		this.params.driver.start();
 
 		setTimeout( () => { this._setsize(); }, 0);
+	}
+
+	/**
+	 * This method returns the canvas element used by the terminal.
+	 * @returns {HTMLCanvasElement} The canvas element.
+	 */
+
+	getCanvas()
+	{
+		return this.canvas;
+	}
+
+	/**
+	 * This method sets the focus on the terminal.
+	 * It is used to make the terminal ready to receive keyboard input.
+	 */
+	focus()
+	{
+		this.canvas.focus();
 	}
 
 	/**

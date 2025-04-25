@@ -34,18 +34,20 @@
             <div id="ansititle${terminal_count}"></div>
             <button id="button${terminal_count}" style="border: 1px solid white; padding: 0px; margin: 0px; background-color: #ff0000; color: #ffffff; width: 30px; height: 30px; justify-self: end">X</button>
           </div>
-          <canvas id="term${terminal_count}"></canvas>
+          <div id="term${terminal_count}" style="display: inline-block;"></div>
         </div>
         `;
         document.body.appendChild(this.terminal);
-        this.canvas = document.getElementById("term" + terminal_count);
+        //this.canvas = document.getElementById("term" + terminal_count);
         this.ansi = new AnsiTerm({
-          canvasId: "term" + terminal_count,
+          containerId: "term" + terminal_count,
           nLines : 25,
           nColumns : 80,
           fontSize : 12,
+          autocenter: false,
           hasTitleBar: false,
           hasStatusBar: false,
+          hasSoftKeyboard: false,          
           hasSoftFKeys: false,          
         });
         this.ansititle = document.getElementById("ansititle" + terminal_count);
@@ -82,18 +84,27 @@
           };
           document.body.addEventListener("mouseup", f2);
         });
-        this.title.addEventListener("click", (e) => {
+        let set_focus = (e) => {
           try {
             this.terminal.style.zIndex = 20;
-            this.canvas.focus();
+            this.ansi.focus();
           } catch (e) {
           }
-        });
-        this.canvas.addEventListener("blur", (e) => {
+        };
+        let leave_top = (e) => {
           try {
             this.terminal.style.zIndex = 10;
           } catch (e) {
           }
+        };
+        this.title.addEventListener("click", (e) => {
+          set_focus(e);
+        });
+        this.ansi.getCanvas().addEventListener("click", (e) => {
+          set_focus(e);
+        });
+        this.ansi.getCanvas().addEventListener("blur", (e) => {
+          leave_top(e);
         });
         this.button = document.getElementById("button" + terminal_count);
         this.button.addEventListener("click", (e) => {
@@ -107,6 +118,7 @@
         });
         this.terminal.style.zIndex = 20;
         this.terminal.show();
+        this.ansi.focus();
       }
     }
     function open_terminal() {
