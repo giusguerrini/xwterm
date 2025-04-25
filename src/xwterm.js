@@ -144,11 +144,13 @@ class AnsiTermGenericScrollBar {
 		this.div_spacer.style.height = this.scroll_area + 'px';
 
 	
-		this.timer0 = setTimeout(() => {
-			this.div_scroll.style.height = this.controlled_element.clientHeight + 'px';
-			this.div_spacer.style.height = this.controlled_element.clientHeight + 'px';
-			this.timer0 = null;
-		}, 0);
+		// This would adjust the height in case the container,s geometry hasn't been calculated yet,
+		// but I'll postopone this in _update(), so the bar is left "grayed" until it is actually needed. 
+		//this.timer0 = setTimeout(() => {
+		//	this.div_scroll.style.height = this.controlled_element.clientHeight + 'px';
+		//	this.div_spacer.style.height = this.controlled_element.clientHeight + 'px';
+		//	this.timer0 = null;
+		//}, 0);
 
 		this.div_scroll.addEventListener('scroll', (ev) => {
 			let el = ev.target;
@@ -194,6 +196,13 @@ class AnsiTermGenericScrollBar {
 	{
 		if (this.max_value > this.min_value) {
 			if (this.visible_range_size > 0) {
+				
+				// Last-minute adjustment, see comment in _layout().
+				if (parseInt(this.div_spacer.style.height) == 0) {
+					this.div_scroll.style.height = this.controlled_element.clientHeight + 'px';
+					this.div_spacer.style.height = this.controlled_element.clientHeight + 'px';
+				}
+
 				let l = (this.max_value - this.min_value + this.visible_range_size) / this.visible_range_size;
 				let s = this.controlled_element.height * l;
 				this.div_spacer.style.height = Math.floor(s - 0.5) + 'px';
@@ -1878,6 +1887,7 @@ export class AnsiTerm {
 		this.params.blinkPeriod = 500;
 		this.enable_cursor = true;
 		this.force_blink_cursor = true;
+		this.line_wrap = false;
 
 		this.status_ok = -1; // It means "not defined"
 
@@ -2032,6 +2042,7 @@ export class AnsiTerm {
 			// TODO: optimize
 			for (let i = 0; i < this.pending_text.length; ++i) {
 
+				if (false) {
 			/* Check if we are beyond the end of the line, i.e.,
 			 the line has been filled completely. Only at this point,
 			 we synthesize a CR-LF before drawing the next character.
@@ -2052,7 +2063,7 @@ export class AnsiTerm {
 					this._incpos(1, 0);
 				}
 
-				/* The naive version: no "impo ssible" value of "posx",
+				/* The naive version: no "impossible" value of "posx",
 				 but a slightly different behavior that breaks some
 				 applications (e.g., the Midnight Commander's port on Windows)
 
@@ -2065,6 +2076,19 @@ export class AnsiTerm {
 					this._incpos(1, 0);
 				}
 				*/
+			}
+			else {
+				this._printchar(this.pending_text[i]);
+				if (this.posx >= this.params.nColumns - 1) {
+					this._setpos(0, this.posy);
+					this.line_wrap = true;
+					this._nextline();
+				}
+				else {
+					this._incpos(1, 0);
+					this.line_wrap = false;
+				}	
+			}
 
 			}
 			this.pending_text = "";
@@ -2606,10 +2630,16 @@ export class AnsiTerm {
 			y = 0;
 		}
 		if (x >= this.params.nColumns) {
-			x = this.params.nColumns ; // - 1;
+			x = this.params.nColumns - 1;
 		}
 		if (y >= this.params.nLines) {
 			y = this.params.nLines - 1;
+		}
+		// In general, a cursor position change should reset
+		// the "line wrap" condition, but we preserve it if the
+		// new position and the old one are the same.
+		if (x != this.posx || y != this.posy) {
+			this.line_wrap = false;
 		}
 		this.posx = x;
 		this.posy = y
@@ -2794,7 +2824,12 @@ export class AnsiTerm {
 	_newline()
 	{
 		this._flush();
-		this._nextline();
+		if (! this.line_wrap) {
+			// Special case: if the line has been filled exactly, the cursor is
+			// already at the beginning of the next line, so we must not move it.
+ 			this._nextline();
+		}
+		this.line_wrap = false;
 	}
 
 	_upline()
