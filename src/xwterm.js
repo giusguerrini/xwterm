@@ -2638,6 +2638,8 @@ export class AnsiTerm {
 		// In general, a cursor position change should reset
 		// the "line wrap" condition, but we preserve it if the
 		// new position and the old one are the same.
+		// Another case would be the "_nextline" due to line wrap itself,
+		// but this is checked in "_nextline", not here.
 		if (x != this.posx || y != this.posy) {
 			this.line_wrap = false;
 		}
@@ -2803,6 +2805,8 @@ export class AnsiTerm {
 
 	_nextline()
 	{
+		// We must preserve the line wrap state, because "_setpos" resets it.
+		let save_line_wrap = this.line_wrap;
 		if (this.posy >= this.scrollregion_h) {
 			// If the scroll region is not set
 			// we must store the first line
@@ -2819,6 +2823,7 @@ export class AnsiTerm {
 		else {
 			this._setpos(this.posx, this.posy + 1);
 		}
+		this.line_wrap = save_line_wrap;
 	}
 
 	_newline()
