@@ -132,6 +132,8 @@ full support of graphics functions (Midnight Commander, htop, vim):
 ![Midnight Commander](./doc/xwterm-screenshot-mc.png)
 ![Htop](./doc/xwterm-screenshot-htop.png)
 ![Vim](./doc/xwterm-screenshot-vim.png)
+![Multiple terminals - Windows 10](./doc/xwterm-screenshot-multi-win.png)
+![Multiple terminals - Linux](./doc/xwterm-screenshot-multi-lin.png)
 
 ## Coding conventions
 If you want to contribute, please take a look at the coding rules used in this project first:
