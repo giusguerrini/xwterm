@@ -1109,7 +1109,10 @@ export class AnsiTerm {
 				"\x0C": () => { this._newline(); }, // FF, but "treated as LF", they say
 				"\x0D": () => {
 						this._flush();
+						// As in "_nextline", we must peserve the line wrap state.
+						let save_line_wrap = this.line_wrap;
 						this._setpos(0, this.posy);
+						this.line_wrap = save_line_wrap;
 				},
 				"\x0E": () => { this._init(); }, // SO
 				"\x0F": () => { this._init(); }, // SI
