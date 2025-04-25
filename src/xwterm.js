@@ -2045,7 +2045,7 @@ export class AnsiTerm {
 			// TODO: optimize
 			for (let i = 0; i < this.pending_text.length; ++i) {
 
-				if (false) {
+				if (true) {
 			/* Check if we are beyond the end of the line, i.e.,
 			 the line has been filled completely. Only at this point,
 			 we synthesize a CR-LF before drawing the next character.
@@ -2633,7 +2633,8 @@ export class AnsiTerm {
 			y = 0;
 		}
 		if (x >= this.params.nColumns) {
-			x = this.params.nColumns - 1;
+			// Accept "impossible" value of posx
+			x = this.params.nColumns; // - 1;
 		}
 		if (y >= this.params.nLines) {
 			y = this.params.nLines - 1;
@@ -3254,7 +3255,9 @@ export class AnsiTerm {
 
 	_send_pos()
 	{
-		this._send_data("\x1B[" + (this.posy + 1) + ";" + (this.posx + 1) + "R"); // VT101 and Windows console
+		let x = this.posx >= this.params.nColumns ? this.params.nColumns - 1 : this.posx;
+		let y = this.posy >= this.params.nLines ? this.params.nLines - 1 : this.posy;
+		this._send_data("\x1B[" + (y + 1) + ";" + (x + 1) + "R"); // VT101 and Windows console
 	}
 
 	_send_ok()
