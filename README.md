@@ -127,7 +127,9 @@ You can test a working example of xwterm here:
 
 ## Screenshots
 Here are some images taken while running the shell and some applications that require
-full support of graphics functions (Midnight Commander, htop, vim):
+full support of graphics functions (Midnight Commander, htop, vim). The last two screenshots have been taken
+from the "multiple terminals" (**example/multi.html** file) example hosted by a Windows 10 and a Linux
+**miniserver.py** launch respectively.
 ![Bash prompt](./doc/xwterm-screenshot-bash.png)
 ![Midnight Commander](./doc/xwterm-screenshot-mc.png)
 ![Htop](./doc/xwterm-screenshot-htop.png)
