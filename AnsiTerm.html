@@ -30,11 +30,92 @@
     
         <h2><span class="attribs"><span class="type-signature"></span></span>AnsiTerm<span class="signature">(params)</span><span class="type-signature"></span></h2>
         
-            <div class="class-description"><p>The AnsiTerm class represents an ANSI terminal emulator.
-It provides methods to handle terminal operations, keyboard events,
-and rendering of characters with various attributes such as bold, italic,
-underline, and colors. The constructor accepts a set of key-value pairs
-to configure various characteristics of the terminal.</p></div>
+            <div class="class-description"><p>The <code>AnsiTerm</code> class implements a terminal emulator capable of interpreting
+ANSI escape sequences and rendering the corresponding output on an HTML5 canvas.
+It supports features such as cursor movement, text attributes (e.g., bold, italic, underline),
+color management, scrolling regions, and keyboard input handling.</p>
+<p>This class is designed to be highly configurable and extensible, allowing developers
+to integrate it into web applications requiring terminal-like functionality.</p>
+<h3 id="features%3A">Features:</h3>
+<ul>
+<li>ANSI escape sequence interpretation.</li>
+<li>Support for 16-color and 256-color palettes.</li>
+<li>Cursor movement and text attributes (bold, italic, underline, reverse, blink).</li>
+<li>Scrolling regions and history buffer.</li>
+<li>Clipboard integration (copy as text, ANSI sequences, or HTML).</li>
+<li>Mouse-based text selection.</li>
+<li>Configurable keyboard input handling.</li>
+<li>Communication with a backend via REST, WebSocket, or custom drivers.</li>
+</ul>
+<h3 id="usage%3A">Usage:</h3>
+<p>To create an instance of <code>AnsiTerm</code>, provide a configuration object or a container ID:</p>
+<pre class="prettyprint source lang-javascript"><code>const term = new AnsiTerm({
+  nLines: 24,
+  nColumns: 80,
+  containerId: &quot;terminal-container&quot;,
+  fontSize: 14,
+  font: &quot;monospace&quot;,
+  background: &quot;black&quot;,
+  foreground: &quot;white&quot;,
+});
+</code></pre>
+<p>The terminal can then be used to render text, handle keyboard input, and communicate
+with a backend server.</p>
+<h3 id="example%3A">Example:</h3>
+<pre class="prettyprint source lang-javascript"><code>term.write(&quot;Hello, World!\n&quot;);
+term.registerOnTitleChange((title) => {
+  console.log(&quot;Title changed to:&quot;, title);
+});
+term.sendText(&quot;ls -la\n&quot;);
+</code></pre>
+<h3 id="parameters%3A">Parameters:</h3>
+<ul>
+<li><code>params</code> (optional): A configuration object or a string representing the container ID.
+If no parameters are provided, default settings are applied.</li>
+</ul>
+<h3 id="configuration-options%3A">Configuration Options:</h3>
+<ul>
+<li><code>nLines</code> (number): Number of lines in the terminal (default: 25).</li>
+<li><code>nColumns</code> (number): Number of columns in the terminal (default: 80).</li>
+<li><code>fontSize</code> (number): Font size in pixels (default: 14).</li>
+<li><code>font</code> (string): Font family (default: &quot;monospace&quot;).</li>
+<li><code>background</code> (string): Background color (default: &quot;black&quot;).</li>
+<li><code>foreground</code> (string): Foreground color (default: &quot;white&quot;).</li>
+<li><code>containerId</code> (string): ID of the container element for the terminal.</li>
+<li><code>driver</code> (object): Custom driver for communication (default: null).</li>
+<li><code>channelType</code> (string): Communication channel type (&quot;rest&quot;, &quot;websocket&quot;, &quot;dummy&quot;).</li>
+<li><code>historySize</code> (number): Number of lines to keep in the history buffer (default: 1000).</li>
+</ul>
+<h3 id="methods%3A">Methods:</h3>
+<ul>
+<li><code>write(text)</code>: Writes a sequence of characters to the terminal.</li>
+<li><code>sendText(text)</code>: Sends a sequence of characters to the backend.</li>
+<li><code>focus()</code>: Sets focus on the terminal to receive keyboard input.</li>
+<li><code>close()</code>: Closes the terminal and its communication channel.</li>
+<li><code>registerOnTitleChange(callback)</code>: Registers a callback for title changes.</li>
+<li><code>registerOnStatusChange(callback)</code>: Registers a callback for status changes.</li>
+<li><code>registerOnFreezeChange(callback)</code>: Registers a callback for freeze state changes.</li>
+<li><code>clearSelection()</code>: Clears the current text selection.</li>
+<li><code>selectAll()</code>: Selects the entire screen.</li>
+<li><code>clipboardCopyAsText()</code>: Copies the selection to the clipboard as plain text.</li>
+<li><code>clipboardCopyAsAnsiSequence()</code>: Copies the selection to the clipboard as ANSI sequences.</li>
+<li><code>clipboardCopyAsHtml()</code>: Copies the selection to the clipboard as HTML.</li>
+<li><code>clipboardCopyAsRichText()</code>: Copies the selection to the clipboard as Rich Text.</li>
+<li><code>clipboardPaste()</code>: Pastes text from the clipboard into the terminal.</li>
+<li><code>toggleFreezeState()</code>: Toggles the freeze state of the terminal.</li>
+</ul>
+<h3 id="events%3A">Events:</h3>
+<ul>
+<li><code>onTitleChange</code>: Triggered when the terminal title changes.</li>
+<li><code>onStatusChange</code>: Triggered when the communication status changes.</li>
+<li><code>onFreezeChange</code>: Triggered when the freeze state changes.</li>
+</ul>
+<h3 id="notes%3A">Notes:</h3>
+<ul>
+<li>The terminal supports mouse-based text selection and clipboard integration.</li>
+<li>The <code>AnsiTerm</code> class is designed to be extensible, allowing developers to
+implement custom drivers and event handlers.</li>
+</ul></div>
         
     
 </header>
@@ -104,10 +185,7 @@ the terminal takes place.</p>
             <td class="type">
             
                 
-<span class="param-type">Object</span>
-|
-
-<span class="param-type">string</span>
+<span class="param-type">*</span>
 
 
             
@@ -117,1714 +195,7 @@ the terminal takes place.</p>
 
             
 
-            <td class="description last"><p>Configuration parameters or the ID of the div element to create the terminal in.</p>
-                <h6>Properties</h6>
-                
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-        <th>Attributes</th>
-        
-
-        
-        <th>Default</th>
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>nLines</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    24
-                
-                </td>
-            
-
-            <td class="description last"><p>Number of lines in the terminal.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>nColumns</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    80
-                
-                </td>
-            
-
-            <td class="description last"><p>Number of columns in the terminal.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>historySize</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    1000
-                
-                </td>
-            
-
-            <td class="description last"><p>Size of the history buffer.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>fontSize</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    15
-                
-                </td>
-            
-
-            <td class="description last"><p>Font size for the terminal text.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>font</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    "monospace"
-                
-                </td>
-            
-
-            <td class="description last"><p>Font family for the terminal text.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>statusFont</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    "monospace"
-                
-                </td>
-            
-
-            <td class="description last"><p>Font family for the status bar text.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>containerId</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    ""
-                
-                </td>
-            
-
-            <td class="description last"><p>ID of the container element to create the terminal in.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>canvasId</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    ""
-                
-                </td>
-            
-
-            <td class="description last"><p>ID of the canvas element to use for the terminal.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>url</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    ""
-                
-                </td>
-            
-
-            <td class="description last"><p>URL for the terminal's data source.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>channelType</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    ""
-                
-                </td>
-            
-
-            <td class="description last"><p>Type of channel for communication.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>httpSessionHintParam</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    "session"
-                
-                </td>
-            
-
-            <td class="description last"><p>Name of an additional parameter to (try to) connect to a particular session.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>httpSessionHint</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    ""
-                
-                </td>
-            
-
-            <td class="description last"><p>Value od the additional parameter to (try to) connect to a particular session. If empty, generates a new one internally.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>httpSource</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    ""
-                
-                </td>
-            
-
-            <td class="description last"><p>Source for the terminal's data.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>httpSize</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    ""
-                
-                </td>
-            
-
-            <td class="description last"><p>Configuration URL for the terminal.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>httpDest</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    ""
-                
-                </td>
-            
-
-            <td class="description last"><p>Destination URL for sending terminal data.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>immediateRefresh</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    100
-                
-                </td>
-            
-
-            <td class="description last"><p>Immediate refresh interval in milliseconds.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>fastRefresh</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    500
-                
-                </td>
-            
-
-            <td class="description last"><p>Fast refresh interval in milliseconds.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>slowRefresh</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    2000
-                
-                </td>
-            
-
-            <td class="description last"><p>Slow refresh interval in milliseconds.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>wsEndpoint</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    ""
-                
-                </td>
-            
-
-            <td class="description last"><p>WebSocket endpoint for the terminal.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>wsDataTag</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    ""
-                
-                </td>
-            
-
-            <td class="description last"><p>WebSocket data tag for the terminal.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>wsSizeTag</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    ""
-                
-                </td>
-            
-
-            <td class="description last"><p>WebSocket size tag for the terminal.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>wsSizeData</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    ""
-                
-                </td>
-            
-
-            <td class="description last"><p>WebSocket size data for the terminal.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>foreground</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    "rgb(255,255,255)"
-                
-                </td>
-            
-
-            <td class="description last"><p>Default foreground color.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>background</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    "rgb(0,0,0)"
-                
-                </td>
-            
-
-            <td class="description last"><p>Default background color.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>statusForegroundOk</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    "rgb(0,255,0)"
-                
-                </td>
-            
-
-            <td class="description last"><p>Status bar foreground color for OK status.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>statusBackgroundOk</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    "rgb(0,128,0)"
-                
-                </td>
-            
-
-            <td class="description last"><p>Status bar background color for OK status.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>statusForegroundKo</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    "rgb(255,0,0)"
-                
-                </td>
-            
-
-            <td class="description last"><p>Status bar foreground color for KO status.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>statusBackgroundKo</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    "rgb(128,0,0)"
-                
-                </td>
-            
-
-            <td class="description last"><p>Status bar background color for KO status.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>titleBackground</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    "rgb(0,0,128)"
-                
-                </td>
-            
-
-            <td class="description last"><p>Title bar background color.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>titleForeground</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    "rgb(255,255,255)"
-                
-                </td>
-            
-
-            <td class="description last"><p>Title bar foreground color.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>keyboardBackground</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    "rgb(0,0,128)"
-                
-                </td>
-            
-
-            <td class="description last"><p>Soft keyboard background color.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>keyboardForeground</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    "rgb(255,255,255)"
-                
-                </td>
-            
-
-            <td class="description last"><p>Soft keyboard foreground color.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>selectionBackground</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    "rgb(255,255,0)"
-                
-                </td>
-            
-
-            <td class="description last"><p>Selection background color.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>selectionForeground</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    "rgb(0,0,0)"
-                
-                </td>
-            
-
-            <td class="description last"><p>Selection foreground color.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>blinkIsBold</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">boolean</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    true
-                
-                </td>
-            
-
-            <td class="description last"><p>Whether blinking text should be bold.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>blinkPeriod</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    500
-                
-                </td>
-            
-
-            <td class="description last"><p>Blink period in milliseconds.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>timeout</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    1000
-                
-                </td>
-            
-
-            <td class="description last"><p>Timeout for state machine in milliseconds.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>titleText</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    ""
-                
-                </td>
-            
-
-            <td class="description last"><p>Default title text.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>cursorUpdateStyle</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    "smart"
-                
-                </td>
-            
-
-            <td class="description last"><p>Cursor update style (&quot;lazy&quot;, &quot;precise&quot;, &quot;smart&quot;).</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>hasTitleBar</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">boolean</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    true
-                
-                </td>
-            
-
-            <td class="description last"><p>Whether the terminal has a title bar.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>hasStatusBar</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">boolean</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    true
-                
-                </td>
-            
-
-            <td class="description last"><p>Whether the terminal has a status bar.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>hasSoftKeyboard</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">boolean</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    false
-                
-                </td>
-            
-
-            <td class="description last"><p>Whether the terminal has a soft keyboard.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>hasSoftFKeys</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">boolean</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    false
-                
-                </td>
-            
-
-            <td class="description last"><p>Whether the terminal has soft function keys.</p></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
+            <td class="description last"><p>optional parameters, as a single string or set of key-value pairs.</p></td>
         </tr>
 
     
@@ -1865,7 +236,7 @@ the terminal takes place.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line836">line 836</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line943">line 943</a>
     </li></ul></dd>
     
 
@@ -2029,7 +400,7 @@ the terminal takes place.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line2187">line 2187</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line2332">line 2332</a>
     </li></ul></dd>
     
 
@@ -2166,7 +537,7 @@ the terminal takes place.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line2122">line 2122</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line2267">line 2267</a>
     </li></ul></dd>
     
 
@@ -2303,7 +674,7 @@ the terminal takes place.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line2231">line 2231</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line2376">line 2376</a>
     </li></ul></dd>
     
 
@@ -2391,7 +762,7 @@ the terminal takes place.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3602">line 3602</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3766">line 3766</a>
     </li></ul></dd>
     
 
@@ -2481,7 +852,7 @@ to reproduce the character attributes of the on-screen text.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3634">line 3634</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3798">line 3798</a>
     </li></ul></dd>
     
 
@@ -2571,7 +942,7 @@ reproducing the characters of the on-screen text and their attributes.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3646">line 3646</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3810">line 3810</a>
     </li></ul></dd>
     
 
@@ -2666,7 +1037,7 @@ to deal with typical white backgrounds).</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3664">line 3664</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3828">line 3828</a>
     </li></ul></dd>
     
 
@@ -2755,7 +1126,7 @@ The selection is copied as plain text.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3624">line 3624</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3788">line 3788</a>
     </li></ul></dd>
     
 
@@ -2843,7 +1214,7 @@ The selection is copied as plain text.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3673">line 3673</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3837">line 3837</a>
     </li></ul></dd>
     
 
@@ -2932,7 +1303,7 @@ and destroys the terminal.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line1900">line 1900</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line2031">line 2031</a>
     </li></ul></dd>
     
 
@@ -2957,6 +1328,205 @@ and destroys the terminal.</p>
 
 
 
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="focus"><span class="type-signature"></span>focus<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>This method sets the focus on the terminal.
+It is used to make the terminal ready to receive keyboard input.</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line2022">line 2022</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="getCanvas"><span class="type-signature"></span>getCanvas<span class="signature">()</span><span class="type-signature"> &rarr; {HTMLCanvasElement}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>This method returns the canvas element used by the terminal.</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line2013">line 2013</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>The canvas element.</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">HTMLCanvasElement</span>
+
+
+    </dd>
+</dl>
+
+    
 
 
 
@@ -3083,7 +1653,7 @@ the mouse selection state or programmatically by calling <code>toggleFreezeState
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line2178">line 2178</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line2323">line 2323</a>
     </li></ul></dd>
     
 
@@ -3224,7 +1794,7 @@ The callbacks can be removed by calling the <code>cancelOnStatusChange</code> me
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line2113">line 2113</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line2258">line 2258</a>
     </li></ul></dd>
     
 
@@ -3365,7 +1935,7 @@ The callbacks can be removed by calling the <code>cancelOnTitleChange</code> met
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line2222">line 2222</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line2367">line 2367</a>
     </li></ul></dd>
     
 
@@ -3454,7 +2024,7 @@ It implements the &quot;Select all&quot; button function.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3612">line 3612</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3776">line 3776</a>
     </li></ul></dd>
     
 
@@ -3604,7 +2174,7 @@ The object is not required to be a real &quot;event&quot;, as only a subset of m
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3197">line 3197</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3361">line 3361</a>
     </li></ul></dd>
     
 
@@ -3742,7 +2312,7 @@ to the communication channel used by the terminal.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3210">line 3210</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3374">line 3374</a>
     </li></ul></dd>
     
 
@@ -3881,7 +2451,7 @@ accordingly.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3050">line 3050</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line3212">line 3212</a>
     </li></ul></dd>
     
 
@@ -3969,7 +2539,7 @@ accordingly.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line843">line 843</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line950">line 950</a>
     </li></ul></dd>
     
 
@@ -4043,7 +2613,7 @@ accordingly.</p>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Tue Apr 22 2025 22:05:41 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Sun Apr 27 2025 15:34:33 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>

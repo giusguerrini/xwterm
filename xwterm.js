@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "0.19.1";
+const ANSITERM_VERSION = "0.20.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -94,6 +94,7 @@ class AnsiTermGenericScrollBar {
 		this.div_scroll.style.display = 'inline-block';
 		this.div_scroll.style.position = 'relative';
 		this.div_scroll.style.overflowY = 'scroll';
+		// Temporary, timeout callback will be used to set the actual size
 		this.div_scroll.style.height = this.controlled_element.clientHeight + 'px';
 		this.div_scroll.style.boxSizing = 'border-box';
 
@@ -103,6 +104,7 @@ class AnsiTermGenericScrollBar {
 		this.div_spacer.style.padding = 0;
 		this.div_spacer.style.backgroundColor = 'transparent';
 		this.div_spacer.style.width = '1px';
+		// Temporary, timeout callback will be used to set the actual size
 		this.div_spacer.style.height = this.controlled_element.clientHeight + 'px';
 		//this.div_spacer.style.display = 'inline-block';
 		this.div_spacer.style.position = 'absolute';
@@ -117,8 +119,9 @@ class AnsiTermGenericScrollBar {
 		this.div.style.padding = style.padding;
 		//this.div.style.width = (this.controlled_element.width + 20) + "px";
 		this.div.style.height = this.controlled_element.height + "px";
-
-		this.controlled_element.parentNode.replaceChild(this.div, this.controlled_element);
+		if (this.controlled_element.parentNode) {
+			this.controlled_element.parentNode.replaceChild(this.div, this.controlled_element);
+		}
 		this.controlled_element.style.border = "none";
 		this.controlled_element.style.borderRadius = "0";
 		this.controlled_element.style.margin = "0";
@@ -141,6 +144,14 @@ class AnsiTermGenericScrollBar {
 		this.div_spacer.style.height = this.scroll_area + 'px';
 
 	
+		// This would adjust the height in case the container,s geometry hasn't been calculated yet,
+		// but I'll postopone this in _update(), so the bar is left "grayed" until it is actually needed. 
+		//this.timer0 = setTimeout(() => {
+		//	this.div_scroll.style.height = this.controlled_element.clientHeight + 'px';
+		//	this.div_spacer.style.height = this.controlled_element.clientHeight + 'px';
+		//	this.timer0 = null;
+		//}, 0);
+
 		this.div_scroll.addEventListener('scroll', (ev) => {
 			let el = ev.target;
 			
@@ -185,6 +196,13 @@ class AnsiTermGenericScrollBar {
 	{
 		if (this.max_value > this.min_value) {
 			if (this.visible_range_size > 0) {
+				
+				// Last-minute adjustment, see comment in _layout().
+				if (parseInt(this.div_spacer.style.height) == 0) {
+					this.div_scroll.style.height = this.controlled_element.clientHeight + 'px';
+					this.div_spacer.style.height = this.controlled_element.clientHeight + 'px';
+				}
+
 				let l = (this.max_value - this.min_value + this.visible_range_size) / this.visible_range_size;
 				let s = this.controlled_element.height * l;
 				this.div_spacer.style.height = Math.floor(s - 0.5) + 'px';
@@ -833,6 +851,95 @@ export class AnsiTermDecoration {
  * @param {boolean} [params.hasSoftKeyboard=false] - Whether the terminal has a soft keyboard.
  * @param {boolean} [params.hasSoftFKeys=false] - Whether the terminal has soft function keys.
  */
+/**
+ * The `AnsiTerm` class implements a terminal emulator capable of interpreting
+ * ANSI escape sequences and rendering the corresponding output on an HTML5 canvas.
+ * It supports features such as cursor movement, text attributes (e.g., bold, italic, underline),
+ * color management, scrolling regions, and keyboard input handling.
+ *
+ * This class is designed to be highly configurable and extensible, allowing developers
+ * to integrate it into web applications requiring terminal-like functionality.
+ *
+ * ### Features:
+ * - ANSI escape sequence interpretation.
+ * - Support for 16-color and 256-color palettes.
+ * - Cursor movement and text attributes (bold, italic, underline, reverse, blink).
+ * - Scrolling regions and history buffer.
+ * - Clipboard integration (copy as text, ANSI sequences, or HTML).
+ * - Mouse-based text selection.
+ * - Configurable keyboard input handling.
+ * - Communication with a backend via REST, WebSocket, or custom drivers.
+ *
+ * ### Usage:
+ * To create an instance of `AnsiTerm`, provide a configuration object or a container ID:
+ * 
+ * ```javascript
+ * const term = new AnsiTerm({
+ *   nLines: 24,
+ *   nColumns: 80,
+ *   containerId: "terminal-container",
+ *   fontSize: 14,
+ *   font: "monospace",
+ *   background: "black",
+ *   foreground: "white",
+ * });
+ * ```
+ *
+ * The terminal can then be used to render text, handle keyboard input, and communicate
+ * with a backend server.
+ *
+ * ### Example:
+ * ```javascript
+ * term.write("Hello, World!\n");
+ * term.registerOnTitleChange((title) => {
+ *   console.log("Title changed to:", title);
+ * });
+ * term.sendText("ls -la\n");
+ * ```
+ *
+ * ### Parameters:
+ * - `params` (optional): A configuration object or a string representing the container ID.
+ *   If no parameters are provided, default settings are applied.
+ *
+ * ### Configuration Options:
+ * - `nLines` (number): Number of lines in the terminal (default: 25).
+ * - `nColumns` (number): Number of columns in the terminal (default: 80).
+ * - `fontSize` (number): Font size in pixels (default: 14).
+ * - `font` (string): Font family (default: "monospace").
+ * - `background` (string): Background color (default: "black").
+ * - `foreground` (string): Foreground color (default: "white").
+ * - `containerId` (string): ID of the container element for the terminal.
+ * - `driver` (object): Custom driver for communication (default: null).
+ * - `channelType` (string): Communication channel type ("rest", "websocket", "dummy").
+ * - `historySize` (number): Number of lines to keep in the history buffer (default: 1000).
+ *
+ * ### Methods:
+ * - `write(text)`: Writes a sequence of characters to the terminal.
+ * - `sendText(text)`: Sends a sequence of characters to the backend.
+ * - `focus()`: Sets focus on the terminal to receive keyboard input.
+ * - `close()`: Closes the terminal and its communication channel.
+ * - `registerOnTitleChange(callback)`: Registers a callback for title changes.
+ * - `registerOnStatusChange(callback)`: Registers a callback for status changes.
+ * - `registerOnFreezeChange(callback)`: Registers a callback for freeze state changes.
+ * - `clearSelection()`: Clears the current text selection.
+ * - `selectAll()`: Selects the entire screen.
+ * - `clipboardCopyAsText()`: Copies the selection to the clipboard as plain text.
+ * - `clipboardCopyAsAnsiSequence()`: Copies the selection to the clipboard as ANSI sequences.
+ * - `clipboardCopyAsHtml()`: Copies the selection to the clipboard as HTML.
+ * - `clipboardCopyAsRichText()`: Copies the selection to the clipboard as Rich Text.
+ * - `clipboardPaste()`: Pastes text from the clipboard into the terminal.
+ * - `toggleFreezeState()`: Toggles the freeze state of the terminal.
+ *
+ * ### Events:
+ * - `onTitleChange`: Triggered when the terminal title changes.
+ * - `onStatusChange`: Triggered when the communication status changes.
+ * - `onFreezeChange`: Triggered when the freeze state changes.
+ *
+ * ### Notes:
+ * - The terminal supports mouse-based text selection and clipboard integration.
+ * - The `AnsiTerm` class is designed to be extensible, allowing developers to
+ *   implement custom drivers and event handlers.
+ */
 export class AnsiTerm {
 
 
@@ -1002,7 +1109,10 @@ export class AnsiTerm {
 				"\x0C": () => { this._newline(); }, // FF, but "treated as LF", they say
 				"\x0D": () => {
 						this._flush();
+						// As in "_nextline", we must peserve the line wrap state.
+						let save_line_wrap = this.line_wrap;
 						this._setpos(0, this.posy);
+						this.line_wrap = save_line_wrap;
 				},
 				"\x0E": () => { this._init(); }, // SO
 				"\x0F": () => { this._init(); }, // SI
@@ -1525,7 +1635,8 @@ export class AnsiTerm {
 			// Canvas created internally. We can apply the decoration, if required.
 			//
 			this.canvas = document.createElement("canvas");
-			if (this.params.hasSoftFKeys || this.params.hasSoftKeyboard || this.params.hasStatusBar || this.params.hasTitleBar) {
+			//if (this.params.hasSoftFKeys || this.params.hasSoftKeyboard || this.params.hasStatusBar || this.params.hasTitleBar)
+			{
 				this.decoration = new AnsiTermDecoration(this, this.canvas, this.params);
 			}
 		}
@@ -1779,6 +1890,7 @@ export class AnsiTerm {
 		this.params.blinkPeriod = 500;
 		this.enable_cursor = true;
 		this.force_blink_cursor = true;
+		this.line_wrap = false;
 
 		this.status_ok = -1; // It means "not defined"
 
@@ -1894,6 +2006,25 @@ export class AnsiTerm {
 	}
 
 	/**
+	 * This method returns the canvas element used by the terminal.
+	 * @returns {HTMLCanvasElement} The canvas element.
+	 */
+
+	getCanvas()
+	{
+		return this.canvas;
+	}
+
+	/**
+	 * This method sets the focus on the terminal.
+	 * It is used to make the terminal ready to receive keyboard input.
+	 */
+	focus()
+	{
+		this.canvas.focus();
+	}
+
+	/**
 	 * This method closes the terminal's communication channel
 	 * and destroys the terminal.
 	 */
@@ -1914,6 +2045,7 @@ export class AnsiTerm {
 			// TODO: optimize
 			for (let i = 0; i < this.pending_text.length; ++i) {
 
+				if (true) {
 			/* Check if we are beyond the end of the line, i.e.,
 			 the line has been filled completely. Only at this point,
 			 we synthesize a CR-LF before drawing the next character.
@@ -1934,7 +2066,7 @@ export class AnsiTerm {
 					this._incpos(1, 0);
 				}
 
-				/* The naive version: no "impo ssible" value of "posx",
+				/* The naive version: no "impossible" value of "posx",
 				 but a slightly different behavior that breaks some
 				 applications (e.g., the Midnight Commander's port on Windows)
 
@@ -1947,6 +2079,19 @@ export class AnsiTerm {
 					this._incpos(1, 0);
 				}
 				*/
+			}
+			else {
+				this._printchar(this.pending_text[i]);
+				if (this.posx >= this.params.nColumns - 1) {
+					this._setpos(0, this.posy);
+					this.line_wrap = true;
+					this._nextline();
+				}
+				else {
+					this._incpos(1, 0);
+					this.line_wrap = false;
+				}	
+			}
 
 			}
 			this.pending_text = "";
@@ -2488,10 +2633,19 @@ export class AnsiTerm {
 			y = 0;
 		}
 		if (x >= this.params.nColumns) {
-			x = this.params.nColumns ; // - 1;
+			// Accept "impossible" value of posx
+			x = this.params.nColumns; // - 1;
 		}
 		if (y >= this.params.nLines) {
 			y = this.params.nLines - 1;
+		}
+		// In general, a cursor position change should reset
+		// the "line wrap" condition, but we preserve it if the
+		// new position and the old one are the same.
+		// Another case would be the "_nextline" due to line wrap itself,
+		// but this is checked in "_nextline", not here.
+		if (x != this.posx || y != this.posy) {
+			this.line_wrap = false;
 		}
 		this.posx = x;
 		this.posy = y
@@ -2655,6 +2809,8 @@ export class AnsiTerm {
 
 	_nextline()
 	{
+		// We must preserve the line wrap state, because "_setpos" resets it.
+		let save_line_wrap = this.line_wrap;
 		if (this.posy >= this.scrollregion_h) {
 			// If the scroll region is not set
 			// we must store the first line
@@ -2671,12 +2827,18 @@ export class AnsiTerm {
 		else {
 			this._setpos(this.posx, this.posy + 1);
 		}
+		this.line_wrap = save_line_wrap;
 	}
 
 	_newline()
 	{
 		this._flush();
-		this._nextline();
+		if (! this.line_wrap) {
+			// Special case: if the line has been filled exactly, the cursor is
+			// already at the beginning of the next line, so we must not move it.
+ 			this._nextline();
+		}
+		this.line_wrap = false;
 	}
 
 	_upline()
@@ -3093,7 +3255,9 @@ export class AnsiTerm {
 
 	_send_pos()
 	{
-		this._send_data("\x1B[" + (this.posy + 1) + ";" + (this.posx + 1) + "R"); // VT101 and Windows console
+		let x = this.posx >= this.params.nColumns ? this.params.nColumns - 1 : this.posx;
+		let y = this.posy >= this.params.nLines ? this.params.nLines - 1 : this.posy;
+		this._send_data("\x1B[" + (y + 1) + ";" + (x + 1) + "R"); // VT101 and Windows console
 	}
 
 	_send_ok()

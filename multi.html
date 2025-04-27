@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multiple terminals</title>
+  <style>
+  </style>
+</head>
+<body>
+  <div>
+    <button onclick="window.history.back();">BACK</button>
+    <button id="open-terminal" onclick="open_terminal()">NEW TERMINAL</button>
+  </div>
+  <script type="module">
+
+
+    import "./xwterm.js";
+    // Empty in case of locl test, JSConsole class in case of live example.
+    import "./jsconsole.js";
+
+    let terminal_count = 0;
+
+    class Terminal {
+      constructor() {
+        ++terminal_count;
+        console.log("Terminal " + terminal_count);
+        this.terminal = document.createElement('dialog');
+        this.terminal.style.position = "absolute";
+        this.terminal.style.padding = "0px";
+        this.terminal.style.margin = "0px";
+        this.terminal.style.overflow = "visible";
+        this.terminal.innerHTML = `
+        <div style="display: grid; grid-tamplate-columns: auto; border: 1px solid gray; margin: 0px; padding: 0px;">
+          <div id="title${terminal_count}" style="align-items: center; display: grid; grid-template-columns: auto 1fr auto; border: 1px solid gray; margin: 1px; padding: 1px; background-color: #0000ff; color: #ffffff;">
+            <div style="color: #FF00FF; padding-right: 20px">[${terminal_count}]</div>
+            <div id="ansititle${terminal_count}"></div>
+            <button id="button${terminal_count}" style="border: 1px solid white; padding: 0px; margin: 0px; background-color: #ff0000; color: #ffffff; width: 30px; height: 30px; justify-self: end">X</button>
+          </div>
+          <div id="term${terminal_count}" style="display: inline-block;"></div>
+        </div>
+        `;
+        document.body.appendChild(this.terminal);
+        //this.canvas = document.getElementById("term" + terminal_count);
+        this.ansi = new AnsiTerm({
+          
+          // For "live" example on GitHub.
+          driver: ((typeof JSConsole != 'undefined') ? new JSConsole() : null),
+
+          containerId: "term" + terminal_count,
+          nLines : 25,
+          nColumns : 80,
+          fontSize : 12,
+          autocenter: false,
+          hasTitleBar: false,
+          hasStatusBar: false,
+          hasSoftKeyboard: false,          
+          hasSoftFKeys: false,          
+        });
+        this.ansititle = document.getElementById("ansititle" + terminal_count);
+        this.ansi.registerOnTitleChange((t) => {
+          this.ansititle.innerText = t;
+        });
+        this.title = document.getElementById("title" + terminal_count);
+        this.title.addEventListener("mousedown", (e) => {
+          this.start_ex = e.screenX;
+          this.start_ey = e.screenY;
+          let b = this.title.getBoundingClientRect();
+          this.start_x = b.x;
+          this.start_y = b.y;
+          //console.log(e);
+          e.preventDefault();
+          e.stopPropagation();
+          let f = (e) => {
+            //console.log(e);
+            let x = e.screenX - this.start_ex + this.start_x;
+            let y = e.screenY - this.start_ey + this.start_y;
+            //console.log(x, y);
+            this.terminal.style.left = x + "px";
+            this.terminal.style.top = y + "px";
+            e.preventDefault();
+            e.stopPropagation();
+          };
+          document.body.addEventListener("mousemove", f);
+          let f2 = (e) => {
+            document.body.removeEventListener("mousemove", f);
+            document.body.removeEventListener("mouseup", f2);
+            e.preventDefault();
+            e.stopPropagation();
+            //document.body.focus();
+          };
+          document.body.addEventListener("mouseup", f2);
+        });
+        let set_focus = (e) => {
+          try {
+            this.terminal.style.zIndex = 20;
+            this.ansi.focus();
+          } catch (e) {
+          }
+        };
+        let leave_top = (e) => {
+          try {
+            this.terminal.style.zIndex = 10;
+          } catch (e) {
+          }
+        };
+        this.title.addEventListener("click", (e) => {
+          set_focus(e);
+        });
+        this.ansi.getCanvas().addEventListener("click", (e) => {
+          set_focus(e);
+        });
+        this.ansi.getCanvas().addEventListener("blur", (e) => {
+          leave_top(e);
+        });
+        this.button = document.getElementById("button" + terminal_count);
+        this.button.addEventListener("click", (e) => {
+          this.ansi.close();
+          this.ansi = null;
+          this.terminal.close();
+          this.terminal.remove();
+          this.terminal = null;
+          this.title = null;
+          this.button = null;
+        });
+        this.terminal.style.zIndex = 20;
+        this.terminal.show();
+        this.ansi.focus();
+      }
+    }
+    function open_terminal() {
+      new Terminal();
+    }
+    window.open_terminal = open_terminal;
+  </script>
+</body>
+</html>
+
