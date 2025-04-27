@@ -123,7 +123,7 @@ A (still incomplete) documentation of the package, mainly classes and their meth
 
 ## Live example
 You can test some working examples of xwterm here:
-[Live exaples](https://giusguerrini.github.io/xwterm/live.html). In these examples a simple JavaScript console
+[Live examples](https://giusguerrini.github.io/xwterm/live.html). In these examples a simple JavaScript console
 is implemented as a replacement of a terminal server (no free terminal server for you here, sorry).
 
 ## Screenshots
