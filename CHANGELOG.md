@@ -1,4 +1,8 @@
 # Changelog
+## [0.20.0] - 2025-04-27
+- Fixed a bug in line wrap management.
+- Improved usage examples.
+
 ## [0.19.0] - 2025-04-21
 - miniserver.py fully working with both "conhost" API (default, faster)
 and "ConPTY" API (slower, but recommended by Microsoft).

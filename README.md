@@ -122,8 +122,9 @@ A (still incomplete) documentation of the package, mainly classes and their meth
 [API Documentation](https://giusguerrini.github.io/xwterm/index.html)
 
 ## Live example
-You can test a working example of xwterm here:
-[Simple JavaScript Console](https://giusguerrini.github.io/xwterm/jsconsole.html), where an instance of AnsiTerm hosts a basic JavaScript console.
+You can test some working examples of xwterm here:
+[Simple JavaScript](https://giusguerrini.github.io/xwterm/live.html). In these examples a simple JavaScript console
+is implemented as a replacement of a terminal server (no free terminal server for you here, sorry).
 
 ## Screenshots
 Here are some images taken while running the shell and some applications that require

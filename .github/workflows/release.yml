@@ -69,7 +69,10 @@ jobs:
         run: |
           cp src/xwterm.js docs/
           cp src/scrollbar.js docs/
+          cp example/jsconsoledrv.js docs/jsconsole.js
           cp example/jsconsole.html docs/
+          cp example/multi.html docs/
+          cp example/live.html docs/
       
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
