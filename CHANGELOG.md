@@ -1,4 +1,9 @@
 # Changelog
+## [0.20.3] - 2025-04-29
+- No changes in xwterm.js
+Some workarounds in **miniserver.py** to run on an embedded Linux system.
+See **90-sample-server.md** for detail.
+
 ## [0.20.0] - 2025-04-27
 - Fixed a bug in line wrap management.
 - Improved usage examples.
