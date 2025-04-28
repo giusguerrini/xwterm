@@ -1273,7 +1273,7 @@ async def websocket_server():
                 print("WS send: ", e)
                 break
 
-    async def websocket_connection(ws, path):
+    async def websocket_connection(ws, path = None):
 
         print("WS connection, peer = ", json.dumps(ws.remote_address))
         session = await Session.new_session()
