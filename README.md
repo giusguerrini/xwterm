@@ -94,7 +94,8 @@ is meant only to familiarize yourself with the AnsiTerm class and ease its devel
 The server implements both HTTP and WebSocket services on TCP port 8000 and 8001
 respectively. By default, the server accepts local connections only
 
-A detailed description of the server is here: [Sample server](https://giusguerrini.github.io/xwterm/tutorial-90-sample-server.html)
+A detailed description of the server is here: [Sample server](https://giusguerrini.github.io/xwterm/tutorial-90-sample-server.html).
+Specifically, it includes notes on configuring **miniserver.py** to work on embedded Linux systems that lack traditional package management tools.
 
 ## About scrollbar
 The terminal implements a history buffer whose size is configurable (default: 1000 lines). To navigate through the history, a scrollbar is provided.

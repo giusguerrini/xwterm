@@ -5,6 +5,7 @@
 - [Introduction](#introduction)
 - [Description and Usage](#description-and-usage)
 - [Requirements and Dependencies](#requirements-and-dependencies)
+- [An experiment on an embedded Linux system](#experiment-on-embedded-linux)
 - [Internals](#internals)
 - [Known Limitations and Issues](#known-limitations-and-issues)
 
@@ -43,12 +44,41 @@ and the WebSocket endpoint is `ws://127.0.0.1:8001`.
 
 The server has been tested on Linux and Windows 10 only. On Linux, a virtual terminal
 (pty) and a shell (`bash`) are created for each session. On Windows 10, the ConPTY subsystem is used
-to host a command interpreter (`cmd.exe`) for each session.  
-Here are the server dependencies:
+to host a command interpreter (`cmd.exe`) for each session.
+The version of Python I tipically use to launch the server is 3.12 or newer. While I don't believe this is
+a strict requirement, but I haven't had the opportunity to test the program on older systems. A notable exception
+is outlined in the next paragraph.
+The program requires at least one of the following packages:
 
-- Python >= 3.12
-- aiohttp (`pip install aiohttp` or, on Ubuntu and its derivatives, `apt install python3-aiohttp`)
-- websockets (`pip install websockets` or, on Ubuntu and its derivatives, `apt install python3-websockets`)
+For HTTP service:
+- aiohttp (`pip install aiohttp` or, for Ubuntu and its derivatives, `apt install python3-aiohttp`)
+
+For WebSocket service:
+- websockets (`pip install websockets` or, for Ubuntu and its derivatives, `apt install python3-websockets`)
+
+If one of these packages is unavailable, the corresponding service will be disabled.
+However, the program can still function with the remaining service. 
+
+
+<h2 id="experiment-on-embedded-linux">An experiment on an embedded Linux system</h2>
+
+
+I recently needed to run **miniserver.py** on a minimal and rather old Linux installation.
+The system was a customized version of a Debian 11 ("Bullseye"), hosting a basic installation of Python 3.6
+without any addons. To save space, package managers "pip", "apt", and even "deb" had been removed.
+Despite this, I succesfully got the program to work by downloading the required packages from Python's
+main repository end extracing them into the **example/modules** directory. I modified **miniserver.py**
+so it tries to import the dependencies from the default path first, and falls back to **modules**
+subdirectory in case of failure. I also implemented some simple workarounds to address the compatibility
+issues caused by the outdated package versions.
+
+The archive **example/python-3_6-addons.tgz** contains the entire **modules** subfolder. I created it
+with the hope that it might assist anyone who finds themselves similar situation. It also contains
+the additional subfolder **mod-zip** in which the original package archives are stored.
+Please note that, while **websockets** package is compact and self-contained, **aiohttp** depends on
+several additional modules. If you need to keep your disk image small, I recommend enabling WebSocket
+protocol only, and removing **aiohttp** along with its dependencies.
+
 
 <h2 id="internals">Internals</h2>
 
