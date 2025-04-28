@@ -22,7 +22,10 @@
 # find any citation in aiohttp's changelog.
 #
 
-VERSION = '1.3'
+VERSION = '1.4'
+
+has_aiohttp = True
+has_websockets = True
 
 import os
 import sys
@@ -30,17 +33,36 @@ import platform
 import string
 import random
 import asyncio
-import aiohttp
 import struct
-import aiohttp.web
 import mimetypes
 import time
 import json
-import websockets
 import threading
 import logging
 import subprocess
-#import pathlib
+try:
+    import aiohttp
+    import aiohttp.web
+except:
+    sys.path.append('/MountPnt/USER/xwterm/example/modules')
+    sys.path.append('/MountPnt/USER/xwterm/example/modules/aiohttp-3.7.4.post0')
+    sys.path.append('/MountPnt/USER/xwterm/example/modules/multidict-6.0.4')
+    sys.path.append('/MountPnt/USER/xwterm/example/modules/yarl-1.8.1')
+    sys.path.append('/MountPnt/USER/xwterm/example/modules/idna-ssl-1.1.0')
+    try:
+        import aiohttp
+        import aiohttp.web
+    except:
+        has_aiohttp = False
+
+try:
+    import websockets
+except:
+    sys.path.append('/MountPnt/USER/xwterm/example/modules/websockets-8.1/src')
+    try:
+        import websockets
+    except:
+        has_websockets = False
 try:
     import io
     import msvcrt
@@ -56,6 +78,16 @@ try:
     import signal
 except:
     pass
+
+# Hacks for oldest Python versions (3.6, in my tests)
+if not hasattr(asyncio, 'create_task'):
+    asyncio.create_task = asyncio.ensure_future
+if not hasattr(asyncio, 'get_running_loop'):
+    asyncio.get_running_loop = asyncio.get_event_loop
+if not hasattr(asyncio, 'run'):
+    def loop(x):
+        return asyncio.get_event_loop().run_until_complete(x)
+    asyncio.run = loop
 
 if platform.system() == "Linux":
     pass
@@ -1241,7 +1273,7 @@ async def websocket_server():
                 print("WS send: ", e)
                 break
 
-    async def websocket_connection(ws):
+    async def websocket_connection(ws, path):
 
         print("WS connection, peer = ", json.dumps(ws.remote_address))
         session = await Session.new_session()
@@ -1420,9 +1452,31 @@ if __name__ == '__main__':
 
 
     if conhost_helper_pipe:
-        print("conhost_helper")
+        #print("conhost_helper")
         Shell.conhost_helper(conhost_helper_pipe, conhost_helper_command, conhost_helper_width, conhost_helper_height)
         sys.exit(0)
+
+    if quiet:
+        print = no_print
+
+    if enable_welcome:
+        welcome()
+
+    f_enable_http = enable_http
+    if (not has_aiohttp) and enable_http:
+        enable_http = False
+        print('\x1B[96m')
+        print('WARNING: \x1B[93maiohttp\x1B[96m module not found, HTTP service not available.')
+        print('\x1B[0m')
+    f_enable_websocket = enable_websocket
+    if (not has_websockets) and enable_websocket:
+        enable_websocket = False
+        print('\x1B[96m')
+        print('WARNING: \x1B[93mwebsockets\x1B[96m module not found, WebSocket service not available.')
+        print('\x1B[0m')
+    if (f_enable_http and not enable_http) and (f_enable_websocket and not enable_websocket):
+        print('Install missing modules and retry')
+        sys.exit(1)
 
 # An ugly hack to prevent a bug that affects some versions of aiohttp,
 # in which the websocket listener task is terminated (and never awaited, too)
@@ -1434,12 +1488,6 @@ if __name__ == '__main__':
         rv = os.spawnl(os.P_NOWAIT, sys.executable, sys.executable, __file__,
                        '-no-welcome', '-no-http', '-ws', str(websocket_port), '-bind', bind_address) 
         enable_websocket = False
-
-    if quiet:
-        print = no_print
-
-    if enable_welcome:
-        welcome()
 
     if debug:
         logging.basicConfig(level=logging.WARNING)
