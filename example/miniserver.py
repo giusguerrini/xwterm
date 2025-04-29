@@ -22,7 +22,7 @@
 # find any citation in aiohttp's changelog.
 #
 
-VERSION = '1.4'
+VERSION = '1.5'
 
 has_aiohttp = True
 has_websockets = True
@@ -946,12 +946,13 @@ class Shell:
 class Session:
 
 
-    def  __init__(self, sid):
+    def  __init__(self, sid, persistent=False):
         self.sid = sid
         self.shell = None
         self.rxq = asyncio.Queue()
         self.txq = asyncio.Queue()
         self.visited = time.time()
+        self.persistent = persistent
         self.task = None
         self.job = None
         self.pending_data = b""
@@ -1064,15 +1065,15 @@ class Session:
             print(e)
 
             
-    async def new_session_by_sid(sid):
+    async def new_session_by_sid(sid, persistent = False):
         print("New session, ID = ", sid)
-        session = Session(sid)
+        session = Session(sid, persistent)
         #await Session.manager.add(session.job.main)
         return session
 
-    async def new_session():
+    async def new_session(persistent = False):
         sid = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
-        return await Session.new_session_by_sid(sid)
+        return await Session.new_session_by_sid(sid, persistent)
 
     async def request_handler(request):
 
@@ -1108,10 +1109,10 @@ class Session:
             elif hint:
                 session = await Session.new_session_by_sid(sid)      
             else:
-                session = await Session.new_session()      
+                session = await Session.new_session()
         else:
             # New session
-            session = await Session.new_session()      
+            session = await Session.new_session()
 
         session.visited = time.time()
 
@@ -1129,7 +1130,7 @@ class Session:
             s = Session.sessions.copy()
             for sid in s:
                 session = s[sid]
-                if (time.time() - session.visited > SESSION_IDLE_TIMEOUT):
+                if ((not session.persistent) and (time.time() - session.visited > SESSION_IDLE_TIMEOUT)):
                     #print("Session ", sid, ": timeout -- closing...")
                     await session.terminate()
                     print("Session ", sid, ": timeout -- closed")
@@ -1276,7 +1277,7 @@ async def websocket_server():
     async def websocket_connection(ws, path = None):
 
         print("WS connection, peer = ", json.dumps(ws.remote_address))
-        session = await Session.new_session()
+        session = await Session.new_session(persistent = True)
         await session.activate()
         tasks = list()
         
