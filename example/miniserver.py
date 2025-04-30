@@ -22,7 +22,7 @@
 # find any citation in aiohttp's changelog.
 #
 
-VERSION = '1.5'
+VERSION = '1.6'
 
 has_aiohttp = True
 has_websockets = True
@@ -314,6 +314,7 @@ CONSOLE_URL="/"
 DATA_REQUEST_PARAM="console"
 SESSION_HINT_PARAM="session"
 SET_SIZE_PARAM="size" # e.g. size=25x80
+LIST_SESSIONS_FILE="sessions.html"
 DEFAULT_FILE="index.html"
 
 DEFAULT_WEBSOCKET_PORT = 8001
@@ -347,6 +348,7 @@ else:
     default_encoding = 'utf-8'
 
 home_dir = os.path.dirname(os.path.abspath(__file__))
+doc_dir = home_dir
 
 def find_valid_encoded(text):
     for i in range(len(text), 0, -1):
@@ -965,7 +967,7 @@ class Session:
         
         self.shell = await Shell.create(self.sid)
 
-        #print("Session ", session.sid, ": starting I/O tasks")
+        print("Session ", self.sid, ": starting shell")
 
         tasks = list()
 
@@ -1173,23 +1175,35 @@ class Session:
 async def get_files(request, session):
     file_path = request.match_info.get('file_path', DEFAULT_FILE)
     content = ""
-    fp = os.path.join(home_dir, file_path)
+    fp = os.path.join(doc_dir, file_path)
     if not os.path.exists(fp):
-        fp = os.path.join(os.path.dirname(home_dir), "src", file_path)
+        fp = os.path.join(os.path.dirname(doc_dir), "src", file_path)
     if not os.path.exists(fp):
-        fp = os.path.join(os.path.dirname(home_dir), "dist", file_path)
+        fp = os.path.join(os.path.dirname(doc_dir), "dist", file_path)
     if not os.path.exists(fp):
-        fp = os.path.join(os.path.dirname(home_dir), "wip", file_path)
+        fp = os.path.join(os.path.dirname(doc_dir), "wip", file_path)
     try:
+        print("session " + session.sid + ": opening " + file_path + " path=" + fp);
         with open(fp, 'rb') as file:
             content = file.read()
         mime_type, _ = mimetypes.guess_type(fp)
+        if file_path == LIST_SESSIONS_FILE:
+            # Basic dynamic substitution
+            s = Session.sessions.copy()
+            sl = []
+            for sid in s:
+                session = s[sid]
+                so = { "sid": sid, "ty": session.persistent, "tm": time.time() - session.visited }
+                sl.append(so)
+            content = content.replace('__SESSION_LIST_FROM_TERMINAL_SERVER__'.encode('utf-8'), json.dumps(sl).encode('utf-8'))
+            print(content)
         if mime_type is None:
             mime_type = 'application/octet-stream'
         response = aiohttp.web.Response(body=content, content_type=mime_type)
     except (asyncio.CancelledError, GeneratorExit):
         raise
-    except:
+    except Exception as e:
+        print(e)
         response = aiohttp.web.Response(text='Not found', status = 404)
     return response
 
@@ -1249,7 +1263,7 @@ async def do_PUT(request, session):
 
 async def websocket_server():
 
-    print('*** Websocket server ready - bind address=' + bind_address + ' port=' + str(websocket_port))
+    print('*** Websocket server ready - bind address=' + bind_address + ':' + str(websocket_port))
 
     async def read_from_websocket(ws, session):
         async for data in ws:
@@ -1259,7 +1273,7 @@ async def websocket_server():
             except (asyncio.CancelledError, GeneratorExit):
                 raise
             except Exception as e:
-                print("WS recv: ", e)
+                #print("WS recv: ", e)
                 break
 
     async def write_to_websocket(ws, session):
@@ -1271,23 +1285,23 @@ async def websocket_server():
             except (asyncio.CancelledError, GeneratorExit):
                 raise
             except Exception as e:
-                print("WS send: ", e)
+                #print("WS send: ", e)
                 break
 
     async def websocket_connection(ws, path = None):
 
-        print("WS connection, peer = ", json.dumps(ws.remote_address))
+        #print("WS connection, peer = ", json.dumps(ws.remote_address))
         session = await Session.new_session(persistent = True)
         await session.activate()
         tasks = list()
         
-        print("WS connection, shell running, peer = ", json.dumps(ws.remote_address))
+        #print("WS connection, shell running, peer = ", json.dumps(ws.remote_address))
 
         tasks.append(asyncio.create_task(read_from_websocket(ws, session)))
         tasks.append(asyncio.create_task(write_to_websocket(ws, session)))
 
         async def on_close(task):
-            print("WS connection closed, peer = ", json.dumps(ws.remote_address))
+            #print("WS connection closed, peer = ", json.dumps(ws.remote_address))
             try:
                 await ws.close()
             except (asyncio.CancelledError, GeneratorExit):
@@ -1299,7 +1313,7 @@ async def websocket_server():
 
         await job.main
 
-        print("WS connection exiting, peer = ", json.dumps(ws.remote_address))
+        #print("WS connection exiting, peer = ", json.dumps(ws.remote_address))
 
 
     while True:
@@ -1308,7 +1322,7 @@ async def websocket_server():
 
 async def init_http_server():
 
-    print('*** HTTP server ready - bind address=' + bind_address + ' port=' + str(http_port))
+    print('*** HTTP server ready - bind address=' + bind_address + ':' + str(http_port) + ' root=' + doc_dir)
 
     http_server = aiohttp.web.Application()
     http_server.add_routes([aiohttp.web.get('/', do_GET),
@@ -1366,6 +1380,7 @@ if __name__ == '__main__':
         print('\nUsage:')
         print(' '+bold+'-b'+orop+'-bind'+orop+'-bindaddr '+italic+'IP addrress'+comment+'bind address for services. Default='+str(DEFAULT_BIND_ADDRESS))
         print(' '+bold+'-http'+orop+'-httpport '+italic+'TCP port'+comment+'TCP port for HTTP service. Default='+str(DEFAULT_HTTP_PORT))
+        print(' '+bold+'-docdir'+orop+'-docroot'+'-wwwroot'+'-root'+orop+'-doc '+italic+'directory'+comment+'Root directory for HTTP service. Default='+italic+'program directory'+comment)
         print(' '+bold+'-ws'+orop+'-wsport'+orop+'-websocket'+orop+'-websocketport '+italic+'TCP port'+comment+'TCP port for WebSocket service. Default='+str(DEFAULT_WEBSOCKET_PORT))
         print(' '+bold+'-no-http'+comment+'Disable HTTP service')
         print(' '+bold+'-no-websocket'+comment+'Disable WebSocket service')
@@ -1390,7 +1405,8 @@ if __name__ == '__main__':
         args = args[1:]
         #print('"' + opt + '"')
         if opt in [ "-http", "-httpport", "-b", "-bind", "-bindaddr", "-ws", "-wsport", "-websocket", "-websocketport",
-                    "-initial-size", "-defailt-silze" ]:
+                    "-docdir", "-docroot", "-wwwroot", "-root", "-doc",
+                    "-initial-size", "-default-size" ]:
 
             if len(args) == 0:
                 usage()
@@ -1400,6 +1416,8 @@ if __name__ == '__main__':
                 http_port = arg
             elif opt in [ "-ws", "-wsport", "-websocket", "-websocketport" ]:
                 websocket_port = arg
+            elif opt in [ "-docdir", "-docroot", "-wwwroot", "-root", "-doc" ]:
+                doc_dir = arg
             elif opt in [ "-b", "-bind", "-bindaddr" ]:
                 bind_address = arg
             elif opt in [ "-initial-size", "-defailt-silze" ]:

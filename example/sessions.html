@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style type="text/css">
+        canvas {
+            border: 20px solid blue;
+            border-radius: 20px;
+            border-collapse: collapse;
+            margin: 20px auto;
+            text-align: left;
+        }
+        table {
+            border-collapse: collapse;
+            margin: 20px auto;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 5px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2; 
+        }
+</style>
+</head>
+<body>
+	<div>
+		<table>
+			<thead>
+				<tr>
+					<th>Session ID</th>
+					<th>Type</th>
+					<th>Last visited</th>
+					<th>Kill</th>
+				</tr>
+			</thead>
+			<tbody id="sessions">
+			</tbody>
+		</table>
+	</div>
+
+	<script>
+
+		let sessions = __SESSION_LIST_FROM_TERMINAL_SERVER__;
+
+		let tbody = document.getElementById("sessions");
+
+		for (let i = 0; i < sessions.length; ++i) {
+			let s = sessions[i];
+			let tr = document.createElement("tr");
+			let td_id = document.createElement("td");
+			let td_ty = document.createElement("td");
+			let td_tm = document.createElement("td");
+			let td_k = document.createElement("td");
+			let b = document.createElement("button");
+			td_id.innerText = s.sid;
+			td_ty.innerText = s.ty ? "WebSockets" :  "HTTP";
+			td_tm.innerText = s.tm;
+			b.innerText = "Kill";
+			td_k.appendChild(b);
+			tr.appendChild(td_id);
+			tr.appendChild(td_ty);
+			tr.appendChild(td_tm);
+			tr.appendChild(td_k);
+			tbody.appendChild(tr);
+		}
+
+
+	</script>
+
+</body>
+</html>
