@@ -8,6 +8,7 @@
 - [Public methods](#public-methods)
 - [Private methods](#private-methods)
 - [Coding style](#coding-style)
+- [Special notes...](#special-notes)
 
 <h2 id="Introduction">Introduction</h2>
 
@@ -80,6 +81,25 @@ Beside my personal quirks, I'll impose at least two rules:
 - Always use braces for control structures: do not rely on your focus when adding the second line
 of a conditional.
 
+
+<h2 id="special-notes">Special notes...</h2>
+
+
+### ...for C programmers
+Dear C programmer, I have wonderful news for you: the Lord is not going to punish you for doubling an array, nor for not sorting it in place. In His infinite mercy, He hasn't even punished those who invented the `cmd.exe` syntax.
+
+Dear C programmer, I know what lies deep within your soul: the longing for a simple life, filled with small joys. The love for old things, from a time when the world was simple and people knew how a CPU worked.
+
+Dear C programmer, "mon semblant, mon frère!".
+
+
+### ...for programmes in `[ "Angular", "Electron", "React", "Vue"... ]`
+You had a difficult childhood and learned early on how harsh life can be. Browsers were unreliable, ready to betray you at the first opportunity.
+`this` changed its meaning without any apparent reason. Features upon which you had built your applications were suddenly deprecated and killed.
+But you didn't surrender. You worked hard. You fought. And eventually, you made it. Now, you live in a stunning loft on the top floor of a
+building. What a wonderful skyline!
+
+But don’t you feel a subtle uneasiness? A hint of dissatisfaction?
 
 
 
