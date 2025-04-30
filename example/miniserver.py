@@ -40,6 +40,7 @@ import json
 import threading
 import logging
 import subprocess
+import datetime
 try:
     import aiohttp
     import aiohttp.web
@@ -314,7 +315,8 @@ CONSOLE_URL="/"
 DATA_REQUEST_PARAM="console"
 SESSION_HINT_PARAM="session"
 SET_SIZE_PARAM="size" # e.g. size=25x80
-LIST_SESSIONS_FILE="sessions.html"
+LIST_SESSIONS_PARAM="sessions"
+KILL_SESSIONS_PARAM="kill"
 DEFAULT_FILE="index.html"
 
 DEFAULT_WEBSOCKET_PORT = 8001
@@ -457,6 +459,8 @@ class Shell:
         self.kill = None
         self.name = name or ""
         self.pty = None
+        self.li = DEFAULT_NLINES
+        self.co = DEFAULT_NCOLUMNS
 
         #print("New shell: name=", self.name)
         if platform.system() == "Linux":
@@ -491,6 +495,8 @@ class Shell:
         print("Process ", self.name, ": Size=", li, ",", co)
         try:
             self.set_size_core(li, co)
+            self.li = li
+            self.co = co
         except Exception as e:
             print("Process ", self.name, ": resize failed: ", e)
 
@@ -950,6 +956,7 @@ class Session:
 
     def  __init__(self, sid, persistent=False):
         self.sid = sid
+        self.start_time = datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
         self.shell = None
         self.rxq = asyncio.Queue()
         self.txq = asyncio.Queue()
@@ -1124,6 +1131,12 @@ class Session:
     sessions = {}
     manager = None
 
+    async def kill_session(sid):
+        if sid in Session.sessions:
+            session = Session.sessions[sid]
+            await session.terminate()
+            del Session.sessions[sid]
+    
     async def cleaner():
         #print("Session cleaner started")
         while True:
@@ -1134,10 +1147,8 @@ class Session:
                 session = s[sid]
                 if ((not session.persistent) and (time.time() - session.visited > SESSION_IDLE_TIMEOUT)):
                     #print("Session ", sid, ": timeout -- closing...")
-                    await session.terminate()
+                    await Session.kill_session(sid)
                     print("Session ", sid, ": timeout -- closed")
-                    if sid in Session.sessions:
-                        del Session.sessions[sid]
 
 
     def setup():
@@ -1183,20 +1194,10 @@ async def get_files(request, session):
     if not os.path.exists(fp):
         fp = os.path.join(os.path.dirname(doc_dir), "wip", file_path)
     try:
-        print("session " + session.sid + ": opening " + file_path + " path=" + fp);
+#        print("session " + session.sid + ": opening " + file_path + " path=" + fp);
         with open(fp, 'rb') as file:
             content = file.read()
         mime_type, _ = mimetypes.guess_type(fp)
-        if file_path == LIST_SESSIONS_FILE:
-            # Basic dynamic substitution
-            s = Session.sessions.copy()
-            sl = []
-            for sid in s:
-                session = s[sid]
-                so = { "sid": sid, "ty": session.persistent, "tm": time.time() - session.visited }
-                sl.append(so)
-            content = content.replace('__SESSION_LIST_FROM_TERMINAL_SERVER__'.encode('utf-8'), json.dumps(sl).encode('utf-8'))
-            print(content)
         if mime_type is None:
             mime_type = 'application/octet-stream'
         response = aiohttp.web.Response(body=content, content_type=mime_type)
@@ -1230,6 +1231,30 @@ async def do_GET(request, session):
             pass
         response = aiohttp.web.Response(body=json.dumps({ 'text': text }), content_type='application/json')
         #print("GET: Session=", session_id, " Data=", sessions[session_id]);
+
+    elif LIST_SESSIONS_PARAM in params:
+
+        s = Session.sessions.copy()
+        sl = []
+        for sid in s:
+            session = s[sid]
+            sz = "-"
+            if session.shell:
+                sz = str(session.shell.co) + "x" + str(session.shell.li)
+            so = { "sid": sid,
+                   "ty": session.persistent,
+                   "sz": sz,
+                   "dt": session.start_time,
+                   "tm": int(time.time() - session.visited) }
+            sl.append(so)
+        response = aiohttp.web.Response(body=json.dumps(sl), content_type='application/json')
+
+    elif KILL_SESSIONS_PARAM in params:
+        sid = params[KILL_SESSIONS_PARAM]
+        await Session.kill_session(sid)
+        print("Session ", sid, ": killed")
+        response = aiohttp.web.Response(body=json.dumps({}), content_type='application/json')
+
     else:
         response = await get_files(request, session)
 
@@ -1380,7 +1405,7 @@ if __name__ == '__main__':
         print('\nUsage:')
         print(' '+bold+'-b'+orop+'-bind'+orop+'-bindaddr '+italic+'IP addrress'+comment+'bind address for services. Default='+str(DEFAULT_BIND_ADDRESS))
         print(' '+bold+'-http'+orop+'-httpport '+italic+'TCP port'+comment+'TCP port for HTTP service. Default='+str(DEFAULT_HTTP_PORT))
-        print(' '+bold+'-docdir'+orop+'-docroot'+'-wwwroot'+'-root'+orop+'-doc '+italic+'directory'+comment+'Root directory for HTTP service. Default='+italic+'program directory'+comment)
+        print(' '+bold+'-docdir'+orop+'-docroot'+orop+'-wwwroot'+orop+'-root'+orop+'-doc '+italic+'directory'+comment+'Root directory for HTTP service. Default='+italic+'program directory'+normal)
         print(' '+bold+'-ws'+orop+'-wsport'+orop+'-websocket'+orop+'-websocketport '+italic+'TCP port'+comment+'TCP port for WebSocket service. Default='+str(DEFAULT_WEBSOCKET_PORT))
         print(' '+bold+'-no-http'+comment+'Disable HTTP service')
         print(' '+bold+'-no-websocket'+comment+'Disable WebSocket service')

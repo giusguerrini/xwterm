@@ -3,13 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <style type="text/css">
-        canvas {
-            border: 20px solid blue;
-            border-radius: 20px;
-            border-collapse: collapse;
-            margin: 20px auto;
-            text-align: left;
-        }
         table {
             border-collapse: collapse;
             margin: 20px auto;
@@ -26,46 +19,104 @@
 </head>
 <body>
 	<div>
-		<table>
+		<table id="sessions">
 			<thead>
 				<tr>
 					<th>Session ID</th>
 					<th>Type</th>
+					<th>Start time</th>
+					<th>Screen size</th>
 					<th>Last visited</th>
 					<th>Kill</th>
 				</tr>
 			</thead>
-			<tbody id="sessions">
-			</tbody>
 		</table>
 	</div>
 
 	<script>
 
-		let sessions = __SESSION_LIST_FROM_TERMINAL_SERVER__;
-
-		let tbody = document.getElementById("sessions");
-
-		for (let i = 0; i < sessions.length; ++i) {
-			let s = sessions[i];
-			let tr = document.createElement("tr");
-			let td_id = document.createElement("td");
-			let td_ty = document.createElement("td");
-			let td_tm = document.createElement("td");
-			let td_k = document.createElement("td");
-			let b = document.createElement("button");
-			td_id.innerText = s.sid;
-			td_ty.innerText = s.ty ? "WebSockets" :  "HTTP";
-			td_tm.innerText = s.tm;
-			b.innerText = "Kill";
-			td_k.appendChild(b);
-			tr.appendChild(td_id);
-			tr.appendChild(td_ty);
-			tr.appendChild(td_tm);
-			tr.appendChild(td_k);
-			tbody.appendChild(tr);
+		function kill_session(sid)
+		{
+			let xhr = new XMLHttpRequest();
+			xhr.onreadystatechange = () => {
+				if (xhr.readyState == 4 && xhr.status == 200) {
+					get_sessions();
+				}
+			};
+			xhr.open("GET", "/?kill=" + sid, true);
+			xhr.send();
 		}
 
+		function get_sessions()
+		{
+			let xhr = new XMLHttpRequest();
+			xhr.onreadystatechange = () => {
+				if (xhr.readyState == 4 && xhr.status == 200) {
+					try {
+						let sessions = JSON.parse(xhr.responseText);
+						update(sessions);
+					}
+					catch {
+					};
+				}
+			};
+			xhr.open("GET", "/?sessions", true);
+			xhr.send();
+		}
+
+		var last_tbody = null;
+
+		function update(sessions)
+		{
+
+			if (last_tbody) {
+				last_tbody.remove();
+			}
+			let table = document.getElementById("sessions");
+			let tbody = document.createElement("tbody");
+			last_tbody = tbody;
+
+			for (let i = 0; i < sessions.length; ++i) {
+				let s = sessions[i];
+				let tr = document.createElement("tr");
+				let td_id = document.createElement("td");
+				let td_ty = document.createElement("td");
+				let td_dt = document.createElement("td");
+				let td_sz = document.createElement("td");
+				let td_tm = document.createElement("td");
+				let td_k = document.createElement("td");
+				let b = document.createElement("button");
+				td_id.innerText = s.sid;
+				td_ty.innerText = s.ty ? "WebSockets" :  "HTTP";
+				td_dt.innerText = s.dt;
+				td_sz.innerText = s.sz;
+				td_tm.innerText = s.tm;
+				b.innerText = "Kill";
+				b.onclick = () => {
+					kill_session(s.sid);
+				};
+				td_k.appendChild(b);
+				tr.appendChild(td_id);
+				tr.appendChild(td_ty);
+				tr.appendChild(td_dt);
+				tr.appendChild(td_sz);
+				tr.appendChild(td_tm);
+				tr.appendChild(td_k);
+				tbody.appendChild(tr);
+			}
+
+			table.appendChild(tbody);
+		}
+
+		function update_list()
+		{
+			get_sessions();
+			setTimeout(() => {
+				update_list();
+			}, 1000);			
+		}
+
+		update_list();
 
 	</script>
 
