@@ -86,12 +86,15 @@ of a conditional.
 
 
 ### ...for C programmers
-Dear C programmer, I have wonderful news for you: the Lord is not going to punish you for doubling an array, nor for not sorting it in place. In His infinite mercy, He hasn't even punished those who invented the `cmd.exe` syntax.
+Dear C programmer, I have Good News for you: the Lord is not going to punish you for having duplicated an array, nor for not having sorted it in place. In His infinite mercy, He hasn't even punished those who invented the `cmd.exe` syntax [^note].
 
-Dear C programmer, I know what lies deep within your soul: the longing for a simple life, filled with small joys. The love for old things, from a time when the world was simple and people knew how a CPU worked.
+Dear C programmer, listen: release the burden of guilt that oppresses you for every single byte you wasted, for every single machine cycle
+you added. Managed languages like JavaScript and Python are there to set us free!
 
-Dear C programmer, "mon semblant, mon frère!".
+Dear C programmer, "mon semblant, mon frère!", I am one of you too. I know what lies deep within your soul: the longing for a simple life, filled with small joys. The love for old things, from a time when the world was simple and people knew how a CPU worked. Today nobody cares about
+memory and processor usage anymore. But, in the depths of our passionate hearts, we preserve the awareness of how valuable a well-optimized piece of code is. "We few, we happy few, we band of brothers".
 
+[^note]: Some people interpret this as a key piece of evidence in favor of atheism.
 
 ### ...for programmes in `[ "Angular", "Electron", "React", "Vue"... ]`
 You had a difficult childhood and learned early on how harsh life can be. Browsers were unreliable, ready to betray you at the first opportunity.
