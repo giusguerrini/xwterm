@@ -85,16 +85,8 @@ of a conditional.
 <h2 id="special-notes">Special notes...</h2>
 
 
-### ...for C programmers
-Dear C programmer, I have Good News for you: the Lord is not going to punish you for having duplicated an array, nor for not having sorted it in place. In His infinite mercy, He hasn't even punished those who invented the `cmd.exe` syntax [^note].
+### ...for C++ programmers
 
-Dear C programmer, listen: release the burden of guilt that oppresses you for every single byte you wasted, for every single machine cycle
-you added. Managed languages like JavaScript and Python are there to set us free!
-
-Dear C programmer, "mon semblant, mon frère!", I am one of you too. I know what lies deep within your soul: the longing for a simple life, filled with small joys. The love for old things, from a time when the world was simple and people knew how a CPU worked. Today nobody cares about
-memory and processor usage anymore. But, in the depths of our passionate hearts, we preserve the awareness of how valuable a well-optimized piece of code is. "We few, we happy few, we band of brothers".
-
-[^note]: Some people interpret this as a key piece of evidence in favor of atheism.
 
 ### ...for programmes in `[ "Angular", "Electron", "React", "Vue"... ]`
 You had a difficult childhood and learned early on how harsh life can be. Browsers were unreliable, ready to betray you at the first opportunity.
@@ -104,5 +96,16 @@ building. What a wonderful skyline!
 
 But don’t you feel a subtle uneasiness? A hint of dissatisfaction?
 
+Yes, your life is comfortable now, but you are losing the ability to enjoy simple things. Here's some advice for you: leave your loft for just one day, go down to the street. Feel the simple joy of growing a `<div>`, finding its handle with `document.getElementById`, changing its text color by setting its `style.color` member to `"red"`...
+
+
+### ...for C programmers
+Dear C programmer, I have Good News for you: the Lord is not going to punish you for having duplicated an array, nor for not having sorted it in place. In His infinite mercy, He hasn't even punished those who invented the `cmd.exe` syntax.
+
+Dear C programmer, listen: release the burden of guilt that oppresses you for every single byte you wasted, for every single machine cycle
+you added. Managed languages like JavaScript and Python are there to set us free!
+
+Dear C programmer, "mon semblant, mon frère!", I am one of you too. I know what lies deep within your soul: the longing for a simple life, filled with small joys. The love for old things, from a time when the world was simple and people knew how a CPU worked. Today nobody cares about
+memory and processor usage anymore. But, in the depths of our passionate hearts, we preserve the awareness of how valuable a well-optimized piece of code is. "We few, we happy few, we band of brothers".
 
 
