@@ -87,16 +87,21 @@ of a conditional.
 
 ### ...for C++ programmers
 
+...under construction... this is the most difficult paragraph...
 
-### ...for programmes in `[ "Angular", "Electron", "React", "Vue"... ]`
+### ...for Angular, Electron, React, etc... programmers
 You had a difficult childhood and learned early on how harsh life can be. Browsers were unreliable, ready to betray you at the first opportunity.
 `this` changed its meaning without any apparent reason. Features upon which you had built your applications were suddenly deprecated and killed.
+Even the few things in which you placed your trust - Adobe Flash, Microsoft Silverlight - have abandoned you. 
 But you didn't surrender. You worked hard. You fought. And eventually, you made it. Now, you live in a stunning loft on the top floor of a
 building. What a wonderful skyline!
 
+You have unlimited power. You can create an entire portal in just a few lines. There is no convoluted
+business logic, no overly complicated DB report that you can't handle with just a few instructions.
+
 But don’t you feel a subtle uneasiness? A hint of dissatisfaction?
 
-Yes, your life is comfortable now, but you are losing the ability to enjoy simple things. Here's some advice for you: leave your loft for just one day, go down to the street. Feel the simple joy of growing a `<div>`, finding its handle with `document.getElementById`, changing its text color by setting its `style.color` member to `"red"`...
+Yes, your life is comfortable now, but you are losing the ability to enjoy simple things. Here's some advice for you: leave your loft for just one day and step out onto the street. Experience the simple joy of creating a `<div>`, giving it a name - you can't love anything if haven't given it a name -, seeing it run towards you, wagging his tail, when you call it with `document.getElementById`, changing its text color by setting its `style.color` property...
 
 
 ### ...for C programmers
@@ -105,7 +110,7 @@ Dear C programmer, I have Good News for you: the Lord is not going to punish you
 Dear C programmer, listen: release the burden of guilt that oppresses you for every single byte you wasted, for every single machine cycle
 you added. Managed languages like JavaScript and Python are there to set us free!
 
-Dear C programmer, "mon semblant, mon frère!", I am one of you too. I know what lies deep within your soul: the longing for a simple life, filled with small joys. The love for old things, from a time when the world was simple and people knew how a CPU worked. Today nobody cares about
+Dear C programmer, I am one of you too. I know what lies deep within your soul: the longing for a simple life, filled with small joys. The love for old things, from a time when the world was simple and people knew how a CPU worked. Today nobody cares about
 memory and processor usage anymore. But, in the depths of our passionate hearts, we preserve the awareness of how valuable a well-optimized piece of code is. "We few, we happy few, we band of brothers".
 
 
