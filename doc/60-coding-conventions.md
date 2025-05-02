@@ -127,7 +127,7 @@ Also, you diligently apply good coding practices, don't you?
 - global, or even static objects are a gift from the devil. Everything must be created at runtime (especially because static constructors
 are hopelessly broken in C++).
 - Every variable must be a member of a class.
-- Methods shold be reasonably short and easy-to-read blocks of code.
+- Methods should be reasonably short and easy-to-read blocks of code.
 
 In your code there are only few local variables, and they are valid only in short internal compounds; the vast majority of symbols
 are methods or members, aren't they?
