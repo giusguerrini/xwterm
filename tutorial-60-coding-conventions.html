@@ -38,6 +38,7 @@
 <li><a href="#public-methods">Public methods</a></li>
 <li><a href="#private-methods">Private methods</a></li>
 <li><a href="#coding-style">Coding style</a></li>
+<li><a href="#special-notes">Special notes...</a></li>
 </ul>
 <h2 id="Introduction">Introduction</h2>
 <p>In this section I will describe the coding rules used in <strong>xwterm</strong>.</p>
@@ -90,6 +91,72 @@ Let's consider this fragment of code:</p>
 <li>Always use braces for control structures: do not rely on your focus when adding the second line
 of a conditional.</li>
 </ul>
+<h2 id="special-notes">Special notes...</h2>
+<h3 id="...for-c%2B%2B-programmers">...for C++ programmers</h3>
+<p>Dear C++ programmer, everything is under your full control. Resources are allocated and released at your command. You skillfully
+apply the RAII idiom to prevent leaks in case of exceptions. Every algorithm is perfectly optimized for the specific instance of
+your wisely engineered templates. Smart pointer templates are your powerful weapon against dangling references. You know how to take
+advantage of the SFINAE rule to solve even the most convoluted overloading problems. If you want, you can make an object non-copyable,
+non-movable, or even both. You can prevent a derived class from accessing its parent's members. You can also prevent a class from
+being derived at all. Recursive templates hold no secrets for you. Your carefully programmed build process eliminates every misalignment
+between different compilation units.</p>
+<p>You are the zenith of human evolution.</p>
+<p>But I have a question for you: WHY?</p>
+<ul>
+<li>Why is the only way to avoid getting screwed by exceptions to collect all resource allocations in constructors?</li>
+<li>Why do you need smart pointers?</li>
+<li>Why do you have convoluted overloading problems?</li>
+<li>Why do you need a non-copyable, non-movable object?</li>
+<li>Why should a derived class not access its parent's members?</li>
+<li>Why do you need to recompile all your modules to ensure all binaries are up-to-date?</li>
+</ul>
+<p>I'll answer for you.</p>
+<ul>
+<li>You need RAII idiom because you don't actually control resource allocation and descrtuction, but the language puts the
+responsibility on you anyway.</li>
+<li>You need smart pointers because language's native pointers are not smart. And their management is on you.</li>
+<li>You have convoluted overloading problems because
+<ul>
+<li>probably the &quot;advanced&quot; libraries you are using force you to deal with such problems, and</li>
+<li>you love convoluted overloading problems.</li>
+</ul>
+</li>
+<li>You need non-copyable or non-movable objects because, instead of sharing some simple usage rules of your classes, you expect
+that the compiler protects you and your team from errors in logic.</li>
+<li>For the same reason, you want to limit the accessibility of your classes.</li>
+<li>And finally, you need to recompile everything every time because C++ lacks an ABI.</li>
+</ul>
+<p>Astonishing news: there are programming languages in which things are references. No, not pointers to objects whose lifecycle is
+on you. References, with builtin reference counter and automatic cleanup of underlying resources. Even more shocking revelation: there are
+languages for whom there is no shuch thing like binary compatibility of modules.</p>
+<p>By the way, you, dear C++ programmer, you are an ardent believer in OOP priciples, right? Everything is an object, with a precise lifecyle.
+Also, you diligently apply good coding practices, don't you?</p>
+<ul>
+<li>global, or even static objects are a gift from the devil. Everything must be created at runtime (especially because static constructors
+are hopelessly broken in C++).</li>
+<li>Every variable must be a member of a class.</li>
+<li>Methods should be reasonably short and easy-to-read blocks of code.</li>
+</ul>
+<p>In your code there are only few local variables, and they are valid only in short internal compounds; the vast majority of symbols
+are methods or members, aren't they?</p>
+<p>So, why on earth do you put that useless <code>m_</code> prefix at the beginning of every member?</p>
+<h3 id="...for-angular%2C-electron%2C-react%2C-etc...-programmers">...for Angular, Electron, React, etc... programmers</h3>
+<p>You had a difficult childhood and learned early on how harsh life can be. Browsers were unreliable, ready to betray you at the first opportunity.
+<code>this</code> changed its meaning without any apparent reason. Features upon which you had built your applications were suddenly deprecated and killed.
+Even the few things in which you placed your trust - Adobe Flash, Microsoft Silverlight - have abandoned you.
+But you didn't surrender. You worked hard. You fought. And eventually, you made it. Now, you live in a stunning loft on the top floor of a
+building. What a wonderful skyline!</p>
+<p>You have unlimited power. Dozens of megabytes of open-source code kneel before you, ready to fulfill your every wish.
+You can create an entire portal in just a few lines. There is no convoluted
+backend logic, no overly complicated DB report that you can't handle with just a few instructions.</p>
+<p>But don’t you feel a subtle uneasiness? A hint of dissatisfaction?</p>
+<p>Yes, your life is comfortable now, but you are losing the ability to enjoy simple things. Here's some advice for you: leave your loft for just one day and step out onto the street. Experience the simple joy of creating a <code>&lt;div&gt;</code>, giving it a name - not an automatically generated one, but a real, unique name: you can't love anything if you haven't given it a name -, seeing it run towards you, wagging his tail, when you call it with <code>document.getElementById</code>, changing its text color by tenderly caressing its <code>style.color</code> property...</p>
+<h3 id="...for-c-programmers">...for C programmers</h3>
+<p>Dear C programmer, I have Good News for you: the Lord is not going to punish you for having duplicated an array, nor for not having sorted it in place. In His infinite mercy, He hasn't even punished those who invented the <code>cmd.exe</code> syntax.</p>
+<p>Dear C programmer, listen: release the burden of guilt that oppresses you for every single byte you wasted, for every single machine cycle
+you added. Managed languages like JavaScript are there to set us free!</p>
+<p>Dear C programmer, I am one of you too. I know what lies deep within your soul: the longing for a simple life, filled with small joys. The love for old things, from a time when the world was simple and people knew how a CPU worked. Today nobody cares about
+memory and processor usage anymore. But, in the depths of our passionate hearts, we preserve the awareness of how valuable a well-optimized piece of code is. &quot;We few, we happy few, we band of brothers&quot;.</p>
 </article>
 
 </section>
@@ -103,7 +170,7 @@ of a conditional.</li>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Mon Apr 28 2025 22:28:04 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Fri May 02 2025 23:21:24 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>
