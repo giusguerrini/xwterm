@@ -1,6 +1,6 @@
 # **xwterm** - Coding conventions
 
-[Propject Home](https://github.com/giusguerrini/xwterm)
+[Project Home](https://github.com/giusguerrini/xwterm)
 
 **For contributors**
 

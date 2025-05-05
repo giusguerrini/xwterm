@@ -1,6 +1,6 @@
 # **xwterm** - Communication drivers
 
-[Propject Home](https://github.com/giusguerrini/xwterm)
+[Project Home](https://github.com/giusguerrini/xwterm)
 
 ## Table of Contents
 - [Introduction](#introduction)

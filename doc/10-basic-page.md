@@ -1,6 +1,6 @@
 # **xwterm** - Example 1: Basic usage
 
-[Propject Home](https://github.com/giusguerrini/xwterm)
+[Project Home](https://github.com/giusguerrini/xwterm)
 
 **A very simple use case**
 
