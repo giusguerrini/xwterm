@@ -124,21 +124,33 @@ responsibility on you anyway.</li>
 <li>You have convoluted overloading problems because
 <ul>
 <li>probably the &quot;advanced&quot; libraries you are using force you to deal with such problems, and</li>
+<li>you firmly refuse to create a named method if there is any standard operator that vaguely resembles the function. So you &quot;add&quot;
+and &quot;subtract&quot; objects to/from collections, &quot;left shift&quot; output streams &quot;by&quot; strings, &quot;multiply&quot; a collection by a filter
+predicate function, but also &quot;multiply&quot; the same collection by an integer to make it contain the same objects multiple times. And finally...</li>
 <li>you love convoluted overloading problems.</li>
 </ul>
 </li>
-<li>Compilation errors involving standard libraries are huge and unreadable (and useless) because these &quot;libraries&quot; are just
+<li>Compilation errors involving standard libraries are huge and unreadable (therefore useless) because these &quot;libraries&quot; are just
 headers that the compiler must process every time. This happens because C++ makes the distribution of real precompiled
 libraries nearly impossible: you would need the same compiler, the same compilation options and the same environment that were
-used to compile the libraries. (What? Precompiled headers? Oh,please...).</li>
-<li>You need non-copyable or non-movable objects because, instead of sharing some simple usage rules of your classes, you expect
-that the compiler protects you and your team from errors in logic.</li>
+used to compile the libraries. In short: C++ leaks an ABI. (What? Precompiled headers? Oh, please...).</li>
+<li>You need non-copyable or non-movable objects because, instead of sharing some simple usage rules of your classes, you claim
+that the compiler should protect you and your team from errors in logic.</li>
 <li>For the same reason, you want to limit the accessibility of your classes.</li>
-<li>And finally, you need to recompile everything every time because C++ lacks an ABI.</li>
+<li>And finally, you need to recompile everything every time because:
+<ul>
+<li>You can't reliably create precompiled libraries (see above).</li>
+<li>Public C++ classes, including their private parts, must be declared completely in headers. &quot;Information hiding&quot; principle, where are you?</li>
+<li>You love <code>inline</code> methods; they give you a false feeling of efficiency.</li>
+<li>Although C++ supports abstract classes and virtual methods to define pure interfaces, from which you
+could derive concrete implementations valid only in the minimal necessary context (even C++ has something good), you insist on not using
+them because of their alleged poor performances.</li>
+</ul>
+</li>
 </ul>
 <p>Astonishing news: there are programming languages in which things are references. No, not pointers to objects whose lifecycle is
 on you. References, with builtin reference counter and automatic cleanup of underlying resources. Even more shocking revelation: there are
-languages for whom there is no shuch thing like binary compatibility of modules. Indeed, there are languages in which strings are native types.
+languages for whom there is no shuch thing like binary compatibility of modules. Indeed, there are languages in which strings are native types!
 Unicode strings, of course.</p>
 <p>By the way, you, dear C++ programmer, you are an ardent believer in OOP priciples, right? Everything is an object, with a precise lifecyle.
 Also, you diligently apply good coding practices, don't you?</p>
@@ -160,7 +172,7 @@ building. What a wonderful skyline!</p>
 <p>You have unlimited power. Dozens of megabytes of open-source code kneel before you, ready to fulfill your every wish.
 You can create an entire portal in just a few lines. There is no convoluted
 backend logic, no overly complicated DB report that you can't handle with just a few instructions.</p>
-<p>But don’t you feel a subtle uneasiness? A hint of dissatisfaction?</p>
+<p>But don't you feel a subtle uneasiness? A hint of dissatisfaction?</p>
 <p>Yes, your life is comfortable now, but you are losing the ability to enjoy simple things. Here's some advice for you: leave your loft for just one day and step out onto the street. Experience the simple joy of creating a <code>&lt;div&gt;</code>, giving it a name - not an automatically generated one, but a real, unique name: you can't love anything if you haven't given it a name -, seeing it run towards you, wagging his tail, when you call it with <code>document.getElementById</code>, changing its text color by tenderly caressing its <code>style.color</code> property...</p>
 <h3 id="...for-c-programmers">...for C programmers</h3>
 <p>Dear C programmer, I have Good News for you: the Lord is not going to punish you for having duplicated an array, nor for not having sorted it in place. In His infinite mercy, He hasn't even punished those who invented the <code>cmd.exe</code> syntax.</p>
@@ -181,7 +193,7 @@ memory and processor usage anymore. But, in the depths of our passionate hearts,
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Sat May 03 2025 23:11:57 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Mon May 05 2025 18:10:27 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>
