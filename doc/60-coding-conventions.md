@@ -1,4 +1,7 @@
 # **xwterm** - Coding conventions
+
+[Propject Home](https://github.com/giusguerrini/xwterm)
+
 **For contributors**
 
 ## Table of Contents
@@ -90,7 +93,7 @@ Dear C++ programmer, everything is under your full control. Resources are alloca
 apply the RAII idiom to prevent leaks in case of exceptions. Every algorithm is perfectly optimized for the specific instance of
 your wisely engineered templates. Smart pointer templates are your powerful weapon against dangling references. You know how to take
 advantage of the SFINAE rule to solve even the most convoluted overloading problems. You have mastered the art of managing and converting any
-possible implementation of strings: `std::string`, `std::wstring`, `std:u16string`, `boost:string_ref`...; and the platform-dependant ones:
+possible implementation of strings: `std::string`, `std::wstring`, `std::u16string`, `boost::string_ref`...; and the platform-dependant ones:
 `::BSTR`, `Qt::QString`, `wx::wxString`...
 You know how to interpret any compiler error from `std` or `boost`, no matter the nesting level in library's templates.
 If you want, you can make an object non-copyable,
