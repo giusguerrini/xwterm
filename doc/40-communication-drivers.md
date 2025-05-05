@@ -92,9 +92,8 @@ Example (minimal):
 			super(params);
 		}
 
-		start()
+		_start()
 		{ 
-			super.start();
 			this._set_connection_state(true); // Signal "connected" to the terminal
 			this._new_data("Hello!\r\n"); // Send data to the terminal
 		}
