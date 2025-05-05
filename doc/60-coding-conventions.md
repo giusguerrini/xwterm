@@ -118,19 +118,28 @@ responsibility on you anyway.
 - You need smart pointers because language's native pointers are not smart. And their management is on you.
 - You have convoluted overloading problems because
   - probably the "advanced" libraries you are using force you to deal with such problems, and
+  - you firmly refuse to create a named method if there is any standard operator that vaguely resembles the function. So you "add"
+and "subtract" objects to/from collections, "left shift" output streams "by" strings, "multiply" a collection by a filter
+predicate function, but also "multiply" the same collection by an integer to make it contain the same objects multiple times. And finally...
   - you love convoluted overloading problems.
-- Compilation errors involving standard libraries are huge and unreadable (and useless) because these "libraries" are just
+- Compilation errors involving standard libraries are huge and unreadable (therefore useless) because these "libraries" are just
 headers that the compiler must process every time. This happens because C++ makes the distribution of real precompiled
 libraries nearly impossible: you would need the same compiler, the same compilation options and the same environment that were
-used to compile the libraries. (What? Precompiled headers? Oh,please...).
-- You need non-copyable or non-movable objects because, instead of sharing some simple usage rules of your classes, you expect
-that the compiler protects you and your team from errors in logic.
+used to compile the libraries. In short: C++ leaks an ABI. (What? Precompiled headers? Oh, please...).
+- You need non-copyable or non-movable objects because, instead of sharing some simple usage rules of your classes, you claim
+that the compiler should protect you and your team from errors in logic.
 - For the same reason, you want to limit the accessibility of your classes.
-- And finally, you need to recompile everything every time because C++ lacks an ABI. 
+- And finally, you need to recompile everything every time because:
+  - You can't reliably create precompiled libraries (see above).
+  - Public C++ classes, including their private parts, must be declared completely in headers. "Information hiding" principle, where are you?
+  - You love `inline` methods; they give you a false feeling of efficiency.
+  - Although C++ supports abstract classes and virtual methods to define pure interfaces, from which you
+could derive concrete implementations valid only in the minimal necessary context (even C++ has something good), you insist on not using
+them because of their alleged poor performances.
 
 Astonishing news: there are programming languages in which things are references. No, not pointers to objects whose lifecycle is
 on you. References, with builtin reference counter and automatic cleanup of underlying resources. Even more shocking revelation: there are
-languages for whom there is no shuch thing like binary compatibility of modules. Indeed, there are languages in which strings are native types.
+languages for whom there is no shuch thing like binary compatibility of modules. Indeed, there are languages in which strings are native types!
 Unicode strings, of course.
 
 By the way, you, dear C++ programmer, you are an ardent believer in OOP priciples, right? Everything is an object, with a precise lifecyle.
@@ -156,7 +165,7 @@ You have unlimited power. Dozens of megabytes of open-source code kneel before y
 You can create an entire portal in just a few lines. There is no convoluted
 backend logic, no overly complicated DB report that you can't handle with just a few instructions.
 
-But don’t you feel a subtle uneasiness? A hint of dissatisfaction?
+But don't you feel a subtle uneasiness? A hint of dissatisfaction?
 
 Yes, your life is comfortable now, but you are losing the ability to enjoy simple things. Here's some advice for you: leave your loft for just one day and step out onto the street. Experience the simple joy of creating a `<div>`, giving it a name - not an automatically generated one, but a real, unique name: you can't love anything if you haven't given it a name -, seeing it run towards you, wagging his tail, when you call it with `document.getElementById`, changing its text color by tenderly caressing its `style.color` property...
 
