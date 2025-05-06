@@ -49,7 +49,7 @@ only a terminal with default properties:
 	</html>
 
 The only thing the programmer has to do is to create an instance of the `AnsiTerm` class.
-You can find a more detailed explanation here: [Basic example](https://giusguerrini.github.io/xwterm/tutorial-10-basic-page.html).
+You can find a more detailed explanation here: [Basic example](./doc/10-basic-page.html).
 
 By default, AnsiTerm's constructor connects its main "div" container to the document body,
 but you can put a terminal inside a container of your choice by specifying its ID:
@@ -82,7 +82,7 @@ The terminal can use these kinds of channels to communicate with the server
 - Dummy
 - Custom protocol
 
-A detailed description of channels is here: [Communication drivers](https://giusguerrini.github.io/xwterm/tutorial-40-communication-drivers.html)
+A detailed description of channels is here: [Communication drivers](./doc/40-communication-drivers.html)
 
 ## Sample server
 For testing purposes, you can find a minimal terminal server written in Python3 in the
@@ -94,7 +94,7 @@ is meant only to familiarize yourself with the AnsiTerm class and ease its devel
 The server implements both HTTP and WebSocket services on TCP port 8000 and 8001
 respectively. By default, the server accepts local connections only
 
-A detailed description of the server is here: [Sample server](https://giusguerrini.github.io/xwterm/tutorial-90-sample-server.html).
+A detailed description of the server is here: [Sample server](./doc/90-sample-server.html).
 Specifically, it includes notes on configuring **miniserver.py** to work on embedded Linux systems that lack traditional package management tools.
 
 ## About scrollbar
@@ -141,7 +141,7 @@ from the "multiple terminals" (**example/multi.html** file) example hosted by a 
 
 ## Coding conventions
 If you want to contribute, please take a look at the coding rules used in this project first:
-[Coding conventions](https://giusguerrini.github.io/xwterm/tutorial-60-coding-conventions.html)
+[Coding conventions](./doc/60-coding-conventions.html)
 
 ## Caveats
 Please remember that this project is in its early stage.
