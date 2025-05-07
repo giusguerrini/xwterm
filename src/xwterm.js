@@ -1880,6 +1880,7 @@ export class AnsiTerm {
 		this.on_title_change = [];
 		this.on_status_change = [];
 		this.on_freeze_change = [];
+		this.on_copy = [];
 
 		// Initialize state variables.
 		this.underline = false;
@@ -3565,8 +3566,33 @@ export class AnsiTerm {
 		}
 	}
 
+	/**
+	 * This method adds a callback that the terminal will invoke each time
+	 * a some kind of "copy on clipboard" operation is performed.
+	 * The callback receives the content copied to the clipboard as a string.
+	 * The callback is called with the second argument set to true if the
+	 * content is copied as text, and false if it is copied as a blob.
+	 * Multiple callbacks may be registered in this way.
+	 * The callbacks can be removed by calling the {@link cancelOnCopy} method.
+	 * @param {function} cb - The callback function to add.
+	 */
+	registerOnCopy(cb)
+	{
+		this.on_copy.push(cb);
+	}
+	/**
+	 * This method removes the callback registered by {@link registerOnCopy}.
+	 * @param {function} cb - The callback function to remove.
+	 */
+	cancelOnCopy(cb)
+	{
+		this.on_copy = this.on_copy.filter((cb) => cb != callback);
+	}
+
 	_write_to_clipboard_helper(t, as_text)
 	{
+		this.on_copy.forEach(callback => callback(t, as_text));
+		
 		try {
 			if (as_text) {
 				navigator.clipboard.writeText(t);
