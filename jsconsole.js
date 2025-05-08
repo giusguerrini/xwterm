@@ -16,9 +16,8 @@ export class JSConsole extends AnsiTermDriver {
         this.context = {};
     }
 
-    start()
+    _start()
     {
-        super.start();
         this._new_data(this.welcome);
         this._new_data(this.jsprompt);
         this.started = true;

@@ -9,7 +9,7 @@
 </head>
 <body>
   <div>
-    <button onclick="window.history.back();">BACK</button>
+    <button onclick="window.location.href='/';">BACK</button>
     <button id="open-terminal" onclick="open_terminal()">NEW TERMINAL</button>
   </div>
   <script type="module">
@@ -20,6 +20,7 @@
     import "./jsconsole.js";
 
     let terminal_count = 0;
+    let clicked_terminal = null;
 
     class Terminal {
       constructor() {
@@ -32,10 +33,12 @@
         this.terminal.style.overflow = "visible";
         this.terminal.innerHTML = `
         <div style="display: grid; grid-tamplate-columns: auto; border: 1px solid gray; margin: 0px; padding: 0px;">
-          <div id="title${terminal_count}" style="align-items: center; display: grid; grid-template-columns: auto 1fr auto; border: 1px solid gray; margin: 1px; padding: 1px; background-color: #0000ff; color: #ffffff;">
+          <div id="title${terminal_count}" style="align-items: center; display: grid; grid-template-columns: auto 1fr auto auto auto; border: 1px solid gray; margin: 1px; padding: 1px; background-color: #0000ff; color: #ffffff;">
             <div style="color: #FF00FF; padding-right: 20px">[${terminal_count}]</div>
             <div id="ansititle${terminal_count}"></div>
-            <button id="button${terminal_count}" style="border: 1px solid white; padding: 0px; margin: 0px; background-color: #ff0000; color: #ffffff; width: 30px; height: 30px; justify-self: end">X</button>
+            <button id="copy${terminal_count}" style="border: 1px solid white; padding: 0px; margin: 0px; background-color: #ff6060; color: #ffffff; width: 30px; height: 30px; justify-self: end">C</button>
+            <button id="paste${terminal_count}" style="border: 1px solid white; padding: 0px; margin: 0px; background-color: #ff6060; color: #ffffff; width: 30px; height: 30px; justify-self: end">P</button>
+            <button id="close${terminal_count}" style="border: 1px solid white; padding: 0px; margin: 0px; background-color: #ff0000; color: #ffffff; width: 30px; height: 30px; justify-self: end">X</button>
           </div>
           <div id="term${terminal_count}" style="display: inline-block;"></div>
         </div>
@@ -62,35 +65,59 @@
           this.ansititle.innerText = t;
         });
         this.title = document.getElementById("title" + terminal_count);
-        this.title.addEventListener("mousedown", (e) => {
+        let tt = (f) => {
+          return (e) => {
+            if (this.ansititle != clicked_terminal) {
+              return;
+            }
+            e.screenX = e.touches[0].screenX;
+            e.screenY = e.touches[0].screenY;
+            f(e);
+          };
+        };
+        let ttmd = (f) => {
+          return (e) => {
+            if (clicked_terminal != null) {
+              return;
+            }
+            clicked_terminal = e.target;
+            (tt(f))(e);
+          };
+        };
+        let md = (e) => {
           this.start_ex = e.screenX;
           this.start_ey = e.screenY;
           let b = this.title.getBoundingClientRect();
           this.start_x = b.x;
           this.start_y = b.y;
-          //console.log(e);
           e.preventDefault();
           e.stopPropagation();
           let f = (e) => {
-            //console.log(e);
             let x = e.screenX - this.start_ex + this.start_x;
             let y = e.screenY - this.start_ey + this.start_y;
-            //console.log(x, y);
             this.terminal.style.left = x + "px";
             this.terminal.style.top = y + "px";
             e.preventDefault();
             e.stopPropagation();
           };
-          document.body.addEventListener("mousemove", f);
+          document.addEventListener("mousemove", f);
+          document.addEventListener("touchmove", tt(f));
           let f2 = (e) => {
-            document.body.removeEventListener("mousemove", f);
-            document.body.removeEventListener("mouseup", f2);
+            document.removeEventListener("mousemove", f);
+            document.removeEventListener("touchmove", tt(f));
+            document.removeEventListener("mouseup", f2);
+            document.removeEventListener("touchend", f2);
+            document.removeEventListener("touchcancel", f2);
             e.preventDefault();
             e.stopPropagation();
-            //document.body.focus();
+            clicked_terminal = null;
           };
-          document.body.addEventListener("mouseup", f2);
-        });
+          document.addEventListener("mouseup", f2);
+          document.addEventListener("touchend", f2);
+          document.addEventListener("touchcancel", f2);
+        };
+        this.title.addEventListener("mousedown", md)
+        this.title.addEventListener("touchstart", ttmd(md));
         let set_focus = (e) => {
           try {
             this.terminal.style.zIndex = 20;
@@ -113,8 +140,16 @@
         this.ansi.getCanvas().addEventListener("blur", (e) => {
           leave_top(e);
         });
-        this.button = document.getElementById("button" + terminal_count);
-        this.button.addEventListener("click", (e) => {
+        this.copy = document.getElementById("copy" + terminal_count);
+        this.copy.addEventListener("click", (e) => {
+          this.ansi.clipboardCopyAsText();
+        });
+        this.paste = document.getElementById("paste" + terminal_count);
+        this.paste.addEventListener("click", (e) => {
+          this.ansi.clipboardPaste();
+        });
+        this.close = document.getElementById("close" + terminal_count);
+        this.close.addEventListener("click", (e) => {
           this.ansi.close();
           this.ansi = null;
           this.terminal.close();

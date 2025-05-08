@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "0.20.0";
+const ANSITERM_VERSION = "0.21.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -1880,6 +1880,7 @@ export class AnsiTerm {
 		this.on_title_change = [];
 		this.on_status_change = [];
 		this.on_freeze_change = [];
+		this.on_copy = [];
 
 		// Initialize state variables.
 		this.underline = false;
@@ -3565,8 +3566,33 @@ export class AnsiTerm {
 		}
 	}
 
+	/**
+	 * This method adds a callback that the terminal will invoke each time
+	 * a some kind of "copy on clipboard" operation is performed.
+	 * The callback receives the content copied to the clipboard as a string.
+	 * The callback is called with the second argument set to true if the
+	 * content is copied as text, and false if it is copied as a blob.
+	 * Multiple callbacks may be registered in this way.
+	 * The callbacks can be removed by calling the {@link cancelOnCopy} method.
+	 * @param {function} cb - The callback function to add.
+	 */
+	registerOnCopy(cb)
+	{
+		this.on_copy.push(cb);
+	}
+	/**
+	 * This method removes the callback registered by {@link registerOnCopy}.
+	 * @param {function} cb - The callback function to remove.
+	 */
+	cancelOnCopy(cb)
+	{
+		this.on_copy = this.on_copy.filter((cb) => cb != callback);
+	}
+
 	_write_to_clipboard_helper(t, as_text)
 	{
+		this.on_copy.forEach(callback => callback(t, as_text));
+		
 		try {
 			if (as_text) {
 				navigator.clipboard.writeText(t);
@@ -3934,11 +3960,9 @@ export class AnsiTerm {
  * A typical driver will redefine these methods:
  *
  * - {@link _tx}
- * - {@link _set_connection_state}
- * - {@link start}
- * - {@link _stop}
- * - {@link close}
- * - {@link setSize}
+ * - {@link _start}
+ * - {@link _close}
+ * - {@link _set_size}
  */
 
 export class AnsiTermDriver
@@ -4017,20 +4041,29 @@ export class AnsiTermDriver
 
 	/**
 	 * This method closes the communication and releases the resources.
-	 * Extensions may override it, but it is advised to call the base method
-	 * at some point in the override ("super.close()").
+	 * Never override it, override {@link _close} instread.
 	 */
 
 	close()
 	{
 		this.started = false;
+		this._close();
+	}
+
+
+	/**
+	 * This is the internal method that closes the communication and releases the resources.
+	 * Extensions should override it to implement the protocol-specific
+	 * closing.
+	 */
+
+	_close()
+	{
 	}
 
 	/**
 	 * This method opens the communication.
-	 * Extensions may override it, but it is recommended to call the base method
-	 * at some point in the override ("super.start()"), since it sends notifications
-	 * to the client.
+	 * Never override it, override {@link _start} instread.
 	 */
 	start()
 	{
@@ -4038,7 +4071,18 @@ export class AnsiTermDriver
 		if (this.on_connection_change) {
 			this.on_connection_change(this.connection_state);
 		}
+		this._start();
 	}
+
+	/**
+	 * This is the internal method that opens the communication.
+	 * Extensions may override it to implement the protocol-specific
+	 * connection.
+	 */
+	_start()
+	{
+	}
+
 
 	/**
 	 * This method may be used by extensions to put the base object
@@ -4054,7 +4098,7 @@ export class AnsiTermDriver
 	/**
 	 * This method may be used by the terminal to send data (e.g.,
 	 * keyboard events).
-	 * Never override it.
+	 * Never override it, override {@link _tx} instread.
 	 */
 	send(text)
 	{
@@ -4094,17 +4138,26 @@ export class AnsiTermDriver
 
 	/**
 	 * This method is used by the terminal to set the terminal size.
-	 * Extensions can override it to implement the corresponding protocol-specific
-	 * operation.
+	 * Never override it, override {@link _set_size} instread.
 	 * @param {*} nlines Number of lines
 	 * @param {*} ncolumns Number of columns
 	 */
 	setSize(nlines, ncolumns)
 	{
-		// Notify, for testing
-		//this._new_data("\x1b[95mSceen size = " + nlines + "x" + ncolumns + "\r\n\r\n\x1b[0m");
+		this._set_size(nlines, ncolumns);
 	}
 
+
+	/**
+	 * This method implements the protocol-specific part of terminal size changle.
+	 * Extensions can override it to implement the corresponding protocol-specific
+	 * operation.
+	 * @param {*} nlines Number of lines
+	 * @param {*} ncolumns Number of columns
+	 */
+	_set_size(nlines, ncolumns)
+	{
+	}
 }
 
 /**
@@ -4140,15 +4193,13 @@ export class AnsiTermHttpDriver extends AnsiTermDriver
 		}
 	}
 	
-	start()
+	_start()
 	{
-		super.start();
 		this._start_cycle(this.params.immediateRefresh);
 	}
 
-	close()
+	_close()
 	{
-		super.close();
 		if (this.timer) {
 			clearTimeout(this.timer);
 			this.timer = null;
@@ -4238,7 +4289,7 @@ export class AnsiTermHttpDriver extends AnsiTermDriver
 		}
 	}
 
-	setSize(nlines, ncolumns)
+	_set_size(nlines, ncolumns)
 	{
 		let q = this.params.httpSize.replace("?lines?", nlines).replace("?columns?", ncolumns);
 		this._send_request(q);
@@ -4339,10 +4390,8 @@ export class AnsiTermWebSocketDriver extends AnsiTermDriver
 		this._set_connection_state(false);
 	}
 
-	start()
+	_start()
 	{
-		super.start();
-
 		try {
 			let ep = this.params.wsEndpoint;
 			if (ep.substring(0,5) != "ws://" && ep.substring(0,6) != "wss://") {
@@ -4350,7 +4399,7 @@ export class AnsiTermWebSocketDriver extends AnsiTermDriver
 			}
 			this.socket = new WebSocket(ep);
 		} catch {
-			super._stop();
+			this._stop();
 			return;
 		}
 
@@ -4390,19 +4439,18 @@ export class AnsiTermWebSocketDriver extends AnsiTermDriver
 
 		this.socket.addEventListener('close', (event) => {
 			this._set_connection_state(false);
-			this.close();
+			this._close();
 		});
 
 		this.socket.addEventListener('error', (event) => {
 			console.log('Error in WebSocket:', event);
 			this._set_connection_state(false);
-			this.close();
+			this._close();
 		});
 	}
 
-	close()
+	_close()
 	{
-		super.close();
 		console.log('WS Connection closed');
 		try {
 			socket.close();
@@ -4433,7 +4481,7 @@ export class AnsiTermWebSocketDriver extends AnsiTermDriver
 		this._send_obj_data(text, this.params.wsDataTag);
 	}
 
-	setSize(nlines, ncolumns)
+	_set_size(nlines, ncolumns)
 	{
 		let q = this.params.wsSizeData.replace("?lines?", nlines).replace("?columns?", ncolumns);
 		this._send_obj_data(q, this.params.wsSizeTag);
