@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style type="text/css">
+        canvas {
+            border: 20px solid blue;
+            border-radius: 20px;
+            border-collapse: collapse;
+            margin: 20px auto;
+            text-align: left;
+        }
+        table {
+            border-collapse: collapse;
+            margin: 20px auto;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 5px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2; 
+        }
+</style>
+</head>
+<body>
+<script type="module">
+
+//////BEGIN terminal
+	// Optional: import fixed-size scrollbar.
+	//import "./scrollbar.js";
+
+	import "./xwterm.js";
+	
+	// FOR LIVE EXAMPLE ONLY: Empty in case of local test, JSConsole class in case of live example.
+	import "./jsconsole.js";
+
+
+	var ansi = new AnsiTerm( 
+		{
+		canvasId: "terminal",
+		nLines : 25,
+		nColumns : 80,
+		fontSize : 12,
+		hasTitleBar: false,
+		hasStatusBar: false,
+		hasSoftFKeys: false,
+		hasSoftKeyboard: false,
+		// Only for "live" example on GitHub.
+		driver: ((typeof JSConsole != 'undefined') ? new JSConsole() : null),
+		}
+	);
+	// Add the new Ansiterm instance to the global namespace
+	window.ansi = ansi;
+//////END terminal
+//////BEGIN version
+	// Use AnsiTerm.getVersion() to get the version of the library.
+	// Please note that this is a static member of AnsiTerm class,
+	// so it doesn't need an instance of AnsiTerm to be called.
+	document.getElementById("version").innerText = AnsiTerm.getVersion();
+//////END version
+
+//////BEGIN title
+	ansi.registerOnTitleChange((t) => {
+		document.getElementById("title").innerText = t;
+	});
+//////END title
+
+//////BEGIN connected
+	ansi.registerOnStatusChange((connected) => {
+		document.getElementById("connected").innerText = connected ? "yes" : "no";
+	});
+//////END connected
+
+//////BEGIN frozen bytes
+	ansi.registerOnFreezeChange((frozen, nbytes) => {
+		document.getElementById("frozen").innerText = frozen ? "yes" : "no";
+		document.getElementById("bytes").innerText = nbytes;
+	});
+//////END frozen bytes
+
+	var popup = document.createElement("dialog");
+	popup = document.createElement("dialog");
+	popup.style.height = "max-content"; //"auto";
+	popup.style.width = "max-content"; //"auto";
+	popup.style.border = "3px solid black";
+	popup.style.margin = "0px";
+	popup.style.padding = "0px";
+	popup.style.backgroundColor = "rgb(64,64,64)";
+	//popup.style.position = "relative";
+	popup.style.color = "white";
+	var popuppre = document.createElement("pre");
+	popup.appendChild(popuppre);
+	document.body.appendChild(popup);
+	popup.addEventListener("click", (e) => {
+		popup.close();
+	});
+	popup.addEventListener("mouseleave", (e) => {
+		popup.close();
+	});
+
+	var srclines = [];
+	var srcslices = {};
+
+	function hl(code, r, fm, fr) {
+		if  (code == "") {
+			return code;
+		}
+		let rem = code;
+		let match = null;
+		let result = "";
+		while ((match = r.exec(rem)) !== null) {
+			result += fr(rem.substring(0, match.index));
+			result += fm(match[0]);
+			rem = rem.substring(match.index + match[0].length);
+		}
+		result += fr(rem);
+		return result;
+	}
+
+	function mkhl(l)
+	{
+		if (l.length == 0) {
+			return (code, r) => code;
+		}
+		else {
+			return (code) => {
+				return hl(code, l[0].r,
+					(match) => {
+						return `<span style="color: ${l[0].color};">${match}</span>`;
+					},
+					(rem) => {
+						return (mkhl(l).slice(1))(rem, l[1]);
+					}
+				);
+			};
+		} 
+	}
+
+	function highlightJS(code) {
+		const keywords = /(?:(\W|^))(typeof|const|let|var|function|return|if|else|for|while|switch|case|break|default|new|class|extends|super|import|export|try|catch|finally|throw)(?:(\W|$))/;
+		const strings = /(["'`])(?:(?=(\\?))\2.)*?\1/;
+		const numbers = /(?:(\W|^))\d+(\.\d+)?(?:(\W|$))/;
+		const comments = /\/\*[\s\S]*?\*\/|\/\/.*/;
+		const specialids = /(?:(\W|^))(ansi(\.\w+)?|AnsiTerm(\.\w+)?|AnsiTermDrivernull|false|true)(?:(\W|$))/;
+
+		return hl(code, comments,
+			(match) => {
+				return `<span style="color: rgb(0,128,255);">${match}</span>`;
+			},
+			(rem) => {
+				return hl(rem, strings,
+					(match) => {
+						return `<span style="color: rgb(255,128,0);">${match}</span>`;
+					},
+					(rem) => {
+						return hl(rem, numbers,
+							(match) => {
+								return `<span style="color: rgb(0,255,255);">${match}</span>`;
+							},
+							(rem) => {
+								return hl(rem, keywords,
+									(match) => {
+										return `<span style="color: rgb(255,255,0);">${match}</span>`;
+									},
+									(rem) => {
+										return hl(rem, specialids,
+											(match) => {
+												return `<span style="color: rgb(0,255,255);">${match}</span>`;
+											},
+											(rem) => {
+												return rem;
+											}
+										);
+									}
+								);
+							}
+						);
+					}
+				);
+			});
+	}
+	function get_this_document(f)
+	{
+		let xhr = new XMLHttpRequest();
+		xhr.open("GET", window.location.href, true);
+		xhr.onreadystatechange = function() {
+			if (xhr.readyState == 4 && xhr.status == 200) {
+				let doc = xhr.responseText;
+				//console.log("Document: " + doc);
+				srclines = doc.split("\n");
+				//console.log("Lines: " + srclines.length);
+
+				let i = 0;
+				let j = 0;
+				let text = "";
+				let in_block = false;
+				let elnames = [];
+
+				for (i = 0; i < srclines.length; i++) {
+					let line = srclines[i];
+					if (in_block) {
+						if (line.indexOf("//////END") == 0 || line.indexOf("<!--END") == 0) {
+							in_block = false;
+							text = text.replace(/--\>/, "");
+							popuppre.textContent = text;
+							text = popuppre.innerHTML;
+							text = highlightJS(text);
+							//console.log(text);
+							for (j = 1; j < elnames.length; j++) {
+								srcslices[elnames[j]] = text;
+							}
+							popuppre.innerHTML = "";
+						}
+						else {
+							text += line + "\r\n";
+						}
+					}
+					else if (line.indexOf("//////BEGIN") == 0 || line.indexOf("<!--BEGIN") == 0) {
+						elnames = line.replace(/--\>/, "").split(" ");
+						text = "";
+						in_block = true;
+					}
+				}
+				//console.log(srcslices);
+				f();
+			}
+		};
+		xhr.send();
+	}
+
+	get_this_document(() => {
+
+		for (let r in srcslices) {
+			let el = document.getElementById(r);
+			if (el) {
+				var tm = null;
+				let text = srcslices[r];
+				el.addEventListener("mousemove", (e) => {
+					clearTimeout(tm);
+					tm = setTimeout(() => {
+						popup.showModal();
+						let r1 = el.getBoundingClientRect();
+						let x = Math.floor(e.x - e.offsetX - r1.width);
+						if (x < 0) {
+							x = 0;
+						}
+						if (x > window.innerWidth - r1.width) {
+							x = window.innerWidth - r1.width;
+						}
+						let y = Math.floor(e.y - e.offsetY - r1.height);
+						if (y < 0) {
+							y = 0;
+						}
+						if (y > window.innerHeight - r1.height) {
+							y = window.innerHeight - r1.height;
+						}
+						popup.style.left = x + "px";
+						popup.style.top = y + "px";
+						popuppre.innerHTML = text;
+					}, 1000);
+				});
+				el.addEventListener("mouseleave", (e) => {
+					clearTimeout(tm);
+				});
+
+			}
+		}
+	});
+
+	class Jack {
+
+		constructor(text)
+		{
+			this.timer = null;
+			this.index = 0;
+			this.typo = 0;
+			this.text = text + "\r\n";
+			this.typos = "<=>-:,@#?*+!$%";
+		}
+
+		start()
+		{
+			if (! this.timer) {
+				this.cycle();
+			}
+		}
+
+		stop()
+		{
+			if (this.timer) {
+				clearTimeout(this.timer);
+				this.timer = null;
+			}
+		}
+
+		cycle()
+		{
+			if (Math.random() > 0.95 && this.typo == 0 && this.index < this.text.length - 2) {
+				this.typo = 1;
+				let i = Math.floor(Math.random() * this.typos.length);
+				ansi.write(this.typos.substring(i,i+1));
+			}
+			else if (this.typo > 0) {
+				this.typo = 0;
+				ansi.write("\x08"); // "\x7f"
+			}
+			else {
+//////BEGIN jack
+				// Use ansi.write() to write the text to the terminal
+				ansi.write(this.text.substring(this.index,this.index+1));
+//////END
+				this.index = (this.index + 1) % this.text.length;
+			}
+			
+			this.timer = setTimeout( () => {
+				this.cycle();
+			}, 200 + Math.random()*200 + this.typo*300);
+
+			if (this.index == 0 && Math.random() >= 0.7) {
+				ansi.write("\x1b[9" + (1 + Math.floor(Math.random() * 6 + 0.5)) + "m");
+			}
+		}
+
+		on_button()
+		{
+			return () => {
+				if (this.timer) {
+					this.stop();
+				}
+				else {
+					this.start();
+				}
+			};
+		}
+	}
+	
+	window.jack = (new Jack("All work and no play makes Jack a dull boy")).on_button();
+
+</script>
+	<h3>Hover over page elements to inspect the related code</h3>
+	<div style="display: grid; grid-template-columns: 15% max-content; column-gap: 20px;">
+		<div style="display: grid; grid-template-columns: auto;">
+			<button onclick="window.location.href='/';">BACK</button>
+			<p></p>
+<!--BEGIN togglefreeze -->
+			<button id="togglefreeze" onclick="ansi.toggleFreezeState()">Freeze/Unfreeze</button>
+<!--END -->
+<!--BEGIN selectall -->
+			<button id="selectall" onclick="ansi.selectAll()">Select all</button>
+<!--END -->
+<!--BEGIN copytxt -->
+			<button id="copytxt" onclick="ansi.clipboardCopyAsText()">Copy as text</button>
+<!--END -->
+<!--BEGIN copyrt -->
+			<button id="copyrt" onclick="ansi.clipboardCopyAsRichText()">Copy as Rich Text</button>
+<!--END -->
+<!--BEGIN copyhtml -->
+			<button id="copyhtml" onclick="ansi.clipboardCopyAsHtml()">Copy as HTML</button>
+<!--END -->
+<!--BEGIN copyansi -->
+			<button id="copyansi" onclick="ansi.clipboardCopyAsAnsiSequence()">Copy as ANSI</button>
+<!--END -->
+<!--BEGIN paste -->
+			<button id="paste" onclick="ansi.clipboardPaste()">Paste</button>
+<!--END -->
+			<p></p>
+<!--BEGIN sendkey -->
+			<button id="sendkey" onclick="ansi.sendKeyByKeyEvent({ key: 'l', code: 'KeyL', composed: true, ctrlKey: true, altKey: false, metaKey: false, })">Send CTRL-L</button>
+<!--END -->
+			<button id="jack" onclick="jack()">Jack!</button>
+		</div>
+		<div style="display: grid; grid-template-columns: auto; justify-items: start;">
+			<canvas id="terminal"></canvas>
+			<table>
+				<thead>
+					<tr>
+						<th>XWterm version</th>
+						<th>Title</th>
+						<th>Connected</th>
+						<th>Frozen</th>
+						<th>Bytes pending</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td id="version"></td>
+						<td id="title"></td>
+						<td id="connected"></td>
+						<td id="frozen"></td>
+						<td id="bytes"></td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</div>
+</body>
+</html>
