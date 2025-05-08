@@ -28,9 +28,16 @@
 <script type="module">
 
 //////BEGIN terminal
-	import "./xwterm.js";
+	// Optional: import fixed-size scrollbar.
+	//import "./scrollbar.js";
 
-	window.ansi = new AnsiTerm( 
+	import "./xwterm.js";
+	
+	// FOR LIVE EXAMPLE ONLY: Empty in case of local test, JSConsole class in case of live example.
+	import "./jsconsole.js";
+
+
+	var ansi = new AnsiTerm( 
 		{
 		canvasId: "terminal",
 		nLines : 25,
@@ -39,8 +46,13 @@
 		hasTitleBar: false,
 		hasStatusBar: false,
 		hasSoftFKeys: false,
+		hasSoftKeyboard: false,
+		// Only for "live" example on GitHub.
+		driver: ((typeof JSConsole != 'undefined') ? new JSConsole() : null),
 		}
 	);
+	// Add the new Ansiterm instance to the global namespace
+	window.ansi = ansi;
 //////END terminal
 //////BEGIN version
 	// Use AnsiTerm.getVersion() to get the version of the library.
@@ -75,7 +87,8 @@
 	popup.style.border = "3px solid black";
 	popup.style.margin = "0px";
 	popup.style.padding = "0px";
-	popup.style.backgroundColor = "blue";
+	popup.style.backgroundColor = "rgb(64,64,64)";
+	//popup.style.position = "relative";
 	popup.style.color = "white";
 	var popuppre = document.createElement("pre");
 	popup.appendChild(popuppre);
@@ -90,6 +103,84 @@
 	var srclines = [];
 	var srcslices = {};
 
+	function hl(code, r, fm, fr) {
+		if  (code == "") {
+			return code;
+		}
+		let rem = code;
+		let match = null;
+		let result = "";
+		while ((match = r.exec(rem)) !== null) {
+			result += fr(rem.substring(0, match.index));
+			result += fm(match[0]);
+			rem = rem.substring(match.index + match[0].length);
+		}
+		result += fr(rem);
+		return result;
+	}
+
+	function mkhl(l)
+	{
+		if (l.length == 0) {
+			return (code, r) => code;
+		}
+		else {
+			return (code) => {
+				return hl(code, l[0].r,
+					(match) => {
+						return `<span style="color: ${l[0].color};">${match}</span>`;
+					},
+					(rem) => {
+						return (mkhl(l).slice(1))(rem, l[1]);
+					}
+				);
+			};
+		} 
+	}
+
+	function highlightJS(code) {
+		const keywords = /(?:(\W|^))(typeof|const|let|var|function|return|if|else|for|while|switch|case|break|default|new|class|extends|super|import|export|try|catch|finally|throw)(?:(\W|$))/;
+		const strings = /(["'`])(?:(?=(\\?))\2.)*?\1/;
+		const numbers = /(?:(\W|^))\d+(\.\d+)?(?:(\W|$))/;
+		const comments = /\/\*[\s\S]*?\*\/|\/\/.*/;
+		const specialids = /(?:(\W|^))(ansi(\.\w+)?|AnsiTerm(\.\w+)?|AnsiTermDrivernull|false|true)(?:(\W|$))/;
+
+		return hl(code, comments,
+			(match) => {
+				return `<span style="color: rgb(0,128,255);">${match}</span>`;
+			},
+			(rem) => {
+				return hl(rem, strings,
+					(match) => {
+						return `<span style="color: rgb(255,128,0);">${match}</span>`;
+					},
+					(rem) => {
+						return hl(rem, numbers,
+							(match) => {
+								return `<span style="color: rgb(0,255,255);">${match}</span>`;
+							},
+							(rem) => {
+								return hl(rem, keywords,
+									(match) => {
+										return `<span style="color: rgb(255,255,0);">${match}</span>`;
+									},
+									(rem) => {
+										return hl(rem, specialids,
+											(match) => {
+												return `<span style="color: rgb(0,255,255);">${match}</span>`;
+											},
+											(rem) => {
+												return rem;
+											}
+										);
+									}
+								);
+							}
+						);
+					}
+				);
+			});
+	}
 	function get_this_document(f)
 	{
 		let xhr = new XMLHttpRequest();
@@ -112,9 +203,15 @@
 					if (in_block) {
 						if (line.indexOf("//////END") == 0 || line.indexOf("<!--END") == 0) {
 							in_block = false;
+							text = text.replace(/--\>/, "");
+							popuppre.textContent = text;
+							text = popuppre.innerHTML;
+							text = highlightJS(text);
+							//console.log(text);
 							for (j = 1; j < elnames.length; j++) {
-								srcslices[elnames[j]] = text.replace(/\t/g, "    ");
+								srcslices[elnames[j]] = text;
 							}
+							popuppre.innerHTML = "";
 						}
 						else {
 							text += line + "\r\n";
@@ -161,7 +258,7 @@
 						}
 						popup.style.left = x + "px";
 						popup.style.top = y + "px";
-						popuppre.innerText = text;
+						popuppre.innerHTML = text;
 					}, 1000);
 				});
 				el.addEventListener("mouseleave", (e) => {
