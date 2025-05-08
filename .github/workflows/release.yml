@@ -73,6 +73,7 @@ jobs:
           cp example/jsconsole.html docs/
           cp example/multi.html docs/
           cp example/live.html docs/
+          cp example/custom-statusbar.html docs/
           cp example/favicon.ico docs/
       
       - name: Deploy to GitHub Pages
