@@ -51,7 +51,7 @@
 		driver: ((typeof JSConsole != 'undefined') ? new JSConsole() : null),
 		}
 	);
-	// Add the new Ansiterm instance to the global namespace
+	// Add the new AnsiTerm instance to the global namespace
 	window.ansi = ansi;
 //////END terminal
 //////BEGIN version
@@ -103,14 +103,35 @@
 	var srclines = [];
 	var srcslices = {};
 
-	function hl(code, r, fm, fr) {
-		if  (code == "") {
-			return code;
-		}
-		let rem = code;
+//////////////////////////////////////////////
+// An elementary syntax highligher.
+//
+// How does it work?
+//
+// - The function "higthlibhtJS" applies filters to the given text. Each filter is a
+//   regex whose matches are specific elements of the language (keyword, comments,...).
+// - For each class of match, a specific color is applied by inserting the matches into
+//   a <span> element.
+// - For each class of match, the text outside the matches is submitted to the next filter in the list.
+// - The results of all steps are put together to produce the final result.
+//
+// 
+
+
+// This is a single step of substitution. Given a text "t" and a search pattern "r",
+// all matching parts are submitted to the "fm" callback, and all non-matching
+// ones are submitted to "fr". The results of callbacks are concatenated end returned
+// to the caller.
+	function hl_step(t, r, fm, fr)
+	{
+		let rem = t;
 		let match = null;
 		let result = "";
-		while ((match = r.exec(rem)) !== null) {
+		for ( ; ;) {
+			match = r.exec(rem);
+			if (match === null) {
+				break;
+			}
 			result += fr(rem.substring(0, match.index));
 			result += fm(match[0]);
 			rem = rem.substring(match.index + match[0].length);
@@ -119,68 +140,48 @@
 		return result;
 	}
 
-	function mkhl(l)
+// This function implements a chain of
+// substitutions to the given string. The steps are represented by
+// pairs pattern/color, collected into the array "steps".
+// At each step, the matching parts of the text are encolsed in
+// a <span> element of the given color, and the non-matching ones
+// are submitted to the remainings steps recursively.
+	function hl_apply(steps, t)
 	{
-		if (l.length == 0) {
-			return (code, r) => code;
+		if (steps.length == 0) {
+			return t;
 		}
 		else {
-			return (code) => {
-				return hl(code, l[0].r,
-					(match) => {
-						return `<span style="color: ${l[0].color};">${match}</span>`;
-					},
-					(rem) => {
-						return (mkhl(l).slice(1))(rem, l[1]);
-					}
-				);
-			};
+			return hl_step(t, steps[0].regex,
+				(match) => {
+					return '<span style="color: ' + steps[0].color + ';">' + match + '</span>';
+				},
+				(rem) => {
+					return hl_apply(steps.slice(1), rem);
+				}
+			);
 		} 
 	}
 
-	function highlightJS(code) {
+	function highlightJS(t)
+	{
 		const keywords = /(?:(\W|^))(typeof|const|let|var|function|return|if|else|for|while|switch|case|break|default|new|class|extends|super|import|export|try|catch|finally|throw)(?:(\W|$))/;
 		const strings = /(["'`])(?:(?=(\\?))\2.)*?\1/;
 		const numbers = /(?:(\W|^))\d+(\.\d+)?(?:(\W|$))/;
 		const comments = /\/\*[\s\S]*?\*\/|\/\/.*/;
-		const specialids = /(?:(\W|^))(ansi(\.\w+)?|AnsiTerm(\.\w+)?|AnsiTermDrivernull|false|true)(?:(\W|$))/;
-
-		return hl(code, comments,
-			(match) => {
-				return `<span style="color: rgb(0,128,255);">${match}</span>`;
-			},
-			(rem) => {
-				return hl(rem, strings,
-					(match) => {
-						return `<span style="color: rgb(255,128,0);">${match}</span>`;
-					},
-					(rem) => {
-						return hl(rem, numbers,
-							(match) => {
-								return `<span style="color: rgb(0,255,255);">${match}</span>`;
-							},
-							(rem) => {
-								return hl(rem, keywords,
-									(match) => {
-										return `<span style="color: rgb(255,255,0);">${match}</span>`;
-									},
-									(rem) => {
-										return hl(rem, specialids,
-											(match) => {
-												return `<span style="color: rgb(0,255,255);">${match}</span>`;
-											},
-											(rem) => {
-												return rem;
-											}
-										);
-									}
-								);
-							}
-						);
-					}
-				);
-			});
+		const specialids = /(?:(\W|^))(ansi(\.\w+)?|AnsiTerm(\.\w+)?|AnsiTermDriver|null|false|true)(?:(\W|$))/;
+		let rules = [
+			{ regex: comments, color: "rgb(0,160,255)" },
+			{ regex: strings, color: "rgb(255,128,0)" },
+			{ regex: numbers, color: "rgb(255,64,255)" },
+			{ regex: keywords, color: "rgb(255,255,0)" },
+			{ regex: specialids, color: "rgb(0,255,255)" },
+			];
+		return hl_apply(rules, t);
 	}
+//////////////////////////////////////////////////
+
+
 	function get_this_document(f)
 	{
 		let xhr = new XMLHttpRequest();
@@ -336,13 +337,29 @@
 		}
 	}
 	
+	/* Store the URL of the current page when the page is loaded */
+	window.onload = function() {
+		localStorage.setItem('previous_page', document.referrer);
+	};
+
+	export function go_back() {
+		/* Retrieve the URL of the previous page from localStorage */
+		var previous_page = localStorage.getItem('previous_page');
+		if (previous_page) {
+			window.location.href = previous_page;
+		} else {
+			/* If there is no previous page stored, use window.history.back() */
+			window.history.back();
+		}
+	}
+	window.go_back = go_back;
 	window.jack = (new Jack("All work and no play makes Jack a dull boy")).on_button();
 
 </script>
 	<h3>Hover over page elements to inspect the related code</h3>
 	<div style="display: grid; grid-template-columns: 15% max-content; column-gap: 20px;">
 		<div style="display: grid; grid-template-columns: auto;">
-			<button onclick="window.location.href='/';">BACK</button>
+			<button onclick="go_back()">BACK</button>
 			<p></p>
 <!--BEGIN togglefreeze -->
 			<button id="togglefreeze" onclick="ansi.toggleFreezeState()">Freeze/Unfreeze</button>
