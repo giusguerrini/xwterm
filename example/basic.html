@@ -28,7 +28,7 @@
 <body>
 	<div class="basic-example" style="display: grid; grid-template-columns: auto 1fr;">
 		<div style="position: relative;">
-			<button style="position: absolute; top:10%; padding: 40px" onclick="window.location.href='/';">BACK</button>
+			<button style="position: absolute; top:10%; padding: 40px" onclick="go_back()">BACK</button>
 		</div>
 
 		<div id="main-div" class="basic-example" style="display: grid; grid-template-columns: auto; place-items: center; padding-bottom: 40px;">
@@ -115,6 +115,23 @@
 		
 		window.start_terminal = start_terminal;
 
+
+		/* Store the URL of the current page when the page is loaded */
+		window.onload = function() {
+			localStorage.setItem('previous_page', document.referrer);
+		};
+
+		export function go_back() {
+			/* Retrieve the URL of the previous page from localStorage */
+			var previous_page = localStorage.getItem('previous_page');
+			if (previous_page) {
+				window.location.href = previous_page;
+			} else {
+				/* If there is no previous page stored, use window.history.back() */
+				window.history.back();
+			}
+		}
+		window.go_back = go_back;
 	</script>
 </body>
 </html>
