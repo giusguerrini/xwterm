@@ -165,11 +165,30 @@
 
 	function highlightJS(t)
 	{
-		const keywords = /(?:(\W|^))(typeof|const|let|var|function|return|if|else|for|while|switch|case|break|default|new|class|extends|super|import|export|try|catch|finally|throw)(?:(\W|$))/;
+		// Remove leading spaces but preserving indentation
+		t = t.replace(/\t/g, "    ");
+		let m = t.match(/(?:^|\n) +/g);
+		if (m) {
+			m[0] = m[0].replace(/\n/g, "");
+			let ml = m[0].length;
+			let mm = m[0];
+			for (let i = 1; i < m.length; i++) {
+				m[i] = m[i].replace(/\n/g, "");
+				if (m[i].length < ml) {
+					ml = m[i].length;
+					mm = m[i];
+				}
+			}
+			if (ml > 0) {
+				t = t.replace(new RegExp("(?:^|\n)" + mm, "g"), "");
+			}
+		}
+		
+		const keywords = /(?:\W|^)(typeof|const|let|var|function|return|if|else|for|while|switch|case|break|default|new|class|extends|super|import|export|try|catch|finally|throw)(?:\W|$)/;
 		const strings = /(["'`])(?:(?=(\\?))\2.)*?\1/;
-		const numbers = /(?:(\W|^))\d+(\.\d+)?(?:(\W|$))/;
+		const numbers = /(?:\W|^)\d+(\.\d+)?(?:\W|$)/;
 		const comments = /\/\*[\s\S]*?\*\/|\/\/.*/;
-		const specialids = /(?:(\W|^))(ansi(\.\w+)?|AnsiTerm(\.\w+)?|AnsiTermDriver|null|false|true)(?:(\W|$))/;
+		const specialids = /(?:\W|^)(ansi(\.\w+)?|AnsiTerm(\.\w+)?|AnsiTermDriver|null|false|true)(?:\W|$)/;
 		let rules = [
 			{ regex: comments, color: "rgb(0,160,255)" },
 			{ regex: strings, color: "rgb(255,128,0)" },
