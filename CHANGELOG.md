@@ -1,4 +1,8 @@
 # Changelog
+## [0.21.0] - 2025-05-09
+- Added methods to register and cancel callbacks for "copy" events.
+- Improved examples and documentation (thanks to @emanuelcosta94).
+
 ## [0.20.3] - 2025-04-29
 - No changes in xwterm.js
 Some workarounds in **miniserver.py** to run on an embedded Linux system.
