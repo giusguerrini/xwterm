@@ -1,6 +1,8 @@
 # Changelog
 ## [0.21.0] - 2025-05-09
 - Added methods to register and cancel callbacks for "copy" events.
+- Modified AnsiTermDriver interface to clarify which parts are expected
+to be redefined in derivative classes.
 - Improved examples and documentation (thanks to @emanuelcosta94).
 
 ## [0.20.3] - 2025-04-29
