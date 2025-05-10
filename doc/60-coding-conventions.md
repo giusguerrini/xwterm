@@ -129,9 +129,14 @@ predicate function, but also "multiply" the same collection by an integer to mak
 headers that the compiler must process every time. This happens because C++ makes the distribution of real precompiled
 libraries nearly impossible: you would need the same compiler, the same compilation options and the same environment that were
 used to compile the libraries. In short: C++ leaks an ABI. (What? Precompiled headers? Oh, please...).
-- You need non-copyable or non-movable objects because, instead of sharing some simple usage rules of your classes, you claim
-that the compiler should protect you and your team from errors in logic.
-- For the same reason, you want to limit the accessibility of your classes.
+- You need non-copyable or non-movable objects because
+  - your usual habit is copying or moving objects, regardless their size and complexity, rather than moving or copying references.
+"Non-copying" and "non-moving" seem odd to you, so you feel the need to devise special expedients to highlight these cases.
+  - you do have pointers (even "smart" ones), but you prefer to declare single instances of objects whenever possible. That's why
+you also love that sort of fake references with ampersands, which I'd rather call "aliases". 
+  - instead of sharing some simple usage rules of your classes, you claim that the compiler should protect you and your team from errors in logic.
+  - you love convoluted language problems in general.
+- For the same reasons, you want to limit the accessibility of your classes.
 - And finally, you need to recompile everything every time because:
   - You can't reliably create precompiled libraries (see above).
   - Public C++ classes, including their private parts, must be declared completely in headers. "Information hiding" principle, where are you?
