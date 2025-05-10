@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "0.21.0";
+const ANSITERM_VERSION = "0.21.1";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -3541,11 +3541,17 @@ export class AnsiTerm {
 		}
 
 		try {
-			let xi = this.selection_start % this.params.nColumns;
-			let yi = Math.floor(this.selection_start / this.params.nColumns);
+			let start = this.selection_start;
+			let end = this.selection_end;
+			if (start > end) {
+				start = this.selection_end;
+				end = this.selection_start;
+			}
+			let xi = start % this.params.nColumns;
+			let yi = Math.floor(start / this.params.nColumns);
 			let l = "";
 			let li = this._line_by_index(yi);
-			for (let i = this.selection_start; i <= this.selection_end; ++i) {
+			for (let i = start; i <= end; ++i) {
 				l += character_handler(li[xi]);
 				++xi;
 				if (xi >= this.params.nColumns) {

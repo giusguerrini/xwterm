@@ -155,7 +155,7 @@
             this.ansi.clipboardPaste();
           }
           else {
-            this.ansi.write(local_clipboard);
+            this.ansi.sendText(local_clipboard);
             local_clipboard = null;
           }
         });
