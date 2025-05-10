@@ -19,6 +19,8 @@
     // Empty in case of locl test, JSConsole class in case of live example.
     import "./jsconsole.js";
 
+    let local_clipboard = null;
+
     let terminal_count = 0;
     let clicked_terminal = null;
 
@@ -63,6 +65,9 @@
         this.ansititle = document.getElementById("ansititle" + terminal_count);
         this.ansi.registerOnTitleChange((t) => {
           this.ansititle.innerText = t;
+        });
+        this.ansi.registerOnCopy((t) => {
+          local_clipboard = t;
         });
         this.title = document.getElementById("title" + terminal_count);
         let tt = (f) => {
@@ -146,7 +151,13 @@
         });
         this.paste = document.getElementById("paste" + terminal_count);
         this.paste.addEventListener("click", (e) => {
-          this.ansi.clipboardPaste();
+          if (local_clipboard == null) {
+            this.ansi.clipboardPaste();
+          }
+          else {
+            this.ansi.sendText(local_clipboard);
+            local_clipboard = null;
+          }
         });
         this.close = document.getElementById("close" + terminal_count);
         this.close.addEventListener("click", (e) => {
