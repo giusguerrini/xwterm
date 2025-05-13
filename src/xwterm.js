@@ -80,9 +80,54 @@ const ANSITERM_VERSION = "0.21.1";
  * @class
  */
 class AnsiTermGenericScrollBar {
-	
+	 			
+	static vertical_mutable_properties = {
+		motion_coord: "clientY",
+		min_coord_side: "top",
+		motion_limit: "clientHeight",
+		motion_size: "height",
+		fixed_size: "width",
+		fixed_limit: "clientWidth",
+		min_fixed_limit: "minWidth",
+		ms_grid_single: "-ms-grid-columns",
+		ms_grid_multi: "-ms-grid-rows",
+		ms_grid_single_pos: "-ms-grid-column",
+		ms_grid_multi_pos: "-ms-grid-row",
+		grid_single: "gridTemplateColumns",
+		grid_multi: "gridTemplateRows",
+		separator_width: "borderLeftWidth",
+		separator_style: "borderLeftStyle",
+		scroll_size: "scrollHeight",
+		scroll_limit: "scrollTop",
+		scroll_overflow: 'overflowY',
+	};
+
+	static horizontal_mutable_properties =  {
+		motion_coord: "clientX",
+		min_coord_side: "left",
+		motion_limit: "clientWidth",
+		motion_size: "width",
+		fixed_size: "height",
+		fixed_limit: "clientHeight",
+		min_fixed_limit: "minHeight",
+		ms_grid_single: "-ms-grid-rows",
+		ms_grid_multi: "-ms-grid-columns",
+		ms_grid_single_pos: "-ms-grid-row",
+		ms_grid_multi_pos: "-ms-grid-column",
+		grid_single: "gridTemplateRows",
+		grid_multi: "gridTemplateColumns",
+		separator_width: "borderTopWidth",
+		separator_style: "borderTopStyle",
+		scroll_size: "scrollWidth",
+		scroll_limit: "scrollLeft",
+		scroll_overflow: 'overflowX',
+	};
+
+
 	_layout()
 	{
+		const m = this.mutable_properties;
+
 		this.div = null;
 		this.div_spacer = null;
 		this.div_scroll = null;
@@ -93,9 +138,9 @@ class AnsiTermGenericScrollBar {
 		this.div_scroll = document.createElement("div");
 		this.div_scroll.style.display = 'inline-block';
 		this.div_scroll.style.position = 'relative';
-		this.div_scroll.style.overflowY = 'scroll';
+		this.div_scroll.style[m.scroll_overflow] = 'scroll';
 		// Temporary, timeout callback will be used to set the actual size
-		this.div_scroll.style.height = this.controlled_element.clientHeight + 'px';
+		this.div_scroll.style[m.motion_size] = this.controlled_element[m.motion_limit] + 'px';
 		this.div_scroll.style.boxSizing = 'border-box';
 
 		this.div_spacer = document.createElement("div");
@@ -103,9 +148,9 @@ class AnsiTermGenericScrollBar {
 		this.div_spacer.style.margin = 0;
 		this.div_spacer.style.padding = 0;
 		this.div_spacer.style.backgroundColor = 'transparent';
-		this.div_spacer.style.width = '1px';
+		this.div_spacer.style[m.fixed_size] = '1px';
 		// Temporary, timeout callback will be used to set the actual size
-		this.div_spacer.style.height = this.controlled_element.clientHeight + 'px';
+		this.div_spacer.style[m.motion_size] = this.controlled_element[m.motion_limit] + 'px';
 		//this.div_spacer.style.display = 'inline-block';
 		this.div_spacer.style.position = 'absolute';
 		this.div_spacer.style.top = 0;
@@ -118,7 +163,7 @@ class AnsiTermGenericScrollBar {
 		this.div.style.margin = style.margin;
 		this.div.style.padding = style.padding;
 		//this.div.style.width = (this.controlled_element.width + 20) + "px";
-		this.div.style.height = this.controlled_element.height + "px";
+		this.div.style[m.motion_size] = this.controlled_element[m.motion_size] + "px";
 		if (this.controlled_element.parentNode) {
 			this.controlled_element.parentNode.replaceChild(this.div, this.controlled_element);
 		}
@@ -135,13 +180,13 @@ class AnsiTermGenericScrollBar {
 
 		
 		// Hack to force scrollbar to be visibleon Firefox
-		if (this.div_scroll.clientWidth == 0) {
-			this.div_scroll.style.minWidth = '10px';
+		if (this.div_scroll[m.fixed_limit] == 0) {
+			this.div_scroll.style[m.min_fixed_limit] = '10px';
 		}
 		
 
-		this.scroll_area = this.div_scroll.clientHeight;
-		this.div_spacer.style.height = this.scroll_area + 'px';
+		this.scroll_area = this.div_scroll[m.fixed_limit];
+		this.div_spacer.style[m.motion_size] = this.scroll_area + 'px';
 
 	
 		// This would adjust the height in case the container,s geometry hasn't been calculated yet,
@@ -155,7 +200,7 @@ class AnsiTermGenericScrollBar {
 		this.div_scroll.addEventListener('scroll', (ev) => {
 			let el = ev.target;
 			
-			let motion_limit = (this.div_scroll.scrollHeight - this.div_scroll.clientHeight);
+			let motion_limit = (this.div_scroll[m.scroll_size] - this.div_scroll[m.motion_limit]);
 			if (motion_limit <= 0) {
 				return;
 			}
@@ -180,14 +225,19 @@ class AnsiTermGenericScrollBar {
 		});
 	}
 
-	constructor(element, params)
+	constructor(element, vertical)
 	{
-		this.controlled_element = element;
-		this.min_value = 0;
+		this.vertical = vertical;
+		this.mutable_properties = this.vertical
+	                            ? AnsiTermGenericScrollBar.vertical_mutable_properties
+		                        : AnsiTermGenericScrollBar.horizontal_mutable_properties;
+		this.controlled_element = element;		
 		this.min_value = 0;
 		this.curr_value = 0;
+		this.max_value = 0;
 		this.visible_range_size = 0;
-		this.on_change = null;
+		this.on_change = [];
+		this.on_new_position = [];
 
 		this._layout();
 	}
@@ -196,19 +246,20 @@ class AnsiTermGenericScrollBar {
 	{
 		if (this.max_value > this.min_value) {
 			if (this.visible_range_size > 0) {
+				const m = this.mutable_properties;
 				
 				// Last-minute adjustment, see comment in _layout().
-				if (parseInt(this.div_spacer.style.height) == 0) {
-					this.div_scroll.style.height = this.controlled_element.clientHeight + 'px';
-					this.div_spacer.style.height = this.controlled_element.clientHeight + 'px';
+				if (parseInt(this.div_spacer.style[m.motion_size]) == 0) {
+					this.div_scroll.style[m.motion_size] = this.controlled_element[m.motion_limit] + 'px';
+					this.div_spacer.style[m.motion_size] = this.controlled_element[m.motion_limit] + 'px';
 				}
 
 				let l = (this.max_value - this.min_value + this.visible_range_size) / this.visible_range_size;
-				let s = this.controlled_element.height * l;
-				this.div_spacer.style.height = Math.floor(s - 0.5) + 'px';
+				let s = this.controlled_element[m.motion_size] * l;
+				this.div_spacer.style[m.motion_size] = Math.floor(s - 0.5) + 'px';
 				//let v = Math.floor(((this.curr_value - this.min_value) / (this.max_value - this.min_value)) * this._motion_limit() + 0.5);
-				let v = Math.floor(((this.curr_value - this.min_value) / (this.max_value - this.min_value)) * this.div_scroll.scrollHeight + 0.5);
-				this.div_scroll.scrollTop = v;
+				let v = Math.floor(((this.curr_value - this.min_value) / (this.max_value - this.min_value)) * this.div_scroll[m.scroll_size] + 0.5);
+				this.div_scroll[m.scroll_limit] = v;
 			}
 		}
 	}
@@ -262,20 +313,146 @@ class AnsiTermGenericScrollBar {
  * At the moment, it only vertical scrollbar is implemented.
  * @class
  */
-class AnsiTermGenericScrollBarAdder {
-
-	constructor(element, params)
+class AnsiTermGenericScrollBarAdder
+{
+	static isIE11()
 	{
-		this.controlled_element = element;
-		this.params = params;
-		this.horizintalScrollbar = null;
-		this.verticalScrollbar = null;
-		this._layout();
+		return !!window.MSInputMethodContext && !!document.documentMode;
 	}
 
 	_layout()
 	{
-		this.verticalScrollbar = new AnsiTermGenericScrollBar(this.controlled_element, this.params);
+		this.div = null;
+		if (typeof this.controlled_element_or_id == 'string') {
+			this.controlled_element = document.getElementById(this.controlled_element_or_id);
+		}
+		else {
+			this.controlled_element = this.controlled_element_or_id;
+		}
+
+		this.div = document.createElement("div");
+		this.div.classList.add("generic-scrollbar");
+		if (AnsiTermGenericScrollBarAdder.isIE11()) {
+			/*
+			let bsz = 0; 
+			this.div.style.width = this.controlled_element.clientWidth
+				+ (this.vertical ? bsz : 0)
+			    + "px";
+			this.div.style.height = this.controlled_element.clientHeight
+				+ (this.horizontal ? bsz : 0)
+			    + "px";
+				*/
+			this.div.style.display = "-ms-grid";
+		}
+		else {
+			this.div.style.width = "max-content";
+			this.div.style.display = "grid";
+		}
+		let style = window.getComputedStyle(this.controlled_element);
+		this.div.style.border = style.border;
+		this.div.style.margin = style.margin;
+		this.div.style.padding = style.padding;	
+		let key1 = [ "", "Top", "Bottom", "Left", "Right" ];
+		let key2 = [ "Color", "LeftRadius", "RightRadius", "Style", "Width",
+			     "Collapse", "Image", "ImageOutset", "ImageRepeat", "ImageSlice",
+			     "ImageSource", "ImageWidth" ];
+		for (let i = 0; i < key1.length; ++i) {
+			for (let j = 0; j < key2.length; ++j) {
+				let prop = "border" + key1[i] + key2[j];
+				try {
+					this.div.style[prop] = style[prop];
+				} catch {
+				}
+			}
+		}
+		let key3 = [ "Top", "Bottom", "Left", "Right",
+			         "Block", "BlockStart", "BlockEnd",
+					 "Inline", "InlineStart", "InlineEnd" ];
+		for (let i = 0; i < key1.length; ++i) {
+			let prop = "padding" + key3[i];
+			try {
+				this.div.style[prop] = style[prop];
+			} catch {
+			}
+		}
+		if (this.vertical) {
+			this.div.style.gridTemplateColumns = "auto auto";
+		}
+		else {
+			this.div.style.gridTemplateColumns = "auto";
+		}
+		this.width = this.controlled_element.clientWidth;
+		this.height = this.controlled_element.clientHeight;
+
+		if (this.controlled_element) {
+			this.controlled_element.parentNode.replaceChild(this.div, this.controlled_element);
+			this.div.appendChild(this.controlled_element);
+			this.controlled_element.style.border = "none";
+			this.controlled_element.style.borderRadius = "0";
+			this.controlled_element.style.margin = "0";
+		}
+		if (AnsiTermGenericScrollBarAdder.isIE11()) {
+			this.controlled_element.style.setProperty("-ms-grid-column", "1");
+			this.controlled_element.style.setProperty("-ms-grid-row", "1");
+		}
+		if (this.vertical) {
+			this.verticalScrollbar = new AnsiTermGenericScrollBar(this.controlled_element, true);
+			this.div.appendChild(this.verticalScrollbar.div);
+			if (AnsiTermGenericScrollBarAdder.isIE11()) {
+				this.verticalScrollbar.div.style.setProperty("-ms-grid-row", "1");
+				this.verticalScrollbar.div.style.setProperty("-ms-grid-column", "2");
+			}
+		}
+		if (this.horizontal) {
+			this.horizontalScrollbar = new AnsiTermGenericScrollBar(this.controlled_element, false);
+			this.div.appendChild(this.horizontalScrollbar.div);
+			if (AnsiTermGenericScrollBarAdder.isIE11()) {
+				this.horizontalScrollbar.div.style.setProperty("-ms-grid-row", "2");
+				this.horizontalScrollbar.div.style.setProperty("-ms-grid-column", "1");
+			}
+		}
+	}
+
+	constructor(controlledElementOrId, params)
+	{
+		// Contructor's parameters and their defaut values:
+
+		// Some handy conventions:
+		// no parameters: apply defaults, create a new terminal in a new div.
+		// string parameter: apply defaults, create a new terminal in the div with the given id.
+		if (! params) {
+			params = "";
+		}
+		if (typeof params == 'string') {
+			params = {  };
+		}
+
+		// Apply defaults, overwrite with actual parameters
+		//this.params = { ...GENERICSCROLLBARADDER_DEFAULTS, ...params };
+		this.params = params;
+
+		this.controlled_element_or_id = controlledElementOrId;
+		/*
+		this.params.barConfiguration.size = Number(this.params.barConfiguration.size);
+		this.params.barConfiguration.buttonSize = Number(this.params.barConfiguration.buttonSize);
+		this.params.barConfiguration.separatorSize = Number(this.params.barConfiguration.separatorSize);
+		*/
+		this.vertical = this.params.vertical;
+		this.horizontal = this.params.horizontal;
+		if (this.vertical == "on") {
+			this.vertical = true;
+		}
+		if (this.horizontal == "on") {
+			this.horizontal = true;
+		}
+		if (this.vertical == "off") {
+			this.vertical = false;
+		}
+		if (this.horizontal == "off") {
+			this.horizontal = false;
+		}
+
+		this._layout();
 	}
 }
 
