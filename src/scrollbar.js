@@ -475,7 +475,7 @@ class GenericScrollBar {
 class GenericScrollBarAdder
 {
 	
-	isIE11()
+	static isIE11()
 	{
 		return !!window.MSInputMethodContext && !!document.documentMode;
 	}
@@ -593,8 +593,8 @@ class GenericScrollBarAdder
 		this.params.barConfiguration.size = Number(this.params.barConfiguration.size);
 		this.params.barConfiguration.buttonSize = Number(this.params.barConfiguration.buttonSize);
 		this.params.barConfiguration.separatorSize = Number(this.params.barConfiguration.separatorSize);
-		this.vertical = this.params,vertical;
-		this.horizontal = this.params,horizontal;
+		this.vertical = this.params.vertical;
+		this.horizontal = this.params.horizontal;
 		if (this.vertical == "on") {
 			this.vertical = true;
 		}
