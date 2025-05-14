@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "0.21.1";
+const ANSITERM_VERSION = "0.22.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -164,9 +164,11 @@ class AnsiTermGenericScrollBar {
 		this.div.style.padding = style.padding;
 		//this.div.style.width = (this.controlled_element.width + 20) + "px";
 		this.div.style[m.motion_size] = this.controlled_element[m.motion_size] + "px";
+/*		
 		if (this.controlled_element.parentNode) {
 			this.controlled_element.parentNode.replaceChild(this.div, this.controlled_element);
 		}
+			*/
 		this.controlled_element.style.border = "none";
 		this.controlled_element.style.borderRadius = "0";
 		this.controlled_element.style.margin = "0";
@@ -175,7 +177,7 @@ class AnsiTermGenericScrollBar {
 		//this.controlled_element.style.position = 'absolute';
 		//this.controlled_element.style.top = 0;
 		//this.controlled_element.style.left = 0;
-		this.div.appendChild(this.controlled_element);
+		//this.div.appendChild(this.controlled_element);
 		this.div.appendChild(this.div_scroll);
 
 		
@@ -474,7 +476,7 @@ const ANSITERM_DEFAULTS = {
 	statusFont:  "Helvetica bold", //"Arial bold", // Font for the status line and the title.
 	
 	// Custom layout control:
-	containerId: "", // Id of the container in which the while terminal, incuding its main div,
+	containerId: "", // Id of the container in which the terminal, incuding its main div,
 	                 //  will take place. If empty, document.body is assumed as container.
 	canvasId:  "", // Id of the canvas element. If empty, a new canvas is created.
 	autocenter: true, // If true, the terminal takes place at center of its container.
@@ -483,7 +485,7 @@ const ANSITERM_DEFAULTS = {
 
 	channelType: "rest", // Type of transport. Possible values are:
 	// "rest" or "http": use HTTP/HTTPS GET to get characters and POST to send key and resize events.
-	//         "source", "config" and "dest" parameters configure the requests (see below).
+	//         "httpSource", "httpSize" and "httpDest" parameters configure the requests (see below).
 	// "websocket": use websocket. Data are sent and received as JSON structures.
 	//         "wsEndpoint" il the server address:port, "wsDataTag" is the name of the JSON
 	//         field containing characters (both send and received), "wsSizeTag" is the
@@ -1883,8 +1885,8 @@ export class AnsiTerm {
 		this.width = this.charwidth * this.params.nColumns;
 		this.height = this.charheight * this.params.nLines;
 
-		console.log("charwidth = " + this.charwidth + " nColumns = " + this.params.nColumns);
-		console.log("charheight = " + this.charheight + " nLines = " + this.params.nLines);
+		//console.log("charwidth = " + this.charwidth + " nColumns = " + this.params.nColumns);
+		//console.log("charheight = " + this.charheight + " nLines = " + this.params.nLines);
 
 		//this.gc.canvas.width = this.width;
 		//this.gc.canvas.height = this.height;
@@ -1895,7 +1897,7 @@ export class AnsiTerm {
 		this.gc.textBaseline = "bottom";
 
 
-		// SCrollbar management
+		// Scrollbar management
 
 		if ((typeof window.GenericScrollBarAdder === 'undefined')
 		 && (typeof AnsiTermGenericScrollBarAdder === 'undefined')) {
@@ -2224,52 +2226,52 @@ export class AnsiTerm {
 			for (let i = 0; i < this.pending_text.length; ++i) {
 
 				if (true) {
-			/* Check if we are beyond the end of the line, i.e.,
-			 the line has been filled completely. Only at this point,
-			 we synthesize a CR-LF before drawing the next character.
-			 Then, we increment the horizontal position. Note that
-			 the horizontal position may take the "impossible" value
-			 of "nColumns", while its "normal" value should be 0 to
-			 "nColumns-1". This may look weird, but it is required for
-			 ANSI-xterm compliance: when the line is completely full,
-			 the cursor disappears behind the right margin.
-			 This also forces us to check for the "special value" of "posx",
-			 e.g., in cursor blink logic. */
-				if (this.posx >= this.params.nColumns) {
-					this._setpos(0, this.posy);
-					this._nextline();
-				}
-				this._printchar(this.pending_text[i]);
-				if (this.posx < this.params.nColumns) {
-					this._incpos(1, 0);
-				}
+				/* Check if we are beyond the end of the line, i.e.,
+				the line has been filled completely. Only at this point,
+				we synthesize a CR-LF before drawing the next character.
+				Then, we increment the horizontal position. Note that
+				the horizontal position may take the "impossible" value
+				of "nColumns", while its "normal" value should be 0 to
+				"nColumns-1". This may look weird, but it is required for
+				ANSI-xterm compliance: when the line is completely full,
+				the cursor disappears behind the right margin.
+				This also forces us to check for the "special value" of "posx",
+				e.g., in cursor blink logic. */
+					if (this.posx >= this.params.nColumns) {
+						this._setpos(0, this.posy);
+						this._nextline();
+					}
+					this._printchar(this.pending_text[i]);
+					if (this.posx < this.params.nColumns) {
+						this._incpos(1, 0);
+					}
 
-				/* The naive version: no "impossible" value of "posx",
-				 but a slightly different behavior that breaks some
-				 applications (e.g., the Midnight Commander's port on Windows)
+					/* The naive version: no "impossible" value of "posx",
+					but a slightly different behavior that breaks some
+					applications (e.g., the Midnight Commander's port on Windows)
 
-				this._printchar(this.pending_text[i]);
-				if (this.posx >= this.params.nColumns - 1) {
-					this._setpos(0, this.posy);
-					this._nextline();
+					this._printchar(this.pending_text[i]);
+					if (this.posx >= this.params.nColumns - 1) {
+						this._setpos(0, this.posy);
+						this._nextline();
+					}
+					else {
+						this._incpos(1, 0);
+					}
+					*/
 				}
 				else {
-					this._incpos(1, 0);
+					this._printchar(this.pending_text[i]);
+					if (this.posx >= this.params.nColumns - 1) {
+						this._setpos(0, this.posy);
+						this.line_wrap = true;
+						this._nextline();
+					}
+					else {
+						this._incpos(1, 0);
+						this.line_wrap = false;
+					}	
 				}
-				*/
-			}
-			else {
-				this._printchar(this.pending_text[i]);
-				if (this.posx >= this.params.nColumns - 1) {
-					this._setpos(0, this.posy);
-					this.line_wrap = true;
-					this._nextline();
-				}
-				else {
-					this._incpos(1, 0);
-					this.line_wrap = false;
-				}	
-			}
 
 			}
 			this.pending_text = "";
@@ -2992,7 +2994,7 @@ export class AnsiTerm {
 		if (this.posy >= this.scrollregion_h) {
 			// If the scroll region is not set
 			// we must store the first line
-			// in the history buffer. But we must not do this only if the
+			// in the history buffer. But we must do this only if the
 			// current screen is not the alternate screen.
 			if (! this.alternate_screen) {
 				if (this.scrollregion_l == 0 && this.scrollregion_h == this.params.nLines - 1) {
