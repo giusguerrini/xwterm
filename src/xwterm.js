@@ -1286,13 +1286,7 @@ export class AnsiTerm {
 				"\x0A": () => { this._newline(); },
 				"\x0B": () => { this._newline(); }, // VT, but "treated as LF", they say
 				"\x0C": () => { this._newline(); }, // FF, but "treated as LF", they say
-				"\x0D": () => {
-						this._flush();
-						// As in "_nextline", we must peserve the line wrap state.
-						let save_line_wrap = this.line_wrap;
-						this._setpos(0, this.posy);
-						this.line_wrap = save_line_wrap;
-				},
+				"\x0D": () => { this._cr(); },
 				"\x0E": () => { this._init(); }, // SO
 				"\x0F": () => { this._init(); }, // SI
 				"\x7F": () => { this._init(); }, // DEL
@@ -2070,7 +2064,6 @@ export class AnsiTerm {
 		this.params.blinkPeriod = 500;
 		this.enable_cursor = true;
 		this.force_blink_cursor = true;
-		this.line_wrap = false;
 
 		this.status_ok = -1; // It means "not defined"
 
@@ -2094,6 +2087,8 @@ export class AnsiTerm {
 
 		this.history = [];
 		this.viewpoint = 0;
+
+		this._init_logical_lines();
 
 		// Create elements and layout.
 		this._layout();
@@ -2225,53 +2220,39 @@ export class AnsiTerm {
 			// TODO: optimize
 			for (let i = 0; i < this.pending_text.length; ++i) {
 
-				if (true) {
-				/* Check if we are beyond the end of the line, i.e.,
-				the line has been filled completely. Only at this point,
-				we synthesize a CR-LF before drawing the next character.
-				Then, we increment the horizontal position. Note that
-				the horizontal position may take the "impossible" value
-				of "nColumns", while its "normal" value should be 0 to
-				"nColumns-1". This may look weird, but it is required for
-				ANSI-xterm compliance: when the line is completely full,
-				the cursor disappears behind the right margin.
-				This also forces us to check for the "special value" of "posx",
-				e.g., in cursor blink logic. */
-					if (this.posx >= this.params.nColumns) {
-						this._setpos(0, this.posy);
-						this._nextline();
-					}
-					this._printchar(this.pending_text[i]);
-					if (this.posx < this.params.nColumns) {
-						this._incpos(1, 0);
-					}
+			/* Check if we are beyond the end of the line, i.e.,
+			the line has been filled completely. Only at this point,
+			we synthesize a CR-LF before drawing the next character.
+			Then, we increment the horizontal position. Note that
+			the horizontal position may take the "impossible" value
+			of "nColumns", while its "normal" value should be 0 to
+			"nColumns-1". This may look weird, but it is required for
+			ANSI-xterm compliance: when the line is completely full,
+			the cursor disappears behind the right margin.
+			This also forces us to check for the "special value" of "posx",
+			e.g., in cursor blink logic. */
+				if (this.posx >= this.params.nColumns) {
+					this._setpos(0, this.posy);
+					this._nextline();
+				}
+				this._printchar(this.pending_text[i]);
+				if (this.posx < this.params.nColumns) {
+					this._incpos(1, 0);
+				}
 
-					/* The naive version: no "impossible" value of "posx",
-					but a slightly different behavior that breaks some
-					applications (e.g., the Midnight Commander's port on Windows)
+				/* The naive version: no "impossible" value of "posx",
+				but a slightly different behavior that breaks some
+				applications (e.g., the Midnight Commander's port on Windows)
 
-					this._printchar(this.pending_text[i]);
-					if (this.posx >= this.params.nColumns - 1) {
-						this._setpos(0, this.posy);
-						this._nextline();
-					}
-					else {
-						this._incpos(1, 0);
-					}
-					*/
+				this._printchar(this.pending_text[i]);
+				if (this.posx >= this.params.nColumns - 1) {
+					this._setpos(0, this.posy);
+					this._nextline();
 				}
 				else {
-					this._printchar(this.pending_text[i]);
-					if (this.posx >= this.params.nColumns - 1) {
-						this._setpos(0, this.posy);
-						this.line_wrap = true;
-						this._nextline();
-					}
-					else {
-						this._incpos(1, 0);
-						this.line_wrap = false;
-					}	
+					this._incpos(1, 0);
 				}
+				*/
 
 			}
 			this.pending_text = "";
@@ -2824,9 +2805,9 @@ export class AnsiTerm {
 		// new position and the old one are the same.
 		// Another case would be the "_nextline" due to line wrap itself,
 		// but this is checked in "_nextline", not here.
-		if (x != this.posx || y != this.posy) {
-			this.line_wrap = false;
-		}
+		//if (x != this.posx || y != this.posy) {
+		//	this.line_wrap = false;
+		//}
 		this.posx = x;
 		this.posy = y
 		this.pospx = this.posx * this.charwidth;
@@ -2987,10 +2968,109 @@ export class AnsiTerm {
 		this.history.push(line);
 	}
 
+	//
+	// Logical line manager.
+	//
+	// The following code keeps track of logical lines and their
+	// relation to the screen lines.
+	// Screen lines are the lines of text as they are actually displayed
+	// according to the current screen column number. Logical lines are sequences
+	// of characters delimited by CR/LF, as received by the backend logic (e.g., a command shell).
+	// Logical lines are described in terms of their first character’s position
+	// in the screen/history buffers and their number of characters.
+	// A logical line may generally span multiple contiguous screen lines.
+	// Tracking logical lines is important for the implementation of the "resize" function,
+	// because when the screen is tightened or expanded, screen lines must preserve
+	// the identity of the underlying logical lines. The same principle applies
+	// to the scroll region (TODO).
+	// If a logical line's length is less than or equal to the screen width, it is
+	// displayed on a single screen line. If the logical line's length is greater than
+	// the screen width, it is displayed on multiple screen lines. In this case,
+	// the first screen line of the logical line is the one that contains the first character.
+	// Logical lines always start at the beginning of a screen line.
+	// Note that screen lines are not necessarily the same as the lines
+	// in the screen buffer. In particular, the tracking mechanism
+	// applies only to the primary screen, but not to the alternate one.
+	// Although this is not perfect, it is good enough in practice because
+	// the typical usage of the alternate screen is to display dynamic content
+	// or graphics. Applications that use the alternate screen (e.g., vim, mc, htop...)
+	// implement their own complete screen resize logic. Moreover, retrieving
+	// the history of the alternate screen is not expected, so the tracking
+	// mechanism is not needed.
+	//
+
+	_init_logical_lines()
+	{
+		this.loglines = [];
+		this.logline_start = 0;
+		this.last_logical_line = { span: 0, len: 0, cont: false, };
+	}
+
+	_complete_logical_line()
+	{
+		if (! this.alternate_screen) {
+			let l = {
+				span: this.posy - this.logline_start,
+				len: this.posx + (this.posy - this.logline_start) *  this.params.nColumns,
+				cont: false,
+			};
+			this.last_logical_line = l;
+		}
+	}
+
+	_store_logical_line()
+	{
+		if (! this.alternate_screen) {
+			// To maintain the history+screen buffer and the logical line collection
+			// aligned, we store as many logical lines as the number of screen lines
+			// that the logical line spans. This is done by copying the last logical line
+			// and decrementing its length and span.
+			let span = this.last_logical_line.span;
+			for (let i = 0; i <= span; ++i) {
+				this.loglines.push(this.last_logical_line);
+				if (this.loglines.length > this.params.historySize) {
+					this.loglines.shift();
+				}
+				if (this.loglines.span == 0) {
+					// Optimization
+					break;
+				}
+				this.last_logical_line = { ...this.last_logical_line };
+				this.last_logical_line.cont = true;
+				this.last_logical_line.span -= 1;
+				this.last_logical_line.len -= this.params.nColumns;
+			}
+		}
+	}
+
+	_start_logical_line()
+	{
+		if (! this.alternate_screen) {
+			this.logline_start = this.posy;
+			this.last_logical_line = { span: 0, len: 0, cont: false, };
+		}
+	}
+
+	_update_logical_lines()
+	{
+		if (! this.alternate_screen) {
+			this.logline_start -= 1;
+		}
+	}
+
+	// DEBUG
+	_dump_logical_lines()
+	{
+		for (let i = 0; i < this.loglines.length; ++i) {
+			console.log(this.loglines[i]);
+		}
+	}
+
 	_nextline()
 	{
 		// We must preserve the line wrap state, because "_setpos" resets it.
-		let save_line_wrap = this.line_wrap;
+		//let save_line_wrap = this.line_wrap;
+
 		if (this.posy >= this.scrollregion_h) {
 			// If the scroll region is not set
 			// we must store the first line
@@ -3003,22 +3083,35 @@ export class AnsiTerm {
 			}
 
 			this._scroll();
+			this._update_logical_lines();
 		}
 		else {
 			this._setpos(this.posx, this.posy + 1);
 		}
-		this.line_wrap = save_line_wrap;
+		//this.line_wrap = save_line_wrap;
+	}
+
+	_cr()
+	{
+		this._flush();
+		this._complete_logical_line();
+		// As in "_nextline", we must peserve the line wrap state.
+		//let save_line_wrap = this.line_wrap;
+		this._setpos(0, this.posy);
+		//this.line_wrap = save_line_wrap;
 	}
 
 	_newline()
 	{
 		this._flush();
-		if (! this.line_wrap) {
+		this._store_logical_line();
+		//if (! this.line_wrap) {
 			// Special case: if the line has been filled exactly, the cursor is
 			// already at the beginning of the next line, so we must not move it.
- 			this._nextline();
-		}
-		this.line_wrap = false;
+ 		this._nextline();
+		this._start_logical_line();
+		//}
+		//this.line_wrap = false;
 	}
 
 	_upline()
