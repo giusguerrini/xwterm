@@ -3002,44 +3002,15 @@ export class AnsiTerm {
 	_init_logical_lines()
 	{
 		this.loglines = [];
+		this._reset_logical_lines();
+	}
+
+	_reset_logical_lines()
+	{
 		this.logline_start = 0;
 		this.last_logical_line = { span: 0, len: 0, cont: false, };
-	}
-
-	_complete_logical_line()
-	{
-		if (! this.alternate_screen) {
-			let l = {
-				span: this.posy - this.logline_start,
-				len: this.posx + (this.posy - this.logline_start) *  this.params.nColumns,
-				cont: false,
-			};
-			this.last_logical_line = l;
-		}
-	}
-
-	_store_logical_line()
-	{
-		if (! this.alternate_screen) {
-			// To maintain the history+screen buffer and the logical line collection
-			// aligned, we store as many logical lines as the number of screen lines
-			// that the logical line spans. This is done by copying the last logical line
-			// and decrementing its length and span.
-			let span = this.last_logical_line.span;
-			for (let i = 0; i <= span; ++i) {
-				this.loglines.push(this.last_logical_line);
-				if (this.loglines.length > this.params.historySize) {
-					this.loglines.shift();
-				}
-				if (this.loglines.span == 0) {
-					// Optimization
-					break;
-				}
-				this.last_logical_line = { ...this.last_logical_line };
-				this.last_logical_line.cont = true;
-				this.last_logical_line.span -= 1;
-				this.last_logical_line.len -= this.params.nColumns;
-			}
+		for (let i = 0; i < this.params.nLines; ++i) {
+			this.loglines[i] = { span: 0, len: 0, cont: false, };
 		}
 	}
 
@@ -3051,10 +3022,45 @@ export class AnsiTerm {
 		}
 	}
 
-	_update_logical_lines()
+	_complete_logical_line()
 	{
 		if (! this.alternate_screen) {
-			this.logline_start -= 1;
+			let span = this.posy - this.logline_start;
+			if (span < 0) {
+				span = -span;
+				this.logline_start = this.posy;
+			}
+			this.last_logical_line = {
+				span: span,
+				len: this.posx + span *  this.params.nColumns,
+				cont: false,
+			};
+			// To maintain the history+screen buffer and the logical line collection
+			// aligned, we store as many logical lines as the number of screen lines
+			// that the logical line spans. This is done by copying the last logical line
+			// and decrementing its length and span.
+			for (let i = 0; i <= span; ++i) {
+				this.loglines[this.params.nLines - (this.logline_start + i) - 1] = this.last_logical_line;
+				if (this.last_logical_line.span == 0) {
+					// Optimization
+					break;
+				}
+				this.last_logical_line = { ...this.last_logical_line };
+				this.last_logical_line.cont = true;
+				this.last_logical_line.span -= 1;
+				this.last_logical_line.len -= this.params.nColumns;
+			}
+			this._start_logical_line();
+		}
+	}
+
+	_scroll_logical_lines()
+	{
+		if (! this.alternate_screen) {
+			this.loglines.unshift(this.last_logical_line);
+			if (this.loglines.length > this.params.nLines + this.params.historySize) {
+				this.loglines.pop();
+			}
 		}
 	}
 
@@ -3072,18 +3078,26 @@ export class AnsiTerm {
 		//let save_line_wrap = this.line_wrap;
 
 		if (this.posy >= this.scrollregion_h) {
-			// If the scroll region is not set
-			// we must store the first line
-			// in the history buffer. But we must do this only if the
-			// current screen is not the alternate screen.
 			if (! this.alternate_screen) {
+				// The line on top of the primary screen is going to be scrolled out.
+				// We must save it in the history. We do it only if the
+				// scroll region is the whole screen, because lines lost in partial scrolls
+				// are not expected to be retrieved in the history.
 				if (this.scrollregion_l == 0 && this.scrollregion_h == this.params.nLines - 1) {
 					this._save_history();
+				// TODO: this should be done in the scroll region too.
+				// In general, we could manage history, screen and logical lines
+				// as a single entity.
+				// E.g., history and screen lines would be the same, but we should
+				// count lines from bottom (0) to top (nLines - 1), and beyond (>= nLines)
+				// we would find older lines in the history. Also, the "logical line"
+				// objects would be stored in the history as additional property
+				// of the lines. This would unify the logic, but would be a bit more complex. 
+					this._scroll_logical_lines();
 				}
 			}
 
 			this._scroll();
-			this._update_logical_lines();
 		}
 		else {
 			this._setpos(this.posx, this.posy + 1);
@@ -3104,7 +3118,6 @@ export class AnsiTerm {
 	_newline()
 	{
 		this._flush();
-		this._store_logical_line();
 		//if (! this.line_wrap) {
 			// Special case: if the line has been filled exactly, the cursor is
 			// already at the beginning of the next line, so we must not move it.
