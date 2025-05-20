@@ -585,7 +585,8 @@ function encodeHtml(html)
  * see {@link ANSITERM_DEFAULTS} and {@link AnsiTerm}.
  */
 
-export class AnsiTermDecoration {
+export class AnsiTermDecoration
+{
 
 	_update_status_element(el, ok, text_ok, text_ko)
 	{
@@ -975,6 +976,116 @@ export class AnsiTermDecoration {
 	}
 }
 
+export class AnsiTermHistory
+{
+	constructor(nLines, nColumns, historySize)
+	{
+		this.nColumns = nColumns;
+		this.nLines = nLines;
+		this.historySize = historySize;
+		this.history = [];
+		this.length = nLines;
+		this.size = historySize + nLines;
+		this.reset();
+	}
+		
+	reset()
+	{
+		this.screens = [ [], [] ];
+		for (let i = 0; i < this.nLines; ++i) {
+			this.screens[0][i] = [];
+			this.screens[1][i] = [];
+			for (let j = 0; j < this.nColumns; ++j) {
+				this.screens[0][i][j] = {};
+				this.screens[1][i][j] = {};	
+			} 	
+			this.history[this.nLines - i - 1] = { t: this.screens[0][i], l: { span: 0, len: 0, cont: false } };
+		}
+		this.logline_start = 0;
+	}
+
+	getLine(y)
+	{
+		y = this.nLines - y - 1;
+		let l = (y >= this.length) ? this.history[this.length - 1] : this.history[y];
+		return l.t;
+	}
+
+	//
+	// Logical line manager.
+	//
+	// The following code keeps track of logical lines and their
+	// relation to the screen lines.
+	// Screen lines are the lines of text as they are actually displayed
+	// according to the current screen column number. Logical lines are sequences
+	// of characters delimited by CR/LF, as received by the backend logic (e.g., a command shell).
+	// Logical lines are described in terms of their first character’s position
+	// in the screen/history buffers and their number of characters.
+	// A logical line may generally span multiple contiguous screen lines.
+	// Tracking logical lines is important for the implementation of the "resize" function,
+	// because when the screen is tightened or expanded, screen lines must preserve
+	// the identity of the underlying logical lines. The same principle applies
+	// to the scroll region (TODO).
+	// If a logical line's length is less than or equal to the screen width, it is
+	// displayed on a single screen line. If the logical line's length is greater than
+	// the screen width, it is displayed on multiple screen lines. In this case,
+	// the first screen line of the logical line is the one that contains the first character.
+	// Logical lines always start at the beginning of a screen line.
+	// Note that screen lines are not necessarily the same as the lines
+	// in the screen buffer. In particular, the tracking mechanism
+	// applies only to the primary screen, but not to the alternate one.
+	// Although this is not perfect, it is good enough in practice because
+	// the typical usage of the alternate screen is to display dynamic content
+	// or graphics. Applications that use the alternate screen (e.g., vim, mc, htop...)
+	// implement their own complete screen resize logic. Moreover, retrieving
+	// the history of the alternate screen is not expected, so the tracking
+	// mechanism is not needed.
+	//
+
+	startLogicalLine(y)
+	{
+		this.logline_start = y;
+		this.history[this.nLines - y - 1].l = { span: 0, len: 0, cont: false, };
+	}
+
+	completeLogicalLine(x, y)
+	{
+		let span = y - this.logline_start;
+		if (span < 0) {
+			span = -span;
+			this.logline_start = y;
+		}
+		let l = { span: span, len: x + span * this.nColumns, cont: false, };
+		for (let i = 0; i <= span; ++i) {
+			this.history[this.nLines - (this.logline_start + i) - 1].l = l;
+			if (l.span == 0) {
+				// Optimization
+				break;
+			}
+			l = { span: l.span - 1, len: l.len - this.nColumns, cont: true, };
+		}
+		this.startLogicalLine(y);
+	}
+
+	scrollLogicaLines()
+	{
+		if (this.history.length >= this.size) {
+			this.history.pop();
+		}
+
+		// If I had centralized the scroll logic, this would be enough...
+		//this.history.unshift( { t: ...emptyline..., l: { span: 0, len: 0, cont: false }});
+		
+		let e = { t: {...this.history[this.nLines - 1].t }, l: {...this.history[this.nLines - 1].l }};
+		this.history.splice(this.nLines, 0,  e);
+		for (let i = this.nLines - 1; i > 0; --i) {
+			this.history[i].l = this.history[i - 1].l;
+		}
+		this.history[0].l = { span: 0, len: 0, cont: false };
+
+		this.length = this.history.length;
+	}
+}
 
 
 /**
@@ -1140,15 +1251,8 @@ export class AnsiTerm {
 		this.gc.fillRect(0,0,this.gc.canvas.width,this.gc.canvas.height);
 		this.gc.fillStyle = this.params.foreground;
 
-		this.screens = [[],[]];
-		for (let i = 0; i < this.params.nLines; ++i) {
-			this.screens[0][i] = [];
-			this.screens[1][i] = [];
-			for (let j = 0; j < this.params.nColumns; ++j) {
-				this.screens[0][i][j] = {};
-				this.screens[1][i][j] = {};	
-			} 	
-		}
+		this.history.reset();
+		this.screens = this.history.screens;
 		this.scr_background = [ this.params.background, this.params.background ];
 		this.scr_foreground = [ this.params.foreground, this.params.foreground ];
 		this.screen = this.screens[0];
@@ -2085,10 +2189,8 @@ export class AnsiTerm {
 		this.fullfont = this.params.fontSize.toString() + "px " + this.params.font;
 		this.status_fullfont = /* this.params.fontSize.toString() + "px " + */ this.params.statusFont;
 
-		this.history = [];
+		this.history = new AnsiTermHistory(this.params.nLines, this.params.nColumns, this.params.historySize);
 		this.viewpoint = 0;
-
-		this._init_logical_lines();
 
 		// Create elements and layout.
 		this._layout();
@@ -2582,9 +2684,12 @@ export class AnsiTerm {
 
 	_line_by_index(y)
 	{
+		return this.history.getLine(y + this.viewpoint);
+		/*
 		let l = this.history.length;
 		y += this.viewpoint;
 		return (y >= 0) ? this.screen[y] : ((y < -l) ? this.history[0] : this.history[l+y]);
+		*/
 	}
 
 	_redraw_box(x0, y0, width, height)
@@ -2952,148 +3057,24 @@ export class AnsiTerm {
 	{
 	}
 
-	_save_history()
-	{
-		if (this.history.length >= this.params.historySize) {
-			this.history.shift();
-		}
-		else {
-			this.scrollbar.verticalScrollbar.setMinValue( - this.history.length - 1);
-		}
-		let line = [];
-		for (let i = 0; i < this.params.nColumns; ++i) {
-			// TODO: preserve blink state
-			line[i] = { ...this.screen[0][i] };
-		}
-		this.history.push(line);
-	}
-
-	//
-	// Logical line manager.
-	//
-	// The following code keeps track of logical lines and their
-	// relation to the screen lines.
-	// Screen lines are the lines of text as they are actually displayed
-	// according to the current screen column number. Logical lines are sequences
-	// of characters delimited by CR/LF, as received by the backend logic (e.g., a command shell).
-	// Logical lines are described in terms of their first character’s position
-	// in the screen/history buffers and their number of characters.
-	// A logical line may generally span multiple contiguous screen lines.
-	// Tracking logical lines is important for the implementation of the "resize" function,
-	// because when the screen is tightened or expanded, screen lines must preserve
-	// the identity of the underlying logical lines. The same principle applies
-	// to the scroll region (TODO).
-	// If a logical line's length is less than or equal to the screen width, it is
-	// displayed on a single screen line. If the logical line's length is greater than
-	// the screen width, it is displayed on multiple screen lines. In this case,
-	// the first screen line of the logical line is the one that contains the first character.
-	// Logical lines always start at the beginning of a screen line.
-	// Note that screen lines are not necessarily the same as the lines
-	// in the screen buffer. In particular, the tracking mechanism
-	// applies only to the primary screen, but not to the alternate one.
-	// Although this is not perfect, it is good enough in practice because
-	// the typical usage of the alternate screen is to display dynamic content
-	// or graphics. Applications that use the alternate screen (e.g., vim, mc, htop...)
-	// implement their own complete screen resize logic. Moreover, retrieving
-	// the history of the alternate screen is not expected, so the tracking
-	// mechanism is not needed.
-	//
-
-	_init_logical_lines()
-	{
-		this.loglines = [];
-		this._reset_logical_lines();
-	}
-
-	_reset_logical_lines()
-	{
-		this.logline_start = 0;
-		this.last_logical_line = { span: 0, len: 0, cont: false, };
-		for (let i = 0; i < this.params.nLines; ++i) {
-			this.loglines[i] = { span: 0, len: 0, cont: false, };
-		}
-	}
-
-	_start_logical_line()
-	{
-		if (! this.alternate_screen) {
-			this.logline_start = this.posy;
-			this.last_logical_line = { span: 0, len: 0, cont: false, };
-		}
-	}
-
-	_complete_logical_line()
-	{
-		if (! this.alternate_screen) {
-			let span = this.posy - this.logline_start;
-			if (span < 0) {
-				span = -span;
-				this.logline_start = this.posy;
-			}
-			this.last_logical_line = {
-				span: span,
-				len: this.posx + span *  this.params.nColumns,
-				cont: false,
-			};
-			// To maintain the history+screen buffer and the logical line collection
-			// aligned, we store as many logical lines as the number of screen lines
-			// that the logical line spans. This is done by copying the last logical line
-			// and decrementing its length and span.
-			for (let i = 0; i <= span; ++i) {
-				this.loglines[this.params.nLines - (this.logline_start + i) - 1] = this.last_logical_line;
-				if (this.last_logical_line.span == 0) {
-					// Optimization
-					break;
-				}
-				this.last_logical_line = { ...this.last_logical_line };
-				this.last_logical_line.cont = true;
-				this.last_logical_line.span -= 1;
-				this.last_logical_line.len -= this.params.nColumns;
-			}
-			this._start_logical_line();
-		}
-	}
-
-	_scroll_logical_lines()
-	{
-		if (! this.alternate_screen) {
-			this.loglines.unshift(this.last_logical_line);
-			if (this.loglines.length > this.params.nLines + this.params.historySize) {
-				this.loglines.pop();
-			}
-		}
-	}
-
-	// DEBUG
-	_dump_logical_lines()
-	{
-		for (let i = 0; i < this.loglines.length; ++i) {
-			console.log(this.loglines[i]);
-		}
-	}
-
 	_nextline()
 	{
 		// We must preserve the line wrap state, because "_setpos" resets it.
 		//let save_line_wrap = this.line_wrap;
 
 		if (this.posy >= this.scrollregion_h) {
+			// TODO: all this code should be moved to the _scroll method.
 			if (! this.alternate_screen) {
 				// The line on top of the primary screen is going to be scrolled out.
 				// We must save it in the history. We do it only if the
 				// scroll region is the whole screen, because lines lost in partial scrolls
 				// are not expected to be retrieved in the history.
 				if (this.scrollregion_l == 0 && this.scrollregion_h == this.params.nLines - 1) {
-					this._save_history();
-				// TODO: this should be done in the scroll region too.
+				// TODO: this should be done in the scroll logic.
 				// In general, we could manage history, screen and logical lines
 				// as a single entity.
-				// E.g., history and screen lines would be the same, but we should
-				// count lines from bottom (0) to top (nLines - 1), and beyond (>= nLines)
-				// we would find older lines in the history. Also, the "logical line"
-				// objects would be stored in the history as additional property
-				// of the lines. This would unify the logic, but would be a bit more complex. 
-					this._scroll_logical_lines();
+					this.history.scrollLogicaLines();
+					this.scrollbar.verticalScrollbar.setMinValue(this.params.nLines - this.history.length - 1);
 				}
 			}
 
@@ -3108,23 +3089,20 @@ export class AnsiTerm {
 	_cr()
 	{
 		this._flush();
-		this._complete_logical_line();
-		// As in "_nextline", we must peserve the line wrap state.
-		//let save_line_wrap = this.line_wrap;
+		if (! this.alternate_screen) {
+			this.history.completeLogicalLine(this.posx, this.posy);
+		}
 		this._setpos(0, this.posy);
-		//this.line_wrap = save_line_wrap;
 	}
 
 	_newline()
 	{
 		this._flush();
-		//if (! this.line_wrap) {
-			// Special case: if the line has been filled exactly, the cursor is
-			// already at the beginning of the next line, so we must not move it.
  		this._nextline();
-		this._start_logical_line();
-		//}
-		//this.line_wrap = false;
+		if (! this.alternate_screen) {
+			this.history.startLogicalLine(this.posy);
+		}
+
 	}
 
 	_upline()
