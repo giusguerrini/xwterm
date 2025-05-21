@@ -976,6 +976,25 @@ export class AnsiTermDecoration
 	}
 }
 
+/**
+ * The AnsiTermHistory class is used to manage both the screen and the history
+ * of the terminal as a single array of lines.
+ * It keeps track of the visual lines and their attributes, and
+ * their relation to the logical lines.
+ * Visual lines are collected in reverse order, so that the last line
+ * in the screen (i.e., the bottom line) takes the index 0 in the array.
+ * Lines beyond the top of the screen contain the history of the terminal.
+ * To ease the access to the screen cells in the natural order (top to bottom),
+ * a pair of screen matrices is used, one for the primary screen and one for the alternate screen.
+ * The rows of the first matrix map the first "nLines" lines in the array
+ * from top (y=0) to bottom (y=nLines-1).
+ * 
+ * @class
+ * @param {number} nLines - The number of lines in the terminal.
+ * @param {number} nColumns - The number of columns in the terminal.
+ * @param {number} historySize - The size of the history buffer.
+ */
+
 export class AnsiTermHistory
 {
 	constructor(nLines, nColumns, historySize)
@@ -986,9 +1005,26 @@ export class AnsiTermHistory
 		this.history = [];
 		this.length = nLines;
 		this.size = historySize + nLines;
+		this.logline_start = 0;
+		this.screens = [ [], [] ];
+		this.history = [];
+		this.max_ncolumns = nColumns;
+		this.max_nlines = nLines;
+		this.loglines = [];
+		this.base_index = 0;
 		this.reset();
 	}
-		
+	
+/**
+ * Resets screen buffers to their initial state.
+ * 
+ * This method clears and reinitializes the primary and alternate screen buffers.
+ * It also resets the logical line tracking information and the logline_start pointer.
+ * History (i.e. the non-screen) part of the line collection is left unchanged.
+ * 
+ * @returns {void}
+ */
+
 	reset()
 	{
 		this.screens = [ [], [] ];
@@ -1007,8 +1043,8 @@ export class AnsiTermHistory
 	getLine(y)
 	{
 		y = this.nLines - y - 1;
-		let l = (y >= this.length) ? this.history[this.length - 1] : this.history[y];
-		return l.t;
+		let i = (((y >= this.length) ? this.length - 1 : y) + this.base_index + this.size) % this.size;
+		return this.history[i].t;
 	}
 
 	//
@@ -1045,7 +1081,9 @@ export class AnsiTermHistory
 	startLogicalLine(y)
 	{
 		this.logline_start = y;
-		this.history[this.nLines - y - 1].l = { span: 0, len: 0, cont: false, };
+		y = this.nLines - y - 1;
+		this.history[y].l = { span: 0, len: 0, cont: false, };
+		//this.loglines.push(this.history[y]);
 	}
 
 	completeLogicalLine(x, y)
@@ -1067,23 +1105,29 @@ export class AnsiTermHistory
 		this.startLogicalLine(y);
 	}
 
-	scrollLogicaLines()
+	update()
 	{
-		if (this.history.length >= this.size) {
-			this.history.pop();
+		let rotate = (this.history.length >= this.size);
+
+		if (rotate) {
+			this.base_index = (this.base_index + this.size - 1) % this.size;
+			for (let i = 0; i < this.nLines; ++i) {
+				this.screens[0][this.nLines - i - 1] = this.history[(this.base_index + i) % this.size].t;
+			}
+		}
+		else {
+
+			let e = { t: {...this.history[this.nLines - 1].t }, l: {...this.history[this.nLines - 1].l }};
+			this.history.splice(this.nLines, 0,  e);
+			for (let i = this.nLines - 1; i > 0; --i) {
+				this.history[i].l = this.history[i - 1].l;
+			}
+			this.history[0].l = { span: 0, len: 0, cont: false };
+
+			this.length = this.history.length;
 		}
 
-		// If I had centralized the scroll logic, this would be enough...
-		//this.history.unshift( { t: ...emptyline..., l: { span: 0, len: 0, cont: false }});
-		
-		let e = { t: {...this.history[this.nLines - 1].t }, l: {...this.history[this.nLines - 1].l }};
-		this.history.splice(this.nLines, 0,  e);
-		for (let i = this.nLines - 1; i > 0; --i) {
-			this.history[i].l = this.history[i - 1].l;
-		}
-		this.history[0].l = { span: 0, len: 0, cont: false };
-
-		this.length = this.history.length;
+		return rotate;
 	}
 }
 
@@ -2927,7 +2971,7 @@ export class AnsiTerm {
 		this._setpos(this.posx + dx, this.posy + dy);
 	}
 
-	_scroll_core(y_start, y_end, jump)
+	_scroll_core(y_start, y_end, jump, update_history = false)
 	{
 		if (jump == 0) {
 			return;
@@ -2977,11 +3021,12 @@ export class AnsiTerm {
 		if (pheight > 0) {
 			// Will drawImage work on overlapped areas? It looks like it does...
 
-			if (false) {
+			/*if (false) {
 				let d = this.gc.getImageData(0, py_src, this.gc.canvas.width, pheight);
 				this.gc.putImageData(d, 0, py_dest);
 			}
-			else {
+			else
+			*/{
 				this.gc.drawImage(this.canvas,
 								0, py_src, this.gc.canvas.width, pheight,
 								0, py_dest, this.gc.canvas.width, pheight);
@@ -2992,9 +3037,25 @@ export class AnsiTerm {
 		this.gc.fillRect(0, py_clr, this.gc.canvas.width, jumppx);
 		this.gc.fillStyle = this.params.foreground;
 
-		for (let y = ymove_start; (y * ymove_step) < ymove_end; y += ymove_step) {
-			for (let x = 0; x < this.params.nColumns; ++x) {
-				this._setcell(x, y, { ...this.screen[y + jump][x] });
+		let rotate = false;
+
+		if (update_history) {
+			// Special case (actually the most common one):
+			// scroll the whole screen and add to the history the line that is going
+			// to disappear at the top. Instead of moving the cells, we remap
+			// the screen to the history buffer. The history buffer is rotated
+			// to make room for the new line (or to recycle the oldest one).
+			// NOTE: ...unless the history is not yet full; in that case
+			// we must move cells as usual. The update() return value
+			// indicates if the history has been rotated or not.
+			rotate = this.history.update();
+		}
+		
+		if (!rotate) {
+			for (let y = ymove_start; (y * ymove_step) < ymove_end; y += ymove_step) {
+				for (let x = 0; x < this.params.nColumns; ++x) {
+					this._setcell(x, y, { ...this.screen[y + jump][x] });
+				}
 			}
 		}
 
@@ -3032,6 +3093,17 @@ export class AnsiTerm {
 		this._scroll_from(this.scrollregion_l);
 	}
 
+	_scroll_and_update_history()
+	{
+		// Special case of scroll: scroll the whole screen
+		// and update the history. This is obtained by rotating
+		// the history buffer and setting the new screen to the
+		// last line of the history. The screen map is updated
+		// to point to the new screen.
+		this._scroll_core(0, this.params.nLines - 1, 1, true)
+	}
+
+
 	_revscroll_from(y_start)
 	{
 		this._scroll_core(y_start, this.scrollregion_h, -1)
@@ -3059,31 +3131,24 @@ export class AnsiTerm {
 
 	_nextline()
 	{
-		// We must preserve the line wrap state, because "_setpos" resets it.
-		//let save_line_wrap = this.line_wrap;
-
 		if (this.posy >= this.scrollregion_h) {
-			// TODO: all this code should be moved to the _scroll method.
-			if (! this.alternate_screen) {
-				// The line on top of the primary screen is going to be scrolled out.
-				// We must save it in the history. We do it only if the
-				// scroll region is the whole screen, because lines lost in partial scrolls
-				// are not expected to be retrieved in the history.
-				if (this.scrollregion_l == 0 && this.scrollregion_h == this.params.nLines - 1) {
-				// TODO: this should be done in the scroll logic.
-				// In general, we could manage history, screen and logical lines
-				// as a single entity.
-					this.history.scrollLogicaLines();
-					this.scrollbar.verticalScrollbar.setMinValue(this.params.nLines - this.history.length - 1);
-				}
-			}
+			// The line on top of the primary screen is going to be scrolled out.
+			// We must save it in the history. We do it only if the
+			// scroll region is the whole screen, because lines lost in partial scrolls
+			// are not expected to be retrieved in the history.
+			if ((! this.alternate_screen)
+			 && (this.scrollregion_l == 0 && this.scrollregion_h == this.params.nLines - 1)) {
 
-			this._scroll();
+				this._scroll_and_update_history();
+				this.scrollbar.verticalScrollbar.setMinValue(this.params.nLines - this.history.length - 1);
+			}
+			else {
+				this._scroll();
+			}
 		}
 		else {
 			this._setpos(this.posx, this.posy + 1);
 		}
-		//this.line_wrap = save_line_wrap;
 	}
 
 	_cr()
