@@ -1,4 +1,11 @@
 # Changelog
+## [0.22.0] - 2025-05-22
+- Unified history and screen management.
+- Added logical line tracking, in preparation for the addition of resizing.
+- Added handling for "\x1[*n*@" sequence ("insert *n* spaces"), which was
+still missing (incredibly!).
+- The base palette has been made slightly brighter.
+
 ## [0.21.1] - 2025-05-09
 - Fixed a bug in selection capture: characters were not captured when
 selecting backward.

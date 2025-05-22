@@ -511,7 +511,7 @@ const ANSITERM_DEFAULTS = {
 
 	// Colors and appearance:
 
-	foreground:  "rgb(224,224,224)", // Default foreground color.
+	foreground:  "rgb(229,229,229)", // Default foreground color.
 	background:  "rgb(0,0,0)", // Default background color.
 	statusForegroundOk:  "rgb(0,32,0)", // Status line foreground color when status is OK.
 	statusBackgroundOk:  "rgb(160,192,160)", // Status line background color when status is OK.
@@ -993,11 +993,12 @@ export class AnsiTermDecoration
  * @param {number} nLines - The number of lines in the terminal.
  * @param {number} nColumns - The number of columns in the terminal.
  * @param {number} historySize - The size of the history buffer.
+ * @patam {object} empty_cell - The empty cell object, whose content is used to initialize the cells.
  */
 
 export class AnsiTermHistory
 {
-	constructor(nLines, nColumns, historySize)
+	constructor(nLines, nColumns, historySize, empty_cell)
 	{
 		this.nColumns = nColumns;
 		this.nLines = nLines;
@@ -1012,6 +1013,8 @@ export class AnsiTermHistory
 		this.max_nlines = nLines;
 		this.loglines = [];
 		this.base_index = 0;
+		this.alternate_screen = false;
+		this.empty_cell = empty_cell;
 		this.reset();
 	}
 	
@@ -1027,15 +1030,23 @@ export class AnsiTermHistory
 
 	reset()
 	{
+		this.base_index = this.historySize;
+
+		for (let i = 0; i < this.size; ++i) {
+			let t = [];
+			for (let j = 0; j < this.nColumns; ++j) {
+				t[j] = { ...this.empty_cell };
+			} 	
+			this.history[i] = { t: t, l: { span: 0, len: 0, cont: false } };
+		}
+
 		this.screens = [ [], [] ];
 		for (let i = 0; i < this.nLines; ++i) {
-			this.screens[0][i] = [];
+			this.screens[0][i] = this.history[this.base_index + this.nLines - i - 1].t;
 			this.screens[1][i] = [];
 			for (let j = 0; j < this.nColumns; ++j) {
-				this.screens[0][i][j] = {};
-				this.screens[1][i][j] = {};	
+				this.screens[1][i][j] = { ...this.empty_cell };	
 			} 	
-			this.history[this.nLines - i - 1] = { t: this.screens[0][i], l: { span: 0, len: 0, cont: false } };
 		}
 		this.logline_start = 0;
 	}
@@ -1043,6 +1054,9 @@ export class AnsiTermHistory
 	getLine(y)
 	{
 		y = this.nLines - y - 1;
+		if (y >= this.length || y < 0) {	
+			console.log(y);
+		}
 		let i = (((y >= this.length) ? this.length - 1 : y) + this.base_index + this.size) % this.size;
 		return this.history[i].t;
 	}
@@ -1083,7 +1097,6 @@ export class AnsiTermHistory
 		this.logline_start = y;
 		y = this.nLines - y - 1;
 		this.history[y].l = { span: 0, len: 0, cont: false, };
-		//this.loglines.push(this.history[y]);
 	}
 
 	completeLogicalLine(x, y)
@@ -1107,12 +1120,15 @@ export class AnsiTermHistory
 
 	update()
 	{
-		let rotate = (this.history.length >= this.size);
+		let rotate = true; // (this.history.length >= this.size);
 
 		if (rotate) {
 			this.base_index = (this.base_index + this.size - 1) % this.size;
 			for (let i = 0; i < this.nLines; ++i) {
 				this.screens[0][this.nLines - i - 1] = this.history[(this.base_index + i) % this.size].t;
+			}
+			if (this.length < this.size) {
+				++this.length;
 			}
 		}
 		else {
@@ -1163,7 +1179,7 @@ export class AnsiTermHistory
  * @param {string} [params.wsDataTag=""] - WebSocket data tag for the terminal.
  * @param {string} [params.wsSizeTag=""] - WebSocket size tag for the terminal.
  * @param {string} [params.wsSizeData=""] - WebSocket size data for the terminal.
- * @param {string} [params.foreground="rgb(255,255,255)"] - Default foreground color.
+ * @param {string} [params.foreground="rgb(229,229,229)"] - Default foreground color.
  * @param {string} [params.background="rgb(0,0,0)"] - Default background color.
  * @param {string} [params.statusForegroundOk="rgb(0,255,0)"] - Status bar foreground color for OK status.
  * @param {string} [params.statusBackgroundOk="rgb(0,128,0)"] - Status bar background color for OK status.
@@ -1501,7 +1517,9 @@ export class AnsiTerm {
 				"?": () => {
 					this.state = 8;
 				},
-				"@": () => { this._init(); }, // ICH	Insert the indicated # of blank characters.
+				"@": this._ti(() => {
+					this._insert_spaces(this._getarg(0,1));
+				}), // ICH	Insert the indicated # of blank characters.
 				"A": this._ti(() => {
 					this._incpos(0, -this._getarg(0, 1));
 				}), // CUU	Move cursor up the indicated # of rows.
@@ -1883,10 +1901,10 @@ export class AnsiTerm {
 		// (Almost) standard base palette.
 		// Apply configured background and foreground.
 		// TODO: make it fully configurable.
-		this.palette = [ this.params.background,    "rgb(192,0,0)",   "rgb(0,192,0)",   "rgb(160,160,0)",
-		                 "rgb(65,65,192)",  "rgb(160,0,160)", "rgb(0,128,160)", this.params.foreground,
-		                 "rgb(65,65,65)", "rgb(255,0,0)",   "rgb(0,255,0)",   "rgb(255,255,0)",
-		                 "rgb(65,65,255)",  "rgb(255,0,255)", "rgb(0,128,255)", "rgb(255,255,255)" ];
+		this.palette = [ this.params.background,    "rgb(205,0,0)",   "rgb(0,205,0)",   "rgb(205,205,0)",
+		                 "rgb(16,16,238)",  "rgb(205,0,205)", "rgb(0,205,205)", this.params.foreground,
+		                 "rgb(127,127,127)", "rgb(255,0,0)",   "rgb(0,255,0)",   "rgb(255,255,0)",
+		                 "rgb(92,92,255)",  "rgb(255,0,255)", "rgb(0,255,255)", "rgb(255,255,255)" ];
 
 	
 		//////////////////////////////
@@ -2233,7 +2251,18 @@ export class AnsiTerm {
 		this.fullfont = this.params.fontSize.toString() + "px " + this.params.font;
 		this.status_fullfont = /* this.params.fontSize.toString() + "px " + */ this.params.statusFont;
 
-		this.history = new AnsiTermHistory(this.params.nLines, this.params.nColumns, this.params.historySize);
+		this.empty_cell = {
+			ch: " ",
+			background: this.params.background, // this.palette[0],
+			foreground: this.params.foreground, // this.palette[7],
+			blink: false,
+			reverse: false,
+			bold: false,
+			italic: false,
+			underline: false,
+		};
+
+		this.history = new AnsiTermHistory(this.params.nLines, this.params.nColumns, this.params.historySize, this.empty_cell);
 		this.viewpoint = 0;
 
 		// Create elements and layout.
@@ -2511,14 +2540,14 @@ export class AnsiTerm {
 		if (x >= this.params.nColumns) {
 			return;
 		}
-		let blink = this.screen[y][x].blink;
+		let blink = this.screen[y][x].blink; // NOTE: may be undefined!
 		this.screen[y][x] = src;
 		if (src.blink != blink) {
-			if (blink) {
-				this._remove_from_blink_list(x, y, this.blink_list);
+			if (src.blink) {
+				this._add_to_blink_list(x, y, this.blink_list);
 			}
 			else {
-				this._add_to_blink_list(x, y, this.blink_list);
+				this._remove_from_blink_list(x, y, this.blink_list);
 			}
 		}
 	}
@@ -3045,9 +3074,6 @@ export class AnsiTerm {
 			// to disappear at the top. Instead of moving the cells, we remap
 			// the screen to the history buffer. The history buffer is rotated
 			// to make room for the new line (or to recycle the oldest one).
-			// NOTE: ...unless the history is not yet full; in that case
-			// we must move cells as usual. The update() return value
-			// indicates if the history has been rotated or not.
 			rotate = this.history.update();
 		}
 		
@@ -3140,7 +3166,7 @@ export class AnsiTerm {
 			 && (this.scrollregion_l == 0 && this.scrollregion_h == this.params.nLines - 1)) {
 
 				this._scroll_and_update_history();
-				this.scrollbar.verticalScrollbar.setMinValue(this.params.nLines - this.history.length - 1);
+				this.scrollbar.verticalScrollbar.setMinValue(this.params.nLines - this.history.length);
 			}
 			else {
 				this._scroll();
@@ -3416,6 +3442,23 @@ export class AnsiTerm {
 		let end = (a == 1) ? (x + 1) : this.params.nColumns;
 		this._erase(start, end);
 	}
+
+	_insert_spaces(n)
+	{
+		if (n + this.posx >= this.params.nColumns) {
+			n = this.params.nColumns - this.posx - 1;
+		}
+		let nm = this.params.nColumns - this.posx - n;
+
+		for (let i = nm - 1; i >= 0;  --i) {
+			this._setcell(this.posx + i + n, this.posy, { ...this.screen[this.posy][this.posx + i] });
+		}
+
+		this._redraw_box(this.posx + n, this.posy, nm, 1)
+
+		this._erase(this.posx, this.posx + n);
+	}
+
 
 	_insert_lines(n)
 	{
