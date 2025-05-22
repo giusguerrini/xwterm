@@ -1,10 +1,5 @@
 // DEFAULTS
 
-function isIE11()
-{
-    return !!window.MSInputMethodContext && !!document.documentMode;
-}
-
 const COMMON_GENERICSCROLLBAR_DEFAULTS = {
 	size: 30, // Pixels
 	buttonSize: 20, // Pixels
@@ -164,7 +159,7 @@ class GenericScrollBar {
 		this.div.style.width = this.width + "px";
 		this.div.style.height = this.height + "px";
 
-		if (isIE11()) {
+		if (GenericScrollBarAdder.isIE11()) {
 			this.div.style.display = "-ms-grid";
 		}
 		else {
@@ -192,7 +187,7 @@ class GenericScrollBar {
 
 		const m = this.mutable_properties;
 
-		if (isIE11()) {
+		if (GenericScrollBarAdder.isIE11()) {
 			this.div.style.setProperty(m.ms_grid_single, sz + "px");
 			this.div.style.setProperty(m.ms_grid_multi, bsz + "px 1fr " + bsz + "px");
 			this.button_minus.style.setProperty(m.ms_grid_multi_pos, "1");
@@ -477,7 +472,13 @@ class GenericScrollBar {
 	}
 };
 
-class GenericScrollBarAdder {
+class GenericScrollBarAdder
+{
+	
+	static isIE11()
+	{
+		return !!window.MSInputMethodContext && !!document.documentMode;
+	}
 
 	_layout()
 	{
@@ -491,8 +492,8 @@ class GenericScrollBarAdder {
 
 		this.div = document.createElement("div");
 		this.div.classList.add("generic-scrollbar");
-		if (isIE11()) {
-			let bsz = this.bar_configuration.size + this.bar_configuration.separatorSize; 
+		if (GenericScrollBarAdder.isIE11()) {
+			let bsz = this.params.barConfiguration.size + this.params.barConfiguration.separatorSize; 
 			this.div.style.width = this.controlled_element.clientWidth
 				+ (this.vertical ? bsz : 0)
 			    + "px";
@@ -548,45 +549,27 @@ class GenericScrollBarAdder {
 			this.controlled_element.style.borderRadius = "0";
 			this.controlled_element.style.margin = "0";
 		}
-		if (isIE11()) {
+		if (GenericScrollBarAdder.isIE11()) {
 			this.controlled_element.style.setProperty("-ms-grid-column", "1");
 			this.controlled_element.style.setProperty("-ms-grid-row", "1");
 		}
 		if (this.vertical) {
-			this.verticalScrollbar = new GenericScrollBar(this.controlled_element, { ...this.bar_configuration, vertical: true });
+			this.verticalScrollbar = new GenericScrollBar(this.controlled_element, { ...this.params.barConfiguration, vertical: true });
 			this.div.appendChild(this.verticalScrollbar.div);
-			if (isIE11()) {
+			if (GenericScrollBarAdder.isIE11()) {
 				this.verticalScrollbar.div.style.setProperty("-ms-grid-row", "1");
 				this.verticalScrollbar.div.style.setProperty("-ms-grid-column", "2");
 			}
 		}
 		if (this.horizontal) {
-			this.horizontalScrollbar = new GenericScrollBar(this.controlled_element,  { ...this.bar_configuration, vertical: false });
+			this.horizontalScrollbar = new GenericScrollBar(this.controlled_element,  { ...this.params.barConfiguration, vertical: false });
 			this.div.appendChild(this.horizontalScrollbar.div);
-			if (isIE11()) {
+			if (GenericScrollBarAdder.isIE11()) {
 				this.horizontalScrollbar.div.style.setProperty("-ms-grid-row", "2");
 				this.horizontalScrollbar.div.style.setProperty("-ms-grid-column", "1");
 			}
 		}
 	}
-
-	_onButtonMinusClick()
-	{
-		console.log("Button minus clicked");
-	}
-
-	_onButtonPlusClick()
-	{
-		console.log("Button plus clicked");
-	}
-
-	// Table to convert public configuration keys to internal members.
-	// (Yes, I am too lazy to rename all the public keys to match the internal ones).
-	static config_to_members = {
-		barConfiguration: "bar_configuration",
-		vertical: "vertical",
-		horizontal: "horizontal",	
-	};
 
 	constructor(controlledElementOrId, params)
 	{
@@ -603,20 +586,15 @@ class GenericScrollBarAdder {
 		}
 
 		// Apply defaults, overwrite with actual parameters
-		this.configuration = { ...GENERICSCROLLBARADDER_DEFAULTS, ...params };
+		this.params = { ...GENERICSCROLLBARADDER_DEFAULTS, ...params };
 
 		this.controlled_element_or_id = controlledElementOrId;
-
-		// Convert public configuration keys to internal members.
-		for (let key in this.configuration) {
-			if (GenericScrollBarAdder.config_to_members[key]) {
-				this[GenericScrollBarAdder.config_to_members[key]] = this.configuration[key];
-			}
-		}
 		
-		this.bar_configuration.size = Number(this.bar_configuration.size);
-		this.bar_configuration.buttonSize = Number(this.bar_configuration.buttonSize);
-		this.bar_configuration.separatorSize = Number(this.bar_configuration.separatorSize);
+		this.params.barConfiguration.size = Number(this.params.barConfiguration.size);
+		this.params.barConfiguration.buttonSize = Number(this.params.barConfiguration.buttonSize);
+		this.params.barConfiguration.separatorSize = Number(this.params.barConfiguration.separatorSize);
+		this.vertical = this.params.vertical;
+		this.horizontal = this.params.horizontal;
 		if (this.vertical == "on") {
 			this.vertical = true;
 		}

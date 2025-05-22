@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>xwterm / AnsiTerm: Class: AnsiTermDecoration</title>
+    <title>xwterm / AnsiTerm: Class: AnsiTermHistory</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Class: AnsiTermDecoration</h1>
+    <h1 class="page-title">Class: AnsiTermHistory</h1>
 
     
 
@@ -28,12 +28,19 @@
 
 <header>
     
-        <h2><span class="attribs"><span class="type-signature"></span></span>AnsiTermDecoration<span class="signature">(term, canvas, params)</span><span class="type-signature"></span></h2>
+        <h2><span class="attribs"><span class="type-signature"></span></span>AnsiTermHistory<span class="signature">(nLines, nColumns, historySize)</span><span class="type-signature"></span></h2>
         
-            <div class="class-description"><p>The AnsiTermDecoration class is an auxiliary class used by AnsiTerm
-to implement its default decoration.
-It is responsible for creating the title bar, the status bar, and
-the soft keyboard.</p></div>
+            <div class="class-description"><p>The AnsiTermHistory class is used to manage both the screen and the history
+of the terminal as a single array of lines.
+It keeps track of the visual lines and their attributes, and
+their relation to the logical lines.
+Visual lines are collected in reverse order, so that the last line
+in the screen (i.e., the bottom line) takes the index 0 in the array.
+Lines beyond the top of the screen contain the history of the terminal.
+To ease the access to the screen cells in the natural order (top to bottom),
+a pair of screen matrices is used, one for the primary screen and one for the alternate screen.
+The rows of the first matrix map the first &quot;nLines&quot; lines in the array
+from top (y=0) to bottom (y=nLines-1).</p></div>
         
     
 </header>
@@ -48,7 +55,7 @@ the soft keyboard.</p></div>
     
 
     
-    <h4 class="name" id="AnsiTermDecoration"><span class="type-signature"></span>new AnsiTermDecoration<span class="signature">(term, canvas, params)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="AnsiTermHistory"><span class="type-signature"></span>new AnsiTermHistory<span class="signature">(nLines, nColumns, historySize)</span><span class="type-signature"></span></h4>
     
 
     
@@ -88,13 +95,13 @@ the soft keyboard.</p></div>
 
         <tr>
             
-                <td class="name"><code>term</code></td>
+                <td class="name"><code>nLines</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type"><a href="AnsiTerm.html">AnsiTerm</a></span>
+<span class="param-type">number</span>
 
 
             
@@ -104,20 +111,20 @@ the soft keyboard.</p></div>
 
             
 
-            <td class="description last"><p>The AnsiTerm instance to decorate.</p></td>
+            <td class="description last"><p>The number of lines in the terminal.</p></td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>canvas</code></td>
+                <td class="name"><code>nColumns</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">HTMLCanvasElement</span>
+<span class="param-type">number</span>
 
 
             
@@ -127,20 +134,20 @@ the soft keyboard.</p></div>
 
             
 
-            <td class="description last"><p>The canvas element to use for the terminal.</p></td>
+            <td class="description last"><p>The number of columns in the terminal.</p></td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>params</code></td>
+                <td class="name"><code>historySize</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">Object</span>
+<span class="param-type">number</span>
 
 
             
@@ -150,8 +157,7 @@ the soft keyboard.</p></div>
 
             
 
-            <td class="description last"><p>Configuration parameters for the decoration. For a full list of parameters,
-see <code>ANSITERM_DEFAULTS</code> and <a href="AnsiTerm.html"><code>AnsiTerm</code></a>.</p></td>
+            <td class="description last"><p>The size of the history buffer.</p></td>
         </tr>
 
     
@@ -192,7 +198,7 @@ see <code>ANSITERM_DEFAULTS</code> and <a href="AnsiTerm.html"><code>AnsiTerm</c
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line588">line 588</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line999">line 999</a>
     </li></ul></dd>
     
 
@@ -233,7 +239,7 @@ see <code>ANSITERM_DEFAULTS</code> and <a href="AnsiTerm.html"><code>AnsiTerm</c
         <h3 class="subsection-title">Classes</h3>
 
         <dl>
-            <dt><a href="AnsiTermDecoration.html">AnsiTermDecoration</a></dt>
+            <dt><a href="AnsiTermHistory.html">AnsiTermHistory</a></dt>
             <dd></dd>
         </dl>
     
@@ -255,7 +261,7 @@ see <code>ANSITERM_DEFAULTS</code> and <a href="AnsiTerm.html"><code>AnsiTerm</c
     
 
     
-    <h4 class="name" id="close"><span class="type-signature"></span>close<span class="signature">()</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="reset"><span class="type-signature"></span>reset<span class="signature">()</span><span class="type-signature"> &rarr; {void}</span></h4>
     
 
     
@@ -263,7 +269,10 @@ see <code>ANSITERM_DEFAULTS</code> and <a href="AnsiTerm.html"><code>AnsiTerm</c
 
 
 <div class="description">
-    <p>This method closes (deletes) the terminal's decorations.</p>
+    <p>Resets screen buffers to their initial state.</p>
+<p>This method clears and reinitializes the primary and alternate screen buffers.
+It also resets the logical line tracking information and the logline_start pointer.
+History (i.e. the non-screen) part of the line collection is left unchanged.</p>
 </div>
 
 
@@ -307,7 +316,7 @@ see <code>ANSITERM_DEFAULTS</code> and <a href="AnsiTerm.html"><code>AnsiTerm</c
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line961">line 961</a>
+        <a href="xwterm.js.html">xwterm.js</a>, <a href="xwterm.js.html#line1031">line 1031</a>
     </li></ul></dd>
     
 
@@ -332,6 +341,24 @@ see <code>ANSITERM_DEFAULTS</code> and <a href="AnsiTerm.html"><code>AnsiTerm</c
 
 
 
+<h5>Returns:</h5>
+
+        
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">void</span>
+
+
+    </dd>
+</dl>
+
+    
 
 
 

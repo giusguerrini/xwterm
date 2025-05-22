@@ -26,7 +26,7 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>const ANSITERM_VERSION = "0.21.1";
+            <pre class="prettyprint source linenums"><code>const ANSITERM_VERSION = "0.22.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -108,9 +108,54 @@
  * @class
  */
 class AnsiTermGenericScrollBar {
-	
+	 			
+	static vertical_mutable_properties = {
+		motion_coord: "clientY",
+		min_coord_side: "top",
+		motion_limit: "clientHeight",
+		motion_size: "height",
+		fixed_size: "width",
+		fixed_limit: "clientWidth",
+		min_fixed_limit: "minWidth",
+		ms_grid_single: "-ms-grid-columns",
+		ms_grid_multi: "-ms-grid-rows",
+		ms_grid_single_pos: "-ms-grid-column",
+		ms_grid_multi_pos: "-ms-grid-row",
+		grid_single: "gridTemplateColumns",
+		grid_multi: "gridTemplateRows",
+		separator_width: "borderLeftWidth",
+		separator_style: "borderLeftStyle",
+		scroll_size: "scrollHeight",
+		scroll_limit: "scrollTop",
+		scroll_overflow: 'overflowY',
+	};
+
+	static horizontal_mutable_properties =  {
+		motion_coord: "clientX",
+		min_coord_side: "left",
+		motion_limit: "clientWidth",
+		motion_size: "width",
+		fixed_size: "height",
+		fixed_limit: "clientHeight",
+		min_fixed_limit: "minHeight",
+		ms_grid_single: "-ms-grid-rows",
+		ms_grid_multi: "-ms-grid-columns",
+		ms_grid_single_pos: "-ms-grid-row",
+		ms_grid_multi_pos: "-ms-grid-column",
+		grid_single: "gridTemplateRows",
+		grid_multi: "gridTemplateColumns",
+		separator_width: "borderTopWidth",
+		separator_style: "borderTopStyle",
+		scroll_size: "scrollWidth",
+		scroll_limit: "scrollLeft",
+		scroll_overflow: 'overflowX',
+	};
+
+
 	_layout()
 	{
+		const m = this.mutable_properties;
+
 		this.div = null;
 		this.div_spacer = null;
 		this.div_scroll = null;
@@ -121,9 +166,9 @@ class AnsiTermGenericScrollBar {
 		this.div_scroll = document.createElement("div");
 		this.div_scroll.style.display = 'inline-block';
 		this.div_scroll.style.position = 'relative';
-		this.div_scroll.style.overflowY = 'scroll';
+		this.div_scroll.style[m.scroll_overflow] = 'scroll';
 		// Temporary, timeout callback will be used to set the actual size
-		this.div_scroll.style.height = this.controlled_element.clientHeight + 'px';
+		this.div_scroll.style[m.motion_size] = this.controlled_element[m.motion_limit] + 'px';
 		this.div_scroll.style.boxSizing = 'border-box';
 
 		this.div_spacer = document.createElement("div");
@@ -131,9 +176,9 @@ class AnsiTermGenericScrollBar {
 		this.div_spacer.style.margin = 0;
 		this.div_spacer.style.padding = 0;
 		this.div_spacer.style.backgroundColor = 'transparent';
-		this.div_spacer.style.width = '1px';
+		this.div_spacer.style[m.fixed_size] = '1px';
 		// Temporary, timeout callback will be used to set the actual size
-		this.div_spacer.style.height = this.controlled_element.clientHeight + 'px';
+		this.div_spacer.style[m.motion_size] = this.controlled_element[m.motion_limit] + 'px';
 		//this.div_spacer.style.display = 'inline-block';
 		this.div_spacer.style.position = 'absolute';
 		this.div_spacer.style.top = 0;
@@ -146,10 +191,12 @@ class AnsiTermGenericScrollBar {
 		this.div.style.margin = style.margin;
 		this.div.style.padding = style.padding;
 		//this.div.style.width = (this.controlled_element.width + 20) + "px";
-		this.div.style.height = this.controlled_element.height + "px";
+		this.div.style[m.motion_size] = this.controlled_element[m.motion_size] + "px";
+/*		
 		if (this.controlled_element.parentNode) {
 			this.controlled_element.parentNode.replaceChild(this.div, this.controlled_element);
 		}
+			*/
 		this.controlled_element.style.border = "none";
 		this.controlled_element.style.borderRadius = "0";
 		this.controlled_element.style.margin = "0";
@@ -158,18 +205,18 @@ class AnsiTermGenericScrollBar {
 		//this.controlled_element.style.position = 'absolute';
 		//this.controlled_element.style.top = 0;
 		//this.controlled_element.style.left = 0;
-		this.div.appendChild(this.controlled_element);
+		//this.div.appendChild(this.controlled_element);
 		this.div.appendChild(this.div_scroll);
 
 		
 		// Hack to force scrollbar to be visibleon Firefox
-		if (this.div_scroll.clientWidth == 0) {
-			this.div_scroll.style.minWidth = '10px';
+		if (this.div_scroll[m.fixed_limit] == 0) {
+			this.div_scroll.style[m.min_fixed_limit] = '10px';
 		}
 		
 
-		this.scroll_area = this.div_scroll.clientHeight;
-		this.div_spacer.style.height = this.scroll_area + 'px';
+		this.scroll_area = this.div_scroll[m.fixed_limit];
+		this.div_spacer.style[m.motion_size] = this.scroll_area + 'px';
 
 	
 		// This would adjust the height in case the container,s geometry hasn't been calculated yet,
@@ -183,7 +230,7 @@ class AnsiTermGenericScrollBar {
 		this.div_scroll.addEventListener('scroll', (ev) => {
 			let el = ev.target;
 			
-			let motion_limit = (this.div_scroll.scrollHeight - this.div_scroll.clientHeight);
+			let motion_limit = (this.div_scroll[m.scroll_size] - this.div_scroll[m.motion_limit]);
 			if (motion_limit &lt;= 0) {
 				return;
 			}
@@ -208,14 +255,19 @@ class AnsiTermGenericScrollBar {
 		});
 	}
 
-	constructor(element, params)
+	constructor(element, vertical)
 	{
-		this.controlled_element = element;
-		this.min_value = 0;
+		this.vertical = vertical;
+		this.mutable_properties = this.vertical
+	                            ? AnsiTermGenericScrollBar.vertical_mutable_properties
+		                        : AnsiTermGenericScrollBar.horizontal_mutable_properties;
+		this.controlled_element = element;		
 		this.min_value = 0;
 		this.curr_value = 0;
+		this.max_value = 0;
 		this.visible_range_size = 0;
-		this.on_change = null;
+		this.on_change = [];
+		this.on_new_position = [];
 
 		this._layout();
 	}
@@ -224,19 +276,20 @@ class AnsiTermGenericScrollBar {
 	{
 		if (this.max_value > this.min_value) {
 			if (this.visible_range_size > 0) {
+				const m = this.mutable_properties;
 				
 				// Last-minute adjustment, see comment in _layout().
-				if (parseInt(this.div_spacer.style.height) == 0) {
-					this.div_scroll.style.height = this.controlled_element.clientHeight + 'px';
-					this.div_spacer.style.height = this.controlled_element.clientHeight + 'px';
+				if (parseInt(this.div_spacer.style[m.motion_size]) == 0) {
+					this.div_scroll.style[m.motion_size] = this.controlled_element[m.motion_limit] + 'px';
+					this.div_spacer.style[m.motion_size] = this.controlled_element[m.motion_limit] + 'px';
 				}
 
 				let l = (this.max_value - this.min_value + this.visible_range_size) / this.visible_range_size;
-				let s = this.controlled_element.height * l;
-				this.div_spacer.style.height = Math.floor(s - 0.5) + 'px';
+				let s = this.controlled_element[m.motion_size] * l;
+				this.div_spacer.style[m.motion_size] = Math.floor(s - 0.5) + 'px';
 				//let v = Math.floor(((this.curr_value - this.min_value) / (this.max_value - this.min_value)) * this._motion_limit() + 0.5);
-				let v = Math.floor(((this.curr_value - this.min_value) / (this.max_value - this.min_value)) * this.div_scroll.scrollHeight + 0.5);
-				this.div_scroll.scrollTop = v;
+				let v = Math.floor(((this.curr_value - this.min_value) / (this.max_value - this.min_value)) * this.div_scroll[m.scroll_size] + 0.5);
+				this.div_scroll[m.scroll_limit] = v;
 			}
 		}
 	}
@@ -290,20 +343,146 @@ class AnsiTermGenericScrollBar {
  * At the moment, it only vertical scrollbar is implemented.
  * @class
  */
-class AnsiTermGenericScrollBarAdder {
-
-	constructor(element, params)
+class AnsiTermGenericScrollBarAdder
+{
+	static isIE11()
 	{
-		this.controlled_element = element;
-		this.params = params;
-		this.horizintalScrollbar = null;
-		this.verticalScrollbar = null;
-		this._layout();
+		return !!window.MSInputMethodContext &amp;&amp; !!document.documentMode;
 	}
 
 	_layout()
 	{
-		this.verticalScrollbar = new AnsiTermGenericScrollBar(this.controlled_element, this.params);
+		this.div = null;
+		if (typeof this.controlled_element_or_id == 'string') {
+			this.controlled_element = document.getElementById(this.controlled_element_or_id);
+		}
+		else {
+			this.controlled_element = this.controlled_element_or_id;
+		}
+
+		this.div = document.createElement("div");
+		this.div.classList.add("generic-scrollbar");
+		if (AnsiTermGenericScrollBarAdder.isIE11()) {
+			/*
+			let bsz = 0; 
+			this.div.style.width = this.controlled_element.clientWidth
+				+ (this.vertical ? bsz : 0)
+			    + "px";
+			this.div.style.height = this.controlled_element.clientHeight
+				+ (this.horizontal ? bsz : 0)
+			    + "px";
+				*/
+			this.div.style.display = "-ms-grid";
+		}
+		else {
+			this.div.style.width = "max-content";
+			this.div.style.display = "grid";
+		}
+		let style = window.getComputedStyle(this.controlled_element);
+		this.div.style.border = style.border;
+		this.div.style.margin = style.margin;
+		this.div.style.padding = style.padding;	
+		let key1 = [ "", "Top", "Bottom", "Left", "Right" ];
+		let key2 = [ "Color", "LeftRadius", "RightRadius", "Style", "Width",
+			     "Collapse", "Image", "ImageOutset", "ImageRepeat", "ImageSlice",
+			     "ImageSource", "ImageWidth" ];
+		for (let i = 0; i &lt; key1.length; ++i) {
+			for (let j = 0; j &lt; key2.length; ++j) {
+				let prop = "border" + key1[i] + key2[j];
+				try {
+					this.div.style[prop] = style[prop];
+				} catch {
+				}
+			}
+		}
+		let key3 = [ "Top", "Bottom", "Left", "Right",
+			         "Block", "BlockStart", "BlockEnd",
+					 "Inline", "InlineStart", "InlineEnd" ];
+		for (let i = 0; i &lt; key1.length; ++i) {
+			let prop = "padding" + key3[i];
+			try {
+				this.div.style[prop] = style[prop];
+			} catch {
+			}
+		}
+		if (this.vertical) {
+			this.div.style.gridTemplateColumns = "auto auto";
+		}
+		else {
+			this.div.style.gridTemplateColumns = "auto";
+		}
+		this.width = this.controlled_element.clientWidth;
+		this.height = this.controlled_element.clientHeight;
+
+		if (this.controlled_element) {
+			this.controlled_element.parentNode.replaceChild(this.div, this.controlled_element);
+			this.div.appendChild(this.controlled_element);
+			this.controlled_element.style.border = "none";
+			this.controlled_element.style.borderRadius = "0";
+			this.controlled_element.style.margin = "0";
+		}
+		if (AnsiTermGenericScrollBarAdder.isIE11()) {
+			this.controlled_element.style.setProperty("-ms-grid-column", "1");
+			this.controlled_element.style.setProperty("-ms-grid-row", "1");
+		}
+		if (this.vertical) {
+			this.verticalScrollbar = new AnsiTermGenericScrollBar(this.controlled_element, true);
+			this.div.appendChild(this.verticalScrollbar.div);
+			if (AnsiTermGenericScrollBarAdder.isIE11()) {
+				this.verticalScrollbar.div.style.setProperty("-ms-grid-row", "1");
+				this.verticalScrollbar.div.style.setProperty("-ms-grid-column", "2");
+			}
+		}
+		if (this.horizontal) {
+			this.horizontalScrollbar = new AnsiTermGenericScrollBar(this.controlled_element, false);
+			this.div.appendChild(this.horizontalScrollbar.div);
+			if (AnsiTermGenericScrollBarAdder.isIE11()) {
+				this.horizontalScrollbar.div.style.setProperty("-ms-grid-row", "2");
+				this.horizontalScrollbar.div.style.setProperty("-ms-grid-column", "1");
+			}
+		}
+	}
+
+	constructor(controlledElementOrId, params)
+	{
+		// Contructor's parameters and their defaut values:
+
+		// Some handy conventions:
+		// no parameters: apply defaults, create a new terminal in a new div.
+		// string parameter: apply defaults, create a new terminal in the div with the given id.
+		if (! params) {
+			params = "";
+		}
+		if (typeof params == 'string') {
+			params = {  };
+		}
+
+		// Apply defaults, overwrite with actual parameters
+		//this.params = { ...GENERICSCROLLBARADDER_DEFAULTS, ...params };
+		this.params = params;
+
+		this.controlled_element_or_id = controlledElementOrId;
+		/*
+		this.params.barConfiguration.size = Number(this.params.barConfiguration.size);
+		this.params.barConfiguration.buttonSize = Number(this.params.barConfiguration.buttonSize);
+		this.params.barConfiguration.separatorSize = Number(this.params.barConfiguration.separatorSize);
+		*/
+		this.vertical = this.params.vertical;
+		this.horizontal = this.params.horizontal;
+		if (this.vertical == "on") {
+			this.vertical = true;
+		}
+		if (this.horizontal == "on") {
+			this.horizontal = true;
+		}
+		if (this.vertical == "off") {
+			this.vertical = false;
+		}
+		if (this.horizontal == "off") {
+			this.horizontal = false;
+		}
+
+		this._layout();
 	}
 }
 
@@ -325,7 +504,7 @@ const ANSITERM_DEFAULTS = {
 	statusFont:  "Helvetica bold", //"Arial bold", // Font for the status line and the title.
 	
 	// Custom layout control:
-	containerId: "", // Id of the container in which the while terminal, incuding its main div,
+	containerId: "", // Id of the container in which the terminal, incuding its main div,
 	                 //  will take place. If empty, document.body is assumed as container.
 	canvasId:  "", // Id of the canvas element. If empty, a new canvas is created.
 	autocenter: true, // If true, the terminal takes place at center of its container.
@@ -334,7 +513,7 @@ const ANSITERM_DEFAULTS = {
 
 	channelType: "rest", // Type of transport. Possible values are:
 	// "rest" or "http": use HTTP/HTTPS GET to get characters and POST to send key and resize events.
-	//         "source", "config" and "dest" parameters configure the requests (see below).
+	//         "httpSource", "httpSize" and "httpDest" parameters configure the requests (see below).
 	// "websocket": use websocket. Data are sent and received as JSON structures.
 	//         "wsEndpoint" il the server address:port, "wsDataTag" is the name of the JSON
 	//         field containing characters (both send and received), "wsSizeTag" is the
@@ -360,7 +539,7 @@ const ANSITERM_DEFAULTS = {
 
 	// Colors and appearance:
 
-	foreground:  "rgb(224,224,224)", // Default foreground color.
+	foreground:  "rgb(229,229,229)", // Default foreground color.
 	background:  "rgb(0,0,0)", // Default background color.
 	statusForegroundOk:  "rgb(0,32,0)", // Status line foreground color when status is OK.
 	statusBackgroundOk:  "rgb(160,192,160)", // Status line background color when status is OK.
@@ -434,7 +613,8 @@ function encodeHtml(html)
  * see {@link ANSITERM_DEFAULTS} and {@link AnsiTerm}.
  */
 
-export class AnsiTermDecoration {
+export class AnsiTermDecoration
+{
 
 	_update_status_element(el, ok, text_ok, text_ko)
 	{
@@ -824,6 +1004,176 @@ export class AnsiTermDecoration {
 	}
 }
 
+/**
+ * The AnsiTermHistory class is used to manage both the screen and the history
+ * of the terminal as a single array of lines.
+ * It keeps track of the visual lines and their attributes, and
+ * their relation to the logical lines.
+ * Visual lines are collected in reverse order, so that the last line
+ * in the screen (i.e., the bottom line) takes the index 0 in the array.
+ * Lines beyond the top of the screen contain the history of the terminal.
+ * To ease the access to the screen cells in the natural order (top to bottom),
+ * a pair of screen matrices is used, one for the primary screen and one for the alternate screen.
+ * The rows of the first matrix map the first "nLines" lines in the array
+ * from top (y=0) to bottom (y=nLines-1).
+ * 
+ * @class
+ * @param {number} nLines - The number of lines in the terminal.
+ * @param {number} nColumns - The number of columns in the terminal.
+ * @param {number} historySize - The size of the history buffer.
+ * @patam {object} empty_cell - The empty cell object, whose content is used to initialize the cells.
+ */
+
+export class AnsiTermHistory
+{
+	constructor(nLines, nColumns, historySize, empty_cell)
+	{
+		this.nColumns = nColumns;
+		this.nLines = nLines;
+		this.historySize = historySize;
+		this.history = [];
+		this.length = nLines;
+		this.size = historySize + nLines;
+		this.logline_start = 0;
+		this.screens = [ [], [] ];
+		this.history = [];
+		this.max_ncolumns = nColumns;
+		this.max_nlines = nLines;
+		this.loglines = [];
+		this.base_index = 0;
+		this.alternate_screen = false;
+		this.empty_cell = empty_cell;
+		this.reset();
+	}
+	
+/**
+ * Resets screen buffers to their initial state.
+ * 
+ * This method clears and reinitializes the primary and alternate screen buffers.
+ * It also resets the logical line tracking information and the logline_start pointer.
+ * History (i.e. the non-screen) part of the line collection is left unchanged.
+ * 
+ * @returns {void}
+ */
+
+	reset()
+	{
+		this.base_index = this.historySize;
+
+		for (let i = 0; i &lt; this.size; ++i) {
+			let t = [];
+			for (let j = 0; j &lt; this.nColumns; ++j) {
+				t[j] = { ...this.empty_cell };
+			} 	
+			this.history[i] = { t: t, l: { span: 0, len: 0, cont: false } };
+		}
+
+		this.screens = [ [], [] ];
+		for (let i = 0; i &lt; this.nLines; ++i) {
+			this.screens[0][i] = this.history[this.base_index + this.nLines - i - 1].t;
+			this.screens[1][i] = [];
+			for (let j = 0; j &lt; this.nColumns; ++j) {
+				this.screens[1][i][j] = { ...this.empty_cell };	
+			} 	
+		}
+		this.logline_start = 0;
+	}
+
+	getLine(y)
+	{
+		y = this.nLines - y - 1;
+		if (y >= this.length || y &lt; 0) {	
+			console.log(y);
+		}
+		let i = (((y >= this.length) ? this.length - 1 : y) + this.base_index + this.size) % this.size;
+		return this.history[i].t;
+	}
+
+	//
+	// Logical line manager.
+	//
+	// The following code keeps track of logical lines and their
+	// relation to the screen lines.
+	// Screen lines are the lines of text as they are actually displayed
+	// according to the current screen column number. Logical lines are sequences
+	// of characters delimited by CR/LF, as received by the backend logic (e.g., a command shell).
+	// Logical lines are described in terms of their first character’s position
+	// in the screen/history buffers and their number of characters.
+	// A logical line may generally span multiple contiguous screen lines.
+	// Tracking logical lines is important for the implementation of the "resize" function,
+	// because when the screen is tightened or expanded, screen lines must preserve
+	// the identity of the underlying logical lines. The same principle applies
+	// to the scroll region (TODO).
+	// If a logical line's length is less than or equal to the screen width, it is
+	// displayed on a single screen line. If the logical line's length is greater than
+	// the screen width, it is displayed on multiple screen lines. In this case,
+	// the first screen line of the logical line is the one that contains the first character.
+	// Logical lines always start at the beginning of a screen line.
+	// Note that screen lines are not necessarily the same as the lines
+	// in the screen buffer. In particular, the tracking mechanism
+	// applies only to the primary screen, but not to the alternate one.
+	// Although this is not perfect, it is good enough in practice because
+	// the typical usage of the alternate screen is to display dynamic content
+	// or graphics. Applications that use the alternate screen (e.g., vim, mc, htop...)
+	// implement their own complete screen resize logic. Moreover, retrieving
+	// the history of the alternate screen is not expected, so the tracking
+	// mechanism is not needed.
+	//
+
+	startLogicalLine(y)
+	{
+		this.logline_start = y;
+		y = this.nLines - y - 1;
+		this.history[y].l = { span: 0, len: 0, cont: false, };
+	}
+
+	completeLogicalLine(x, y)
+	{
+		let span = y - this.logline_start;
+		if (span &lt; 0) {
+			span = -span;
+			this.logline_start = y;
+		}
+		let l = { span: span, len: x + span * this.nColumns, cont: false, };
+		for (let i = 0; i &lt;= span; ++i) {
+			this.history[this.nLines - (this.logline_start + i) - 1].l = l;
+			if (l.span == 0) {
+				// Optimization
+				break;
+			}
+			l = { span: l.span - 1, len: l.len - this.nColumns, cont: true, };
+		}
+		this.startLogicalLine(y);
+	}
+
+	update()
+	{
+		let rotate = true; // (this.history.length >= this.size);
+
+		if (rotate) {
+			this.base_index = (this.base_index + this.size - 1) % this.size;
+			for (let i = 0; i &lt; this.nLines; ++i) {
+				this.screens[0][this.nLines - i - 1] = this.history[(this.base_index + i) % this.size].t;
+			}
+			if (this.length &lt; this.size) {
+				++this.length;
+			}
+		}
+		else {
+
+			let e = { t: {...this.history[this.nLines - 1].t }, l: {...this.history[this.nLines - 1].l }};
+			this.history.splice(this.nLines, 0,  e);
+			for (let i = this.nLines - 1; i > 0; --i) {
+				this.history[i].l = this.history[i - 1].l;
+			}
+			this.history[0].l = { span: 0, len: 0, cont: false };
+
+			this.length = this.history.length;
+		}
+
+		return rotate;
+	}
+}
 
 
 /**
@@ -857,7 +1207,7 @@ export class AnsiTermDecoration {
  * @param {string} [params.wsDataTag=""] - WebSocket data tag for the terminal.
  * @param {string} [params.wsSizeTag=""] - WebSocket size tag for the terminal.
  * @param {string} [params.wsSizeData=""] - WebSocket size data for the terminal.
- * @param {string} [params.foreground="rgb(255,255,255)"] - Default foreground color.
+ * @param {string} [params.foreground="rgb(229,229,229)"] - Default foreground color.
  * @param {string} [params.background="rgb(0,0,0)"] - Default background color.
  * @param {string} [params.statusForegroundOk="rgb(0,255,0)"] - Status bar foreground color for OK status.
  * @param {string} [params.statusBackgroundOk="rgb(0,128,0)"] - Status bar background color for OK status.
@@ -989,15 +1339,8 @@ export class AnsiTerm {
 		this.gc.fillRect(0,0,this.gc.canvas.width,this.gc.canvas.height);
 		this.gc.fillStyle = this.params.foreground;
 
-		this.screens = [[],[]];
-		for (let i = 0; i &lt; this.params.nLines; ++i) {
-			this.screens[0][i] = [];
-			this.screens[1][i] = [];
-			for (let j = 0; j &lt; this.params.nColumns; ++j) {
-				this.screens[0][i][j] = {};
-				this.screens[1][i][j] = {};	
-			} 	
-		}
+		this.history.reset();
+		this.screens = this.history.screens;
 		this.scr_background = [ this.params.background, this.params.background ];
 		this.scr_foreground = [ this.params.foreground, this.params.foreground ];
 		this.screen = this.screens[0];
@@ -1135,13 +1478,7 @@ export class AnsiTerm {
 				"\x0A": () => { this._newline(); },
 				"\x0B": () => { this._newline(); }, // VT, but "treated as LF", they say
 				"\x0C": () => { this._newline(); }, // FF, but "treated as LF", they say
-				"\x0D": () => {
-						this._flush();
-						// As in "_nextline", we must peserve the line wrap state.
-						let save_line_wrap = this.line_wrap;
-						this._setpos(0, this.posy);
-						this.line_wrap = save_line_wrap;
-				},
+				"\x0D": () => { this._cr(); },
 				"\x0E": () => { this._init(); }, // SO
 				"\x0F": () => { this._init(); }, // SI
 				"\x7F": () => { this._init(); }, // DEL
@@ -1208,7 +1545,9 @@ export class AnsiTerm {
 				"?": () => {
 					this.state = 8;
 				},
-				"@": () => { this._init(); }, // ICH	Insert the indicated # of blank characters.
+				"@": this._ti(() => {
+					this._insert_spaces(this._getarg(0,1));
+				}), // ICH	Insert the indicated # of blank characters.
 				"A": this._ti(() => {
 					this._incpos(0, -this._getarg(0, 1));
 				}), // CUU	Move cursor up the indicated # of rows.
@@ -1590,10 +1929,10 @@ export class AnsiTerm {
 		// (Almost) standard base palette.
 		// Apply configured background and foreground.
 		// TODO: make it fully configurable.
-		this.palette = [ this.params.background,    "rgb(192,0,0)",   "rgb(0,192,0)",   "rgb(160,160,0)",
-		                 "rgb(65,65,192)",  "rgb(160,0,160)", "rgb(0,128,160)", this.params.foreground,
-		                 "rgb(65,65,65)", "rgb(255,0,0)",   "rgb(0,255,0)",   "rgb(255,255,0)",
-		                 "rgb(65,65,255)",  "rgb(255,0,255)", "rgb(0,128,255)", "rgb(255,255,255)" ];
+		this.palette = [ this.params.background,    "rgb(205,0,0)",   "rgb(0,205,0)",   "rgb(205,205,0)",
+		                 "rgb(16,16,238)",  "rgb(205,0,205)", "rgb(0,205,205)", this.params.foreground,
+		                 "rgb(127,127,127)", "rgb(255,0,0)",   "rgb(0,255,0)",   "rgb(255,255,0)",
+		                 "rgb(92,92,255)",  "rgb(255,0,255)", "rgb(0,255,255)", "rgb(255,255,255)" ];
 
 	
 		//////////////////////////////
@@ -1734,8 +2073,8 @@ export class AnsiTerm {
 		this.width = this.charwidth * this.params.nColumns;
 		this.height = this.charheight * this.params.nLines;
 
-		console.log("charwidth = " + this.charwidth + " nColumns = " + this.params.nColumns);
-		console.log("charheight = " + this.charheight + " nLines = " + this.params.nLines);
+		//console.log("charwidth = " + this.charwidth + " nColumns = " + this.params.nColumns);
+		//console.log("charheight = " + this.charheight + " nLines = " + this.params.nLines);
 
 		//this.gc.canvas.width = this.width;
 		//this.gc.canvas.height = this.height;
@@ -1746,7 +2085,7 @@ export class AnsiTerm {
 		this.gc.textBaseline = "bottom";
 
 
-		// SCrollbar management
+		// Scrollbar management
 
 		if ((typeof window.GenericScrollBarAdder === 'undefined')
 		 &amp;&amp; (typeof AnsiTermGenericScrollBarAdder === 'undefined')) {
@@ -1919,7 +2258,6 @@ export class AnsiTerm {
 		this.params.blinkPeriod = 500;
 		this.enable_cursor = true;
 		this.force_blink_cursor = true;
-		this.line_wrap = false;
 
 		this.status_ok = -1; // It means "not defined"
 
@@ -1941,7 +2279,18 @@ export class AnsiTerm {
 		this.fullfont = this.params.fontSize.toString() + "px " + this.params.font;
 		this.status_fullfont = /* this.params.fontSize.toString() + "px " + */ this.params.statusFont;
 
-		this.history = [];
+		this.empty_cell = {
+			ch: " ",
+			background: this.params.background, // this.palette[0],
+			foreground: this.params.foreground, // this.palette[7],
+			blink: false,
+			reverse: false,
+			bold: false,
+			italic: false,
+			underline: false,
+		};
+
+		this.history = new AnsiTermHistory(this.params.nLines, this.params.nColumns, this.params.historySize, this.empty_cell);
 		this.viewpoint = 0;
 
 		// Create elements and layout.
@@ -2074,18 +2423,17 @@ export class AnsiTerm {
 			// TODO: optimize
 			for (let i = 0; i &lt; this.pending_text.length; ++i) {
 
-				if (true) {
 			/* Check if we are beyond the end of the line, i.e.,
-			 the line has been filled completely. Only at this point,
-			 we synthesize a CR-LF before drawing the next character.
-			 Then, we increment the horizontal position. Note that
-			 the horizontal position may take the "impossible" value
-			 of "nColumns", while its "normal" value should be 0 to
-			 "nColumns-1". This may look weird, but it is required for
-			 ANSI-xterm compliance: when the line is completely full,
-			 the cursor disappears behind the right margin.
-			 This also forces us to check for the "special value" of "posx",
-			 e.g., in cursor blink logic. */
+			the line has been filled completely. Only at this point,
+			we synthesize a CR-LF before drawing the next character.
+			Then, we increment the horizontal position. Note that
+			the horizontal position may take the "impossible" value
+			of "nColumns", while its "normal" value should be 0 to
+			"nColumns-1". This may look weird, but it is required for
+			ANSI-xterm compliance: when the line is completely full,
+			the cursor disappears behind the right margin.
+			This also forces us to check for the "special value" of "posx",
+			e.g., in cursor blink logic. */
 				if (this.posx >= this.params.nColumns) {
 					this._setpos(0, this.posy);
 					this._nextline();
@@ -2096,8 +2444,8 @@ export class AnsiTerm {
 				}
 
 				/* The naive version: no "impossible" value of "posx",
-				 but a slightly different behavior that breaks some
-				 applications (e.g., the Midnight Commander's port on Windows)
+				but a slightly different behavior that breaks some
+				applications (e.g., the Midnight Commander's port on Windows)
 
 				this._printchar(this.pending_text[i]);
 				if (this.posx >= this.params.nColumns - 1) {
@@ -2108,19 +2456,6 @@ export class AnsiTerm {
 					this._incpos(1, 0);
 				}
 				*/
-			}
-			else {
-				this._printchar(this.pending_text[i]);
-				if (this.posx >= this.params.nColumns - 1) {
-					this._setpos(0, this.posy);
-					this.line_wrap = true;
-					this._nextline();
-				}
-				else {
-					this._incpos(1, 0);
-					this.line_wrap = false;
-				}	
-			}
 
 			}
 			this.pending_text = "";
@@ -2233,14 +2568,14 @@ export class AnsiTerm {
 		if (x >= this.params.nColumns) {
 			return;
 		}
-		let blink = this.screen[y][x].blink;
+		let blink = this.screen[y][x].blink; // NOTE: may be undefined!
 		this.screen[y][x] = src;
 		if (src.blink != blink) {
-			if (blink) {
-				this._remove_from_blink_list(x, y, this.blink_list);
+			if (src.blink) {
+				this._add_to_blink_list(x, y, this.blink_list);
 			}
 			else {
-				this._add_to_blink_list(x, y, this.blink_list);
+				this._remove_from_blink_list(x, y, this.blink_list);
 			}
 		}
 	}
@@ -2450,9 +2785,12 @@ export class AnsiTerm {
 
 	_line_by_index(y)
 	{
+		return this.history.getLine(y + this.viewpoint);
+		/*
 		let l = this.history.length;
 		y += this.viewpoint;
 		return (y >= 0) ? this.screen[y] : ((y &lt; -l) ? this.history[0] : this.history[l+y]);
+		*/
 	}
 
 	_redraw_box(x0, y0, width, height)
@@ -2673,9 +3011,9 @@ export class AnsiTerm {
 		// new position and the old one are the same.
 		// Another case would be the "_nextline" due to line wrap itself,
 		// but this is checked in "_nextline", not here.
-		if (x != this.posx || y != this.posy) {
-			this.line_wrap = false;
-		}
+		//if (x != this.posx || y != this.posy) {
+		//	this.line_wrap = false;
+		//}
 		this.posx = x;
 		this.posy = y
 		this.pospx = this.posx * this.charwidth;
@@ -2690,7 +3028,7 @@ export class AnsiTerm {
 		this._setpos(this.posx + dx, this.posy + dy);
 	}
 
-	_scroll_core(y_start, y_end, jump)
+	_scroll_core(y_start, y_end, jump, update_history = false)
 	{
 		if (jump == 0) {
 			return;
@@ -2740,11 +3078,12 @@ export class AnsiTerm {
 		if (pheight > 0) {
 			// Will drawImage work on overlapped areas? It looks like it does...
 
-			if (false) {
+			/*if (false) {
 				let d = this.gc.getImageData(0, py_src, this.gc.canvas.width, pheight);
 				this.gc.putImageData(d, 0, py_dest);
 			}
-			else {
+			else
+			*/{
 				this.gc.drawImage(this.canvas,
 								0, py_src, this.gc.canvas.width, pheight,
 								0, py_dest, this.gc.canvas.width, pheight);
@@ -2755,9 +3094,22 @@ export class AnsiTerm {
 		this.gc.fillRect(0, py_clr, this.gc.canvas.width, jumppx);
 		this.gc.fillStyle = this.params.foreground;
 
-		for (let y = ymove_start; (y * ymove_step) &lt; ymove_end; y += ymove_step) {
-			for (let x = 0; x &lt; this.params.nColumns; ++x) {
-				this._setcell(x, y, { ...this.screen[y + jump][x] });
+		let rotate = false;
+
+		if (update_history) {
+			// Special case (actually the most common one):
+			// scroll the whole screen and add to the history the line that is going
+			// to disappear at the top. Instead of moving the cells, we remap
+			// the screen to the history buffer. The history buffer is rotated
+			// to make room for the new line (or to recycle the oldest one).
+			rotate = this.history.update();
+		}
+		
+		if (!rotate) {
+			for (let y = ymove_start; (y * ymove_step) &lt; ymove_end; y += ymove_step) {
+				for (let x = 0; x &lt; this.params.nColumns; ++x) {
+					this._setcell(x, y, { ...this.screen[y + jump][x] });
+				}
 			}
 		}
 
@@ -2795,6 +3147,17 @@ export class AnsiTerm {
 		this._scroll_from(this.scrollregion_l);
 	}
 
+	_scroll_and_update_history()
+	{
+		// Special case of scroll: scroll the whole screen
+		// and update the history. This is obtained by rotating
+		// the history buffer and setting the new screen to the
+		// last line of the history. The screen map is updated
+		// to point to the new screen.
+		this._scroll_core(0, this.params.nLines - 1, 1, true)
+	}
+
+
 	_revscroll_from(y_start)
 	{
 		this._scroll_core(y_start, this.scrollregion_h, -1)
@@ -2820,54 +3183,45 @@ export class AnsiTerm {
 	{
 	}
 
-	_save_history()
-	{
-		if (this.history.length >= this.params.historySize) {
-			this.history.shift();
-		}
-		else {
-			this.scrollbar.verticalScrollbar.setMinValue( - this.history.length - 1);
-		}
-		let line = [];
-		for (let i = 0; i &lt; this.params.nColumns; ++i) {
-			// TODO: preserve blink state
-			line[i] = { ...this.screen[0][i] };
-		}
-		this.history.push(line);
-	}
-
 	_nextline()
 	{
-		// We must preserve the line wrap state, because "_setpos" resets it.
-		let save_line_wrap = this.line_wrap;
 		if (this.posy >= this.scrollregion_h) {
-			// If the scroll region is not set
-			// we must store the first line
-			// in the history buffer. But we must not do this only if the
-			// current screen is not the alternate screen.
-			if (! this.alternate_screen) {
-				if (this.scrollregion_l == 0 &amp;&amp; this.scrollregion_h == this.params.nLines - 1) {
-					this._save_history();
-				}
-			}
+			// The line on top of the primary screen is going to be scrolled out.
+			// We must save it in the history. We do it only if the
+			// scroll region is the whole screen, because lines lost in partial scrolls
+			// are not expected to be retrieved in the history.
+			if ((! this.alternate_screen)
+			 &amp;&amp; (this.scrollregion_l == 0 &amp;&amp; this.scrollregion_h == this.params.nLines - 1)) {
 
-			this._scroll();
+				this._scroll_and_update_history();
+				this.scrollbar.verticalScrollbar.setMinValue(this.params.nLines - this.history.length);
+			}
+			else {
+				this._scroll();
+			}
 		}
 		else {
 			this._setpos(this.posx, this.posy + 1);
 		}
-		this.line_wrap = save_line_wrap;
+	}
+
+	_cr()
+	{
+		this._flush();
+		if (! this.alternate_screen) {
+			this.history.completeLogicalLine(this.posx, this.posy);
+		}
+		this._setpos(0, this.posy);
 	}
 
 	_newline()
 	{
 		this._flush();
-		if (! this.line_wrap) {
-			// Special case: if the line has been filled exactly, the cursor is
-			// already at the beginning of the next line, so we must not move it.
- 			this._nextline();
+ 		this._nextline();
+		if (! this.alternate_screen) {
+			this.history.startLogicalLine(this.posy);
 		}
-		this.line_wrap = false;
+
 	}
 
 	_upline()
@@ -3116,6 +3470,23 @@ export class AnsiTerm {
 		let end = (a == 1) ? (x + 1) : this.params.nColumns;
 		this._erase(start, end);
 	}
+
+	_insert_spaces(n)
+	{
+		if (n + this.posx >= this.params.nColumns) {
+			n = this.params.nColumns - this.posx - 1;
+		}
+		let nm = this.params.nColumns - this.posx - n;
+
+		for (let i = nm - 1; i >= 0;  --i) {
+			this._setcell(this.posx + i + n, this.posy, { ...this.screen[this.posy][this.posx + i] });
+		}
+
+		this._redraw_box(this.posx + n, this.posy, nm, 1)
+
+		this._erase(this.posx, this.posx + n);
+	}
+
 
 	_insert_lines(n)
 	{
@@ -4539,13 +4910,13 @@ window.AnsiTermWebSocketDriver = AnsiTermWebSocketDriver;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AnsiTerm.html">AnsiTerm</a></li><li><a href="AnsiTermDecoration.html">AnsiTermDecoration</a></li><li><a href="AnsiTermDriver.html">AnsiTermDriver</a></li><li><a href="AnsiTermGenericScrollBar.html">AnsiTermGenericScrollBar</a></li><li><a href="AnsiTermGenericScrollBarAdder.html">AnsiTermGenericScrollBarAdder</a></li><li><a href="AnsiTermHttpDriver.html">AnsiTermHttpDriver</a></li><li><a href="AnsiTermWebSocketDriver.html">AnsiTermWebSocketDriver</a></li></ul><h3>Tutorials</h3><ul><li><a href="tutorial-10-basic-page.html">10-basic-page</a></li><li><a href="tutorial-40-communication-drivers.html">40-communication-drivers</a></li><li><a href="tutorial-60-coding-conventions.html">60-coding-conventions</a></li><li><a href="tutorial-90-sample-server.html">90-sample-server</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AnsiTerm.html">AnsiTerm</a></li><li><a href="AnsiTermDecoration.html">AnsiTermDecoration</a></li><li><a href="AnsiTermDriver.html">AnsiTermDriver</a></li><li><a href="AnsiTermGenericScrollBar.html">AnsiTermGenericScrollBar</a></li><li><a href="AnsiTermGenericScrollBarAdder.html">AnsiTermGenericScrollBarAdder</a></li><li><a href="AnsiTermHistory.html">AnsiTermHistory</a></li><li><a href="AnsiTermHttpDriver.html">AnsiTermHttpDriver</a></li><li><a href="AnsiTermWebSocketDriver.html">AnsiTermWebSocketDriver</a></li></ul><h3>Tutorials</h3><ul><li><a href="tutorial-10-basic-page.html">10-basic-page</a></li><li><a href="tutorial-40-communication-drivers.html">40-communication-drivers</a></li><li><a href="tutorial-60-coding-conventions.html">60-coding-conventions</a></li><li><a href="tutorial-90-sample-server.html">90-sample-server</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Sat May 10 2025 12:48:33 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Thu May 22 2025 22:57:10 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>
