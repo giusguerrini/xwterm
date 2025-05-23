@@ -1,8 +1,25 @@
 # Changelog
+## [0.23.0] - 2025-05-24
+- Added the "palette" parameter, which allows the user to choose the base 
+palette style (colors from 0 to 15). The parameter can be set to one of
+the following values:
+  - "default": the default palette is used (similar to Xterm's, but brighter),
+  - **null** (or not defined): the default palette is used, but the *background* and 
+    *foreground* parameters redefine colors *0* and *7*, respectively,
+  - "windows": the palette used by Windows 10 for its consoles,
+  - "vscode": the default palette used by Visual Studio Code,
+  - "xterm": the traditional palette used by Xterm,
+  - an array of 16 colors defined by the user.
+- Corrected the clipboard selection when the secondary screen is active.
+Now, the selection is applied to the secondary screen, that is, the screen
+currently displayed.
+- The **multi.html** example has been enhanced with the ability to choose 
+the palette and terminal dimensions.
+- 
 ## [0.22.0] - 2025-05-22
 - Unified history and screen management.
 - Added logical line tracking, in preparation for the addition of resizing.
-- Added handling for "\x1[*n*@" sequence ("insert *n* spaces"), which was
+- Added handling for "\x1B[*n*@" sequence ("insert *n* spaces"), which was
 still missing (incredibly!).
 - The base palette has been made slightly brighter.
 

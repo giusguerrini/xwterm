@@ -13,8 +13,8 @@
       <button onclick="go_back()">BACK</button>
       <button id="open-terminal" onclick="open_terminal()">NEW TERMINAL</button>
     </div>
-    <div style="display: grid; grid-templae-columns: auto; width: max-content; margin-left: 30px;">
-      <div style="display: grid; grid-template-columns: auto auto;">
+    <div style="display: grid; grid-template-columns: auto auto; width: max-content; margin-left: 30px;">
+      <div style="display: grid; grid-template-columns: auto auto; border: 2px solid black; padding: 5px; margin-left: 10px;">
         <label for="selwidth">Select Columns</label>
         <input id="selwidth" type="number" oninput="set_width()">
         <label for="selheight">Select Lines</label>
@@ -22,6 +22,28 @@
         <label for="selfont">Select Font Size</label>
         <input id="selfont" type="number" oninput="set_font()">
       </div>
+      <div style="display: grid; grid-template-columns: auto; border: 2px solid black; padding: 5px; margin-left: 10px;">
+        <div style="padding: 5px;">Select base color palette style</div>
+        <div style="display: grid; grid-template-columns: auto auto auto auto;">
+          <div style="display: grid; grid-template-columns: auto auto; border: 2px solid black; padding: 5px;">
+            <label for="option1">XWTerm (default)</label>
+            <input type="radio" id="option1" name="options" value="default" onchange="set_palette(event)" checked>
+          </div>
+          <div style="display: grid; grid-template-columns: auto auto; border: 2px solid black; padding: 5px;">
+            <label for="option2">Windows</label>
+            <input type="radio" id="option2" name="options" value="windows" onchange="set_palette(event)">
+          </div>
+          <div style="display: grid; grid-template-columns: auto auto; border: 2px solid black; padding: 5px;">
+            <label for="option3">VSCode</label>
+            <input type="radio" id="option3" name="options" value="vscode" onchange="set_palette(event)">
+          </div>
+          <div style="display: grid; grid-template-columns: auto auto; border: 2px solid black; padding: 5px;">
+            <label for="option4">Xterm</label>
+            <input type="radio" id="option4" name="options" value="xterm" onchange="set_palette(event)">
+          </div>
+        </div>
+        </div>
+    </form>
     </div>
   </div>
   <script type="module">
@@ -58,6 +80,14 @@
 	    font_size = Number(document.getElementById("selfont").value);
     }
     window.set_font = set_font;
+
+    var palette = "default";
+
+    function set_palette(e)
+    {
+        palette = e.target.value;
+    }
+    window.set_palette = set_palette;
 
     let local_clipboard = null;
 
@@ -96,6 +126,7 @@
           nLines : height,
           nColumns : width,
           fontSize : font_size,
+          palette: palette,
           autocenter: false,
           hasTitleBar: false,
           hasStatusBar: false,
@@ -110,21 +141,23 @@
           local_clipboard = t;
         });
         this.title = document.getElementById("title" + terminal_count);
+        this.title_pre = document.getElementById("ansipretitle" + terminal_count);
         this.ansi.registerOnFreezeChange((frozen, nbytes) => {
-		let pre = document.getElementById("ansipretitle" + terminal_count);
-		if (frozen) {
-			pre.style.color = "#FFFF00";
-        		this.title.style.backgroundColor = "#8080C0";
-			if (nbytes > 0) {
-				pre.innerText = "[" + terminal_count + " - " + nbytes + " bytes pending]";
-			}
-		}
-		else {
-        		pre.style.color = "#FF00FF";
-        		this.title.style.backgroundColor = "#0000FF";
-			pre.innerText = "[" + terminal_count + "]"
-		}
+          
+          if (frozen) {
+            this.title_pre.style.color = "#FFFF00";
+            this.title.style.backgroundColor = "#8080C0";
+            if (nbytes > 0) {
+              this.title_pre.innerText = "[" + terminal_count + " - " + nbytes + " bytes pending]";
+            }
+          }
+          else {
+            this.title_pre.style.color = "#FF00FF";
+            this.title.style.backgroundColor = "#0000FF";
+            this.title_pre.innerText = "[" + terminal_count + "]"
+          }
         });
+
         let tt = (f) => {
           return (e) => {
             if (this.ansititle != clicked_terminal) {
@@ -135,6 +168,7 @@
             f(e);
           };
         };
+
         let ttmd = (f) => {
           return (e) => {
             if (clicked_terminal != null) {
@@ -144,6 +178,7 @@
             (tt(f))(e);
           };
         };
+
         let md = (e) => {
           this.start_ex = e.screenX;
           this.start_ey = e.screenY;
@@ -176,8 +211,10 @@
           document.addEventListener("touchend", f2);
           document.addEventListener("touchcancel", f2);
         };
+
         this.title.addEventListener("mousedown", md)
         this.title.addEventListener("touchstart", ttmd(md));
+
         let set_focus = (e) => {
           try {
             this.terminal.style.zIndex = 20;
@@ -185,12 +222,14 @@
           } catch (e) {
           }
         };
+
         let leave_top = (e) => {
           try {
             this.terminal.style.zIndex = 10;
           } catch (e) {
           }
         };
+
         this.title.addEventListener("click", (e) => {
           set_focus(e);
         });
