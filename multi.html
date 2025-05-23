@@ -8,9 +8,43 @@
   </style>
 </head>
 <body>
-  <div>
-    <button onclick="go_back()">BACK</button>
-    <button id="open-terminal" onclick="open_terminal()">NEW TERMINAL</button>
+  <div style="display: grid; grid-template-columns: auto auto; width: max-content;">
+    <div style="display: grid; grid-template-columns: auto;">
+      <button onclick="go_back()">BACK</button>
+      <button id="open-terminal" onclick="open_terminal()">NEW TERMINAL</button>
+    </div>
+    <div style="display: grid; grid-template-columns: auto auto; width: max-content; margin-left: 30px;">
+      <div style="display: grid; grid-template-columns: auto auto; border: 2px solid black; padding: 5px; margin-left: 10px;">
+        <label for="selwidth">Select Columns</label>
+        <input id="selwidth" type="number" oninput="set_width()">
+        <label for="selheight">Select Lines</label>
+        <input id="selheight" type="number" oninput="set_height()">
+        <label for="selfont">Select Font Size</label>
+        <input id="selfont" type="number" oninput="set_font()">
+      </div>
+      <div style="display: grid; grid-template-columns: auto; border: 2px solid black; padding: 5px; margin-left: 10px;">
+        <div style="padding: 5px;">Select base color palette style</div>
+        <div style="display: grid; grid-template-columns: auto auto auto auto;">
+          <div style="display: grid; grid-template-columns: auto auto; border: 2px solid black; padding: 5px;">
+            <label for="option1">XWTerm (default)</label>
+            <input type="radio" id="option1" name="options" value="default" onchange="set_palette(event)" checked>
+          </div>
+          <div style="display: grid; grid-template-columns: auto auto; border: 2px solid black; padding: 5px;">
+            <label for="option2">Windows</label>
+            <input type="radio" id="option2" name="options" value="windows" onchange="set_palette(event)">
+          </div>
+          <div style="display: grid; grid-template-columns: auto auto; border: 2px solid black; padding: 5px;">
+            <label for="option3">VSCode</label>
+            <input type="radio" id="option3" name="options" value="vscode" onchange="set_palette(event)">
+          </div>
+          <div style="display: grid; grid-template-columns: auto auto; border: 2px solid black; padding: 5px;">
+            <label for="option4">Xterm</label>
+            <input type="radio" id="option4" name="options" value="xterm" onchange="set_palette(event)">
+          </div>
+        </div>
+        </div>
+    </form>
+    </div>
   </div>
   <script type="module">
 
@@ -18,6 +52,42 @@
     import "./xwterm.js";
     // Empty in case of locl test, JSConsole class in case of live example.
     import "./jsconsole.js";
+
+    var width = 80;
+    var height = 25;
+    var font_size = 12;
+
+    document.addEventListener("DOMContentLoaded", (e) => {
+	    document.getElementById("selwidth").value = width;
+	    document.getElementById("selheight").value = height;
+	    document.getElementById("selfont").value = font_size;
+    });
+
+    function set_width()
+    {
+	    width = Number(document.getElementById("selwidth").value);
+    }
+    window.set_width = set_width;
+
+    function set_height()
+    {
+	    height = Number(document.getElementById("selheight").value);
+    }
+    window.set_height = set_height;
+
+    function set_font()
+    {
+	    font_size = Number(document.getElementById("selfont").value);
+    }
+    window.set_font = set_font;
+
+    var palette = "default";
+
+    function set_palette(e)
+    {
+        palette = e.target.value;
+    }
+    window.set_palette = set_palette;
 
     let local_clipboard = null;
 
@@ -36,7 +106,7 @@
         this.terminal.innerHTML = `
         <div style="display: grid; grid-tamplate-columns: auto; border: 1px solid gray; margin: 0px; padding: 0px;">
           <div id="title${terminal_count}" style="align-items: center; display: grid; grid-template-columns: auto 1fr auto auto auto; border: 1px solid gray; margin: 1px; padding: 1px; background-color: #0000ff; color: #ffffff;">
-            <div style="color: #FF00FF; padding-right: 20px">[${terminal_count}]</div>
+            <div id="ansipretitle${terminal_count}" style="color: #FF00FF; padding-right: 20px">[${terminal_count}]</div>
             <div id="ansititle${terminal_count}"></div>
             <button id="copy${terminal_count}" style="border: 1px solid white; padding: 0px; margin: 0px; background-color: #ff6060; color: #ffffff; width: 30px; height: 30px; justify-self: end">C</button>
             <button id="paste${terminal_count}" style="border: 1px solid white; padding: 0px; margin: 0px; background-color: #ff6060; color: #ffffff; width: 30px; height: 30px; justify-self: end">P</button>
@@ -53,9 +123,10 @@
           driver: ((typeof JSConsole != 'undefined') ? new JSConsole() : null),
 
           containerId: "term" + terminal_count,
-          nLines : 25,
-          nColumns : 80,
-          fontSize : 12,
+          nLines : height,
+          nColumns : width,
+          fontSize : font_size,
+          palette: palette,
           autocenter: false,
           hasTitleBar: false,
           hasStatusBar: false,
@@ -70,6 +141,23 @@
           local_clipboard = t;
         });
         this.title = document.getElementById("title" + terminal_count);
+        this.title_pre = document.getElementById("ansipretitle" + terminal_count);
+        this.ansi.registerOnFreezeChange((frozen, nbytes) => {
+          
+          if (frozen) {
+            this.title_pre.style.color = "#FFFF00";
+            this.title.style.backgroundColor = "#8080C0";
+            if (nbytes > 0) {
+              this.title_pre.innerText = "[" + terminal_count + " - " + nbytes + " bytes pending]";
+            }
+          }
+          else {
+            this.title_pre.style.color = "#FF00FF";
+            this.title.style.backgroundColor = "#0000FF";
+            this.title_pre.innerText = "[" + terminal_count + "]"
+          }
+        });
+
         let tt = (f) => {
           return (e) => {
             if (this.ansititle != clicked_terminal) {
@@ -80,6 +168,7 @@
             f(e);
           };
         };
+
         let ttmd = (f) => {
           return (e) => {
             if (clicked_terminal != null) {
@@ -89,6 +178,7 @@
             (tt(f))(e);
           };
         };
+
         let md = (e) => {
           this.start_ex = e.screenX;
           this.start_ey = e.screenY;
@@ -121,8 +211,10 @@
           document.addEventListener("touchend", f2);
           document.addEventListener("touchcancel", f2);
         };
+
         this.title.addEventListener("mousedown", md)
         this.title.addEventListener("touchstart", ttmd(md));
+
         let set_focus = (e) => {
           try {
             this.terminal.style.zIndex = 20;
@@ -130,12 +222,14 @@
           } catch (e) {
           }
         };
+
         let leave_top = (e) => {
           try {
             this.terminal.style.zIndex = 10;
           } catch (e) {
           }
         };
+
         this.title.addEventListener("click", (e) => {
           set_focus(e);
         });

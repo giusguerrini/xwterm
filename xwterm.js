@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "0.22.0";
+const ANSITERM_VERSION = "0.23.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -511,6 +511,7 @@ const ANSITERM_DEFAULTS = {
 
 	// Colors and appearance:
 
+	palette: null, //"default", // Base palette (colors 0..15).
 	foreground:  "rgb(229,229,229)", // Default foreground color.
 	background:  "rgb(0,0,0)", // Default background color.
 	statusForegroundOk:  "rgb(0,32,0)", // Status line foreground color when status is OK.
@@ -1054,9 +1055,9 @@ export class AnsiTermHistory
 	getLine(y)
 	{
 		y = this.nLines - y - 1;
-		if (y >= this.length || y < 0) {	
-			console.log(y);
-		}
+		//if (y >= this.length || y < 0) {	
+		//	console.log(y);
+		//}
 		let i = (((y >= this.length) ? this.length - 1 : y) + this.base_index + this.size) % this.size;
 		return this.history[i].t;
 	}
@@ -1179,6 +1180,9 @@ export class AnsiTermHistory
  * @param {string} [params.wsDataTag=""] - WebSocket data tag for the terminal.
  * @param {string} [params.wsSizeTag=""] - WebSocket size tag for the terminal.
  * @param {string} [params.wsSizeData=""] - WebSocket size data for the terminal.
+ * @param {string} [params.palette=null] - Base pasette (colors 0...15). Possible values: "default",
+ *                                       - null (sane as "default", but takes background and foregraound parameters)
+ *                                       - "windows", "xterm", "vscode", or an array of 16 colors.
  * @param {string} [params.foreground="rgb(229,229,229)"] - Default foreground color.
  * @param {string} [params.background="rgb(0,0,0)"] - Default background color.
  * @param {string} [params.statusForegroundOk="rgb(0,255,0)"] - Status bar foreground color for OK status.
@@ -1900,12 +1904,57 @@ export class AnsiTerm {
 		//////////////////////////////
 		// (Almost) standard base palette.
 		// Apply configured background and foreground.
-		// TODO: make it fully configurable.
-		this.palette = [ this.params.background,    "rgb(205,0,0)",   "rgb(0,205,0)",   "rgb(205,205,0)",
-		                 "rgb(16,16,238)",  "rgb(205,0,205)", "rgb(0,205,205)", this.params.foreground,
-		                 "rgb(127,127,127)", "rgb(255,0,0)",   "rgb(0,255,0)",   "rgb(255,255,0)",
-		                 "rgb(92,92,255)",  "rgb(255,0,255)", "rgb(0,255,255)", "rgb(255,255,255)" ];
 
+		const predef_palettes = [
+			[ "rgb(0,0,0)",    "rgb(205,0,0)",   "rgb(0,205,0)",   "rgb(205,205,0)",
+		      "rgb(0,0,238)",  "rgb(205,0,205)", "rgb(0,205,205)", "rgb(229,229,229)",
+		      "rgb(127,127,127)", "rgb(255,0,0)",   "rgb(0,255,0)",   "rgb(255,255,0)",
+		      "rgb(92,92,255)",  "rgb(255,0,255)", "rgb(0,255,255)", "rgb(255,255,255)" ],
+
+			[ "rgb(0,0,0)",    "rgb(192,32,32)",   "rgb(0,205,0)",   "rgb(205,205,0)",
+		      "rgb(64,64,228)",  "rgb(192,32,192)", "rgb(0,205,205)", "rgb(229,229,229)",
+		      "rgb(127,127,127)", "rgb(255,0,0)",   "rgb(0,255,0)",   "rgb(255,255,0)",
+		      "rgb(92,92,255)",  "rgb(255,0,255)", "rgb(0,255,255)", "rgb(255,255,255)" ],
+
+			[ "rgb(12,12,12)",    "rgb(197,15,31)",   "rgb(19,161,14)",   "rgb(193,156,0)",
+		      "rgb(0,55,218)",  "rgb(136,23,152)", "rgb(58,150,221)", "rgb(204,204,204)",
+		      "rgb(118,118,118)", "rgb(231,72,86)",   "rgb(22,198,12)",   "rgb(249,241,165)",
+		      "rgb(59,120,255)",  "rgb(180,0,158)", "rgb(97,214,214)", "rgb(242,242,242)" ],
+
+			[ "rgb(0,0,0)",    "rgb(205,49,49)",   "rgb(13,188,121)",   "rgb(229,229,16)",
+		      "rgb(36,114,200)",  "rgb(188,63,188)", "rgb(17,168,205)", "rgb(229,229,229)",
+		      "rgb(102,102,102)", "rgb(241,76,76)",   "rgb(35,209,136)",   "rgb(245,245,67)",
+		      "rgb(59,142,234)",  "rgb(214,112,214)", "rgb(41,184,219)", "rgb(229,229,229)" ],
+
+		];
+
+		const palettes = {
+			"xterm": predef_palettes[0],
+			"xterm256": predef_palettes[0],
+
+			"default": predef_palettes[1],
+
+			"windows": predef_palettes[2],
+			"w10": predef_palettes[2],
+			"win10": predef_palettes[2],
+
+			"code": predef_palettes[3],
+			"vscode": predef_palettes[3],
+		};
+
+		this.palette = palettes["default"];
+
+		if (this.params.palette instanceof Array) {
+			this.palette = this.params.palette;
+		}
+		else if (this.params.palette in palettes) {
+			this.palette = palettes[this.params.palette];
+		}
+		else  {
+			this.palette = palettes["default"];
+			this.palette[0] = this.params.background;
+			this.palette[7] = this.params.foreground;
+		}
 	
 		//////////////////////////////
 		// xterm-256 palette
@@ -2757,6 +2806,9 @@ export class AnsiTerm {
 
 	_line_by_index(y)
 	{
+		if (this.alternate_screen && y >= 0 && this.viewpoint == 0) {
+			return this.screen[y];
+		}
 		return this.history.getLine(y + this.viewpoint);
 		/*
 		let l = this.history.length;
@@ -3658,7 +3710,7 @@ export class AnsiTerm {
 		}
 
 		// DEBUG //
-		console.log(e);
+		//console.log(e);
 		if (e.key == "ContextMenu") {
 			this._dump();
 		}
@@ -4643,7 +4695,7 @@ export class AnsiTermHttpDriver extends AnsiTermDriver
 
 					if (t != "") {
 
-						console.log(data);
+						//console.log(data);
 
 						this._new_data(t);
 					}
@@ -4679,7 +4731,7 @@ export class AnsiTermHttpDriver extends AnsiTermDriver
 			if (xhr.readyState === XMLHttpRequest.DONE) {
 				clearTimeout(this.timer);
 				if (xhr.status >= 200 && xhr.status < 400) {
-					console.log(xhr.responseText);
+					//console.log(xhr.responseText);
 					success();
 				}
 				else {
@@ -4781,7 +4833,7 @@ export class AnsiTermWebSocketDriver extends AnsiTermDriver
 		}
 
 		this.socket.addEventListener('open', (event) => {
-			console.log('WS Connection open');
+			//console.log('WS Connection open');
 			this._set_connection_state(true);
 			while (this.pending_objs.length > 0) {
 				this._send_obj(this.pending_objs.shift());
@@ -4808,7 +4860,7 @@ export class AnsiTermWebSocketDriver extends AnsiTermDriver
 			}
 
 			if (t != "") {
-				console.log(data);
+				//console.log(data);
 
 				this._new_data(t);
 			}
