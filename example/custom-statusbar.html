@@ -402,8 +402,11 @@
 			<button id="paste" onclick="ansi.clipboardPaste()">Paste</button>
 <!--END -->
 			<p></p>
-<!--BEGIN sendkey -->
-			<button id="sendkey" onclick="ansi.sendKeyByKeyEvent({ key: 'l', code: 'KeyL', composed: true, ctrlKey: true, altKey: false, metaKey: false, })">Send CTRL-L</button>
+<!--BEGIN sendevkey -->
+			<button id="sendevkey" onclick="ansi.sendKeyByKeyEvent({ key: 'l', code: 'KeyL', composed: true, ctrlKey: true, altKey: false, metaKey: false, })">Send CTRL-L<br>as key event</button>
+<!--END -->
+<!--BEGIN sendtxtkey -->
+			<button id="sendtxtkey" onclick="ansi.sendText('\x0C')">Send CTRL-L<br>as text</button>
 <!--END -->
 			<button id="jack" onclick="jack()">Jack!</button>
 		</div>

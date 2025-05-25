@@ -8,7 +8,7 @@ export class JSConsole extends AnsiTermDriver {
 
         this.pending_line = "";
         this.started = false;
-        this.welcome = "\r\n\x1b[35mWelcome to JSConsole\r\nEnter a valid Javascript line\r\n\r\n";
+        this.welcome = "\r\n\x1b[95mWelcome to JSConsole\r\nEnter a valid Javascript line\r\n\r\n";
 
         this.jsprompt = "\x1b[32m> ";
         this.jsanswer = "\x1b[94m== ";
@@ -60,7 +60,7 @@ export class JSConsole extends AnsiTermDriver {
                 this._new_data(answer + this.jsprompt);
             }
             else if (c == '\x08' || c == '\x7f') {
-                if (this.pendig_line != "") {
+                if (this.pending_line != "") {
                     this._new_data('\x08 \x08');
                     this.pending_line = this.pending_line.substring(0, this.pending_line.length - 1);
                 }
