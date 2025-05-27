@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style type="text/css">
+	.basic-example {
+		border: 2px solid #8080FF;
+		border-radius: 20px;
+		margin: 20px auto;
+		background-color: #f2f2e0; 
+	}
+	div.basic-example {
+		width: auto;
+		padding: 40px auto;
+		margin: 20px auto;
+	}
+</style>
+</head>
+<body>
+	<div class="basic-example" style="display: grid; grid-template-columns: auto;">
+		<div>TYPED TEXT:</div>
+		<div id="text">XXX</div>
+	</div>
+
+	<script type="module">
+
+		import "./softkeyboard.js";
+
+		var text = "";
+		var skb = new AnsiSoftKeyboard((t) => {
+			text += t;
+			document.getElementById("text").innerText = text;
+			console.log(t);
+		});
+
+	</script>
+</body>
+</html>
