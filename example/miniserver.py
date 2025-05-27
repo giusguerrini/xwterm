@@ -531,6 +531,8 @@ class Shell:
 
         async def end_shell():
             try:
+                writer.close()
+                await writer.wait_close()
                 os.kill(pid, signal.SIGKILL)
             except (asyncio.CancelledError, GeneratorExit):
                 raise
