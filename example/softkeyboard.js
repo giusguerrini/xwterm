@@ -53,7 +53,7 @@ export class AnsiSoftKeyboard
 { row: 2, space: 1,    name: '[',     normal: '[',           shift: '{',           ctrl: '\x1B',         },
 { row: 2, space: 1,    name: ']',     normal: ']',           shift: '}',           ctrl: '\x1D',         },
 { row: 2, space: 1,    name: '\\',    normal: '\\',          shift: '|',           ctrl: '\x1C',         },
-{ row: 2, space: 1.6,  name: 'ENTER', normal: '\n',          shift: '\n',          ctrl: '\x00',         },
+{ row: 2, space: 0.6,  name: ' ',     normal: '\n',          shift: '\n',          ctrl: '\x00',         },
 
 { row: 3, space: 1.6,  name: 'CAPS',   normal: ' ',           shift: ' ',          ctrl: ' ',            },
 { row: 3, space: 1,    name: 'a',      normal: 'a',           shift: 'A',          ctrl: '\x01',         },
@@ -84,7 +84,7 @@ export class AnsiSoftKeyboard
 
 { row: 5, space: 1.5,  name: 'CTRL',   normal: ' ',           shift: ' ',          ctrl: ' ',            },
 { row: 5, space: 1.5,  name: 'ALT',    normal: ' ',           shift: ' ',          ctrl: ' ',            },
-{ row: 5, space: 9,    name: ' ',      normal: ' ',           shift: ' ',          ctrl: ' ',            },
+{ row: 5, space: 9,    name: 'SPACE',  normal: ' ',           shift: ' ',          ctrl: ' ',            },
 { row: 5, space: 1.5,  name: 'ALT',    normal: ' ',           shift: ' ',          ctrl: ' ',            },
 { row: 5, space: 1.5,  name: 'CTRL',   normal: ' ',           shift: ' ',          ctrl: ' ',            },
 ];
@@ -93,8 +93,8 @@ export class AnsiSoftKeyboard
 	this.container = container;
 	this.params = params;
 
-	this.button_width = 40;
-	this.button_height = 40;
+	this.button_width = 50;
+	this.button_height = 30;
 
         this.div = document.createElement('div');
         this.div.className = 'softkeyboard';
@@ -121,8 +121,8 @@ export class AnsiSoftKeyboard
 			let r = rows[i][j];
 			let b = document.createElement("button");
 			b.innerText = r.name;
-			b.width = Math.floor(this.button_width * r.space) + "px";
-			b.height = this.button_height;
+			b.style.minWidth = Math.floor(this.button_width * r.space) + "px";
+			b.style.minHeight = this.button_height + "px";
 			b.addEventListener("click", (e) => {
 				this.onclick(r.normal);
 			});
