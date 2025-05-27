@@ -150,11 +150,15 @@ export class AnsiSoftKeyboard
 				if (r.handler) {
 					b.addEventListener("click", (e) => {
 						r.handler();
+						e.stopPropagation();
+						e.preventDefault();
 					});
 				}
 				else {
 					b.addEventListener("click", (e) => {
 						this.onclick(r.normal);
+						e.stopPropagation();
+						e.preventDefault();
 					});
 				}
 				d.appendChild(b);
