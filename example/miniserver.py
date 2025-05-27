@@ -1343,9 +1343,11 @@ async def websocket_server():
         #print("WS connection exiting, peer = ", json.dumps(ws.remote_address))
 
 
-    while True:
-        async with websockets.serve(websocket_connection, bind_address, websocket_port):
-            await asyncio.Future()
+    #while True:
+    #    async with websockets.serve(websocket_connection, bind_address, websocket_port):
+    #        await asyncio.Future()
+    wsserver = await websockets.serve(websocket_connection, bind_address, websocket_port)
+    await wsserver.serve_forever()
 
 async def init_http_server():
 
