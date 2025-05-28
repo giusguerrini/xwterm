@@ -1343,11 +1343,18 @@ async def websocket_server():
         #print("WS connection exiting, peer = ", json.dumps(ws.remote_address))
 
 
+# Although it's documented that this is the way, it doesn't work reliably everywhere.
+# In particular, on many linux distributions the server dies suddenly.
     #while True:
     #    async with websockets.serve(websocket_connection, bind_address, websocket_port):
     #        await asyncio.Future()
+
+# Source of this approach: https://github.com/hzlmn/sketch/issues/4#issuecomment-1311185375
+# Note that the post also recommends to "save somewhere" the task, or the GC will
+# destroy it at the first opportunity. See below.
     wsserver = await websockets.serve(websocket_connection, bind_address, websocket_port)
-    await wsserver.serve_forever()
+    if hasattr(wsserver, 'serve_forever'):
+        await wsserver.serve_forever()
 
 async def init_http_server():
 
@@ -1361,13 +1368,18 @@ async def init_http_server():
 
     session_manager = Session.setup()
 
+    # See comment above
+    sesson_manager_task = None
     async def run_session_manager(http_server):
-        asyncio.create_task(session_manager())
+        sesson_manager_task = asyncio.create_task(session_manager())
     http_server.on_startup.append(run_session_manager)
     
+    # See comment above
+    wstask = None
+
     if enable_websocket:
         async def run_websocket_server(http_server):
-            asyncio.create_task(websocket_server())
+            wstask = asyncio.create_task(websocket_server())
         http_server.on_startup.append(run_websocket_server)
     
     return http_server
