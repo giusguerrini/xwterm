@@ -89,6 +89,16 @@ export class AnsiSoftKeyboard
 { row: 5, space: 9,    name: 'SPACE',  normal: ' ',           shift: ' ',          ctrl: ' ',            },
 { row: 5, space: 1.5,  name: 'ALT',    normal: ' ',           shift: ' ',          ctrl: ' ',    handler: () => { this.toggle_alt(); } },
 { row: 5, space: 1.5,  name: 'CTRL',   normal: ' ',           shift: ' ',          ctrl: ' ',    handler: () => { this.toggle_ctrl(); } },
+
+{ row: 6, space: 1,    name: 'LEFT',   normal: '\x1B[D',      shift: '\x1B[D',      ctrl: '\x1B[D',       },
+{ row: 6, space: 1,    name: 'UP',     normal: '\x1B[A',      shift: '\x1B[A',      ctrl: '\x1B[A',       },
+{ row: 6, space: 1,    name: 'DOWN',   normal: '\x1B[B',      shift: '\x1B[B',      ctrl: '\x1B[B',       },
+{ row: 6, space: 1,    name: 'UP',     normal: '\x1B[C',      shift: '\x1B[C',      ctrl: '\x1B[C',       },
+{ row: 6, space: 1,    name: 'PgUP',   normal: '\x1B[5\x7E',  shift: '\x1B[5\x7E',  ctrl: '\x1B[5\x7E',   },
+{ row: 6, space: 1,    name: 'PgDOWN', normal: '\x1B[6\x7E',  shift: '\x1B[6\x7E',  ctrl: '\x1B[6\x7E',   },
+{ row: 6, space: 1,    name: 'HOME',   normal: '\x1B[H',      shift: '\x1B[H',      ctrl: '\x1B[H',       },
+{ row: 6, space: 1,    name: 'END',    normal: '\x1B[F',      shift: '\x1B[F',      ctrl: '\x1B[F',       },
+
 ];
 
 		this.onclick = onclick;
@@ -306,6 +316,22 @@ export class AnsiSoftKeyboard
 	getMainDiv()
 	{
 		return this.div;
+	}
+
+	close()
+	{
+		if (this.div.parentNode) {
+			this.div.parentNode.removeChild(this.div);
+		}
+		this.div = null;
+		this.container = null;
+		this.onclick = null;
+		this.params = null;
+		this.buttons = [];
+		this.caps_buttons = [];
+		this.alt_buttons = [];
+		this.ctrl_buttons = [];
+		this.shift_buttons = [];
 	}
 }
 

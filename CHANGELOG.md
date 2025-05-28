@@ -1,4 +1,13 @@
 # Changelog
+## [0.24.0] - 2025-05-29
+- miniserver.py: Fixed (hopefully) a long-standing malfunction in some versions
+of aiohttp when usng websockets. "--fix-aiohttp" options should not be necessary anymore.
+- Improved examples: added a simple soft keyboard in "multi.html" to ease testing
+on mobile devices; prevented a possible problem with CR/CRLF in "custom-statusbar.html"
+in case of bad GIT configuration.
+- AnsiTerm: added the method "sendText" to send characters (including ANSI sequences)
+to the backend.
+
 ## [0.23.0] - 2025-05-24
 - Added the "palette" parameter, which allows the user to choose the base 
 palette style (colors from 0 to 15). The parameter can be set to one of

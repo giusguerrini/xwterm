@@ -11,6 +11,7 @@
   <div style="display: grid; grid-template-columns: auto auto; width: max-content;">
     <div style="display: grid; grid-template-columns: auto;">
       <button onclick="go_back()">BACK</button>
+      <button id="openclosekbd" onclick="open_close_kbd()">OPEN SOFT KEYBOARD</button>
       <button id="open-terminal" onclick="open_terminal()">NEW TERMINAL</button>
     </div>
     <div style="display: grid; grid-template-columns: auto auto; width: max-content; margin-left: 30px;">
@@ -53,15 +54,36 @@
     // Empty in case of locl test, JSConsole class in case of live example.
     import "./jsconsole.js";
 
+    import "./softkeyboard.js";
+
     var width = 80;
     var height = 25;
     var font_size = 12;
+    var softkbd = null;
 
     document.addEventListener("DOMContentLoaded", (e) => {
 	    document.getElementById("selwidth").value = width;
 	    document.getElementById("selheight").value = height;
 	    document.getElementById("selfont").value = font_size;
     });
+
+    function open_close_kbd()
+    {
+      if (softkbd != null) {
+        softkbd.close();
+        softkbd = null;
+        document.getElementById("openclosekbd").innerText = "OPEN SOFT KEYBOARD";
+      }
+      else {
+        softkbd = new AnsiSoftKeyboard((t) => {
+          if (focus_terminal != null) {
+            focus_terminal.ansi.sendText(t);
+          }
+        });
+        document.getElementById("openclosekbd").innerText = "CLOSE SOFT KEYBOARD";
+      }
+    }
+    window.open_close_kbd = open_close_kbd;
 
     function set_width()
     {
@@ -93,6 +115,7 @@
 
     let terminal_count = 0;
     let clicked_terminal = null;
+    let focus_terminal = null;
 
     class Terminal {
       constructor() {
@@ -219,6 +242,7 @@
           try {
             this.terminal.style.zIndex = 20;
             this.ansi.focus();
+            focus_terminal = this;
           } catch (e) {
           }
         };
