@@ -229,7 +229,7 @@
 							text = highlightJS(text);
 							//console.log(text);
 							for (j = 1; j < elnames.length; j++) {
-								srcslices[elnames[j]] = text;
+								srcslices[elnames[j]] = text.replace(/\r\r/g,"\r");;
 							}
 							popuppre.innerHTML = "";
 						}
@@ -238,7 +238,7 @@
 						}
 					}
 					else if (line.indexOf("//////BEGIN") == 0 || line.indexOf("<!--BEGIN") == 0) {
-						elnames = line.replace(/--\>/, "").split(" ");
+						elnames = line.replace(/--\>/, "").replace(/\r/g,"").split(" ");
 						text = "";
 						in_block = true;
 					}
