@@ -35,8 +35,9 @@ export class AnsiSoftKeyboard
 { row: 1, space: 1,    name: '8',     normal: '8',           shift: '*',           ctrl: '8',            },
 { row: 1, space: 1,    name: '9',     normal: '9',           shift: '(',           ctrl: '9',            },
 { row: 1, space: 1,    name: '0',     normal: '0',           shift: ')',           ctrl: '0',            },
-{ row: 1, space: 1,    name: '_',     normal: '.',           shift: '_',           ctrl: '\x1F',         },
-{ row: 1, space: 1,    name: '+',     normal: '=',           shift: '+',           ctrl: '+',            },
+{ row: 1, space: 1,    name: '-',     normal: '-',           shift: '_',           ctrl: '\x1F',         },
+{ row: 1, space: 1,    name: '+',     normal: '+',           shift: '=',           ctrl: '+',            },
+{ row: 1, space: 1,    name: '=',     normal: '=',           shift: '+',           ctrl: '=',            },
 { row: 1, space: 2,    name: 'BS',    normal: '\x08',        shift: '\x08',        ctrl: '\x08',         },
 
 { row: 2, space: 1.4,  name: 'TAB',   normal: '\t',          shift: '\t',          ctrl: '\t',           },
@@ -147,6 +148,14 @@ export class AnsiSoftKeyboard
 				if (r.display) {
 					r.display(b);
 				}
+				//b.style.touchAction = 'manipulation';
+				b.style.touchAction = 'none';
+				/*
+				b.addEventListener("touchstart", (e) => {
+				    e.preventDefault();
+				    //e.stopPropagation();
+				});
+				*/
 				if (r.handler) {
 					b.addEventListener("click", (e) => {
 						r.handler();
@@ -156,7 +165,14 @@ export class AnsiSoftKeyboard
 				}
 				else {
 					b.addEventListener("click", (e) => {
-						this.onclick(r.normal);
+						let c = r.normal;
+						if (this.shift || (this.capslock && AnsiSoftKeyboard._is_letter(r))) {
+							c = r.shift;
+						}
+						if (this.ctrl > 0) {
+							c = r.ctrl;
+						}
+						this.onclick(c);
 						e.stopPropagation();
 						e.preventDefault();
 					});
@@ -179,7 +195,12 @@ export class AnsiSoftKeyboard
 		}
 
 		this.container.appendChild(this.div);
-    }
+	}
+
+	static _is_letter(d)
+	{
+		return (d.name.length == 1 && d.name == d.shift.toLowerCase())
+	}
 
 	display_enter_1(button)
 	{
@@ -225,7 +246,7 @@ export class AnsiSoftKeyboard
 		for (let b of this.buttons) {
 			if (b.descr.normal != b.descr.shift
 			 && b.descr.name != b.descr.shift
-			 && (shift || (b.descr.name.length == 1 && b.descr.name == b.descr.shift.toLowerCase()))) {
+			 && (shift || AnsiSoftKeyboard._is_letter(b.descr))) {
 				if (cond) {
 					b.button.innerText = b.descr.shift;
 				}
