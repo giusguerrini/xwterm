@@ -1146,6 +1146,89 @@ export class AnsiTermHistory
 
 		return rotate;
 	}
+
+	_slices(line, nColumns)
+	{
+		let t = [];
+		let slices = [];
+
+		if (line.length > 0) {
+			let nspan = Math.floor((line.length - 1) / nColumns);
+			let l = { span: nspan, len: line.length, cont: false };
+			let t_len = 0;
+			for (let i = 0; i < nspan; ++i) {
+				t.push(...line.slice(t_len, t_len + nColumns));
+				slices.push({ t: t, l: l });
+				t_len += nColumns;
+				l.span -= 1;
+				l.len -= nColumns;
+				l.cont = true;
+			}
+			if (t_len > 0 && t_len < line.length) {
+				t.push(line.slice(t_len, line.length));
+				let rem = nColumns - (line.length - t_len);
+				for (let i = 0; i < rem; ++i) {
+					t.push({ ...this.empty_cell });
+				}
+				slices.push({ t: t, l: { span: 0, len: line.length - t_len, cont: false } });
+			}
+		}
+		else {
+			slices.push({ t: t, l: { span: 0, len: 0, cont: false } });
+		}
+		return slices;
+	}
+
+	resize(nLines, nColumns)
+	{
+		if (nColumns < 1 || nLines < 1) {
+			return; //throw new Error("Invalid terminal size: " + nLines + "x" + nColumns);
+		}
+		if (nLines == this.nLines && nColumns == this.nColumns) {
+			// No change
+			return;
+		}
+		if (nColumns != this.nColumns) {
+			let new_hist = [];
+			let line = [];
+			for (let i = this.size - 1; i >= 0; --i) {
+
+				let li = (this.base_index + i) % this.size;
+				let hl = this.history[li];
+				let nt = hl.l.len;
+				if (nt > this.nColumns) {
+					nt = this.nColumns;
+				}
+				line.push(...hl.t.slice(0, nt));
+				if (hl.l.span == 0) {
+					new_hist.push(...this._slices(line, nColumns));
+					line = [];
+				}
+			}
+			new_hist.reverse();
+			this.history = new_hist;
+			this.base_index = this.historySize;
+		}
+		
+		// TODO....
+		this.nColumns = nColumns;
+		this.nLines = nLines;
+		this.size = this.historySize + nLines;
+		this.length = this.history.length;
+		this.logline_start = 0;
+		this.max_ncolumns = nColumns;
+		this.max_nlines = nLines;
+
+		let screens = [ [], [] ];
+		for (let i = 0; i < nLines; ++i) {
+			screens[0][i] = this.history[this.base_index + this.nLines - i - 1].t;
+			screens[1][i] = [];
+			for (let j = 0; j < this.nColumns; ++j) {
+				this.screens[1][i][j] = { ...this.empty_cell };	
+			} 	
+		}
+
+	}
 }
 
 
