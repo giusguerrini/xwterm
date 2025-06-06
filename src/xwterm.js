@@ -181,7 +181,7 @@ class AnsiTermGenericScrollBar {
 		this.div.appendChild(this.div_scroll);
 
 		
-		// Hack to force scrollbar to be visibleon Firefox
+		// Hack to force scrollbar to be visible on Firefox
 		if (this.div_scroll[m.fixed_limit] == 0) {
 			this.div_scroll.style[m.min_fixed_limit] = '10px';
 		}
@@ -302,6 +302,19 @@ class AnsiTermGenericScrollBar {
 	{
 		this.on_change = cb;
 	}
+
+	resize()
+	{
+		// This method is called when the controlled element is resized.
+		// It updates the size of the scrollbar and the spacer.
+		if (this.div_scroll) {
+			const m = this.mutable_properties;
+			let l = this.controlled_element[m.motion_limit]
+			this.div_spacer.style[m.motion_size] = l + 'px';
+			this.div_scroll.style[m.motion_size] = l + 'px';
+			this._update();
+		}
+	}
 }
 
 /**
@@ -320,6 +333,20 @@ class AnsiTermGenericScrollBarAdder
 	static isIE11()
 	{
 		return !!window.MSInputMethodContext && !!document.documentMode;
+	}
+
+	resize()
+	{
+		// This method is called when the controlled element is resized.
+		// It updates the size of the scrollbar and the spacer.
+		this.width = this.controlled_element.clientWidth;
+		this.height = this.controlled_element.clientHeight;
+		if (this.verticalScrollbar) {
+			this.verticalScrollbar.resize();
+		}
+		if (this.horizontalScrollbar) {
+			this.horizontalScrollbar.resize();
+		}
 	}
 
 	_layout()
@@ -1029,26 +1056,30 @@ export class AnsiTermHistory
  * @returns {void}
  */
 
+	_empty_lines(nLines, nColumns)
+	{
+		let lines = [];
+		for (let i = 0; i < nLines; ++i) {
+			let t = [];
+			for (let j = 0; j < nColumns; ++j) {
+				t[j] = { ...this.empty_cell };
+			}
+			lines[i] = { t: t, l: { span: 0, len: 0, cont: false } };
+		}
+		return lines;
+	}
+
 	reset()
 	{
 		this.base_index = this.historySize;
 
-		for (let i = 0; i < this.size; ++i) {
-			let t = [];
-			for (let j = 0; j < this.nColumns; ++j) {
-				t[j] = { ...this.empty_cell };
-			} 	
-			this.history[i] = { t: t, l: { span: 0, len: 0, cont: false } };
-		}
+		this.history = this._empty_lines(this.size, this.nColumns);
 
 		this.screens = [ [], [] ];
 		for (let i = 0; i < this.nLines; ++i) {
 			this.screens[0][i] = this.history[this.base_index + this.nLines - i - 1].t;
-			this.screens[1][i] = [];
-			for (let j = 0; j < this.nColumns; ++j) {
-				this.screens[1][i][j] = { ...this.empty_cell };	
-			} 	
 		}
+		this.screens[1] = this._empty_lines(this.nLines, this.nColumns);
 		this.logline_start = 0;
 	}
 
@@ -1133,7 +1164,7 @@ export class AnsiTermHistory
 			}
 		}
 		else {
-
+// Dead code...
 			let e = { t: {...this.history[this.nLines - 1].t }, l: {...this.history[this.nLines - 1].l }};
 			this.history.splice(this.nLines, 0,  e);
 			for (let i = this.nLines - 1; i > 0; --i) {
@@ -1149,13 +1180,21 @@ export class AnsiTermHistory
 
 	_slices(line, nColumns)
 	{
+		// Splits a line into slices of the given number of columns.
+		// Each slice is an array of cells, and the last slice may contain
+		// fewer cells than the others, so we need to pad it with empty cells.
+		// The slices are returned as an array of objects, each containing
+		// the slice itself and the logical line information (span, length, continuation).
+		// The slices are put into the array in direct order, so that the first slice
+		// takes the index 0 in the array.
 		let t = [];
 		let slices = [];
+		let rem = nColumns;
+		let t_len = 0;
 
 		if (line.length > 0) {
 			let nspan = Math.floor((line.length - 1) / nColumns);
 			let l = { span: nspan, len: line.length, cont: false };
-			let t_len = 0;
 			for (let i = 0; i < nspan; ++i) {
 				t.push(...line.slice(t_len, t_len + nColumns));
 				slices.push({ t: t, l: l });
@@ -1166,16 +1205,13 @@ export class AnsiTermHistory
 			}
 			if (t_len > 0 && t_len < line.length) {
 				t.push(line.slice(t_len, line.length));
-				let rem = nColumns - (line.length - t_len);
-				for (let i = 0; i < rem; ++i) {
-					t.push({ ...this.empty_cell });
-				}
-				slices.push({ t: t, l: { span: 0, len: line.length - t_len, cont: false } });
 			}
+			rem = nColumns - (line.length - t_len);
 		}
-		else {
-			slices.push({ t: t, l: { span: 0, len: 0, cont: false } });
+		for (let i = 0; i < rem; ++i) {
+			t.push({ ...this.empty_cell });
 		}
+		slices.push({ t: t, l: { span: 0, len: line.length - t_len, cont: false } });
 		return slices;
 	}
 
@@ -1188,41 +1224,93 @@ export class AnsiTermHistory
 			// No change
 			return;
 		}
+		
+		let old_length = this.history.length;
+		let old_hsize = this.historySize;
+
 		if (nColumns != this.nColumns) {
+
+			// Collect all lines in the history, and split them into slices
+			// of the new size.
+			// This is needed to preserve the logical line structure.
+			// The history is collected in reverse order with respect to the
+			// ordinary coordinate system, so that the last line
+			// in the screen (i.e., the bottom line) takes the index 0 in the array.
 			let new_hist = [];
 			let line = [];
 			for (let i = this.size - 1; i >= 0; --i) {
 
 				let li = (this.base_index + i) % this.size;
+				
 				let hl = this.history[li];
 				let nt = hl.l.len;
 				if (nt > this.nColumns) {
 					nt = this.nColumns;
 				}
-				line.push(...hl.t.slice(0, nt));
+				for (let j = 0; j < nt; ++j) {
+					line.push(hl.t[j]);
+				}
 				if (hl.l.span == 0) {
-					new_hist.push(...this._slices(line, nColumns));
+					let sl = this._slices(line, nColumns);
+					for (let j = 0; j < sl.length; ++j) {
+						new_hist.push(sl[j]);
+					}
 					line = [];
 				}
 			}
+			// Since slices are collected in direct order,
+			// we need to reverse the array to get the history in the correct order.
 			new_hist.reverse();
 			this.history = new_hist;
-			this.base_index = this.historySize;
+			this.base_index = 0;
 		}
-		
-		// TODO....
+
+		this.size = this.history.length;
+		this.length += this.history.length - old_length;
+		let empty_to_add = 0;		
+		if (this.length < nLines) {
+			if (nLines <= this.size) {
+				// Nothing to do: lines are allocated, we just need to use them.
+			}
+			else {
+				empty_to_add = this.size - nLines;
+			}
+			this.length = nLines;
+		}
+
+		this.historySize = this.size - nLines;
+		if (false) {
+			if (old_hsize > this.historySize) {
+				// If the actual history size is reduced, we need to "maintain the promise"
+				// that the history size is at least the requested size.
+				// This means that we need to add more empty lines to the history.
+				empty_to_add += old_hsize - this.historySize;
+			}
+		}
+
+		if (empty_to_add > 0) {
+			let e = this._empty_lines(empty_to_add, nColumns);
+			let pos = (this.base_index + this.size - 1) % this.size;
+			this.history.splice(pos, 0, ...e);
+			this.base_index = (this.base_index + empty_to_add) % this.size;
+			this.size += empty_to_add;
+		}
+
+		this.size = this.history.length;
+
 		this.nColumns = nColumns;
 		this.nLines = nLines;
-		this.size = this.historySize + nLines;
-		this.length = this.history.length;
 		this.logline_start = 0;
-		this.max_ncolumns = nColumns;
-		this.max_nlines = nLines;
+		if (this.nLines > this.max_nlines) {
+			this.max_nlines = nLines;
+		}
+		if (this.nColumns > this.max_ncolumns) {
+			this.max_ncolumns = nColumns;
+		}
 
-		let screens = [ [], [] ];
 		for (let i = 0; i < nLines; ++i) {
-			screens[0][i] = this.history[this.base_index + this.nLines - i - 1].t;
-			screens[1][i] = [];
+			this.screens[0][i] = this.getLine(i);
+			this.screens[1][i] = [];
 			for (let j = 0; j < this.nColumns; ++j) {
 				this.screens[1][i][j] = { ...this.empty_cell };	
 			} 	
@@ -2080,6 +2168,18 @@ export class AnsiTerm {
 		}
 	}
 
+	_resize_canvas()
+	{
+		this.width = this.charwidth * this.params.nColumns;
+		this.height = this.charheight * this.params.nLines;
+		this.gc.canvas.width = this.width;
+		this.gc.canvas.height = this.height;
+				
+		// We must repeat this after a size change:
+		this.gc.font = this.fullfont;
+		this.gc.textBaseline = "bottom";
+	}
+
 	//
 	// Layout generator.
 	//
@@ -2174,19 +2274,7 @@ export class AnsiTerm {
 		if (this.underline_off < 1) {
 			this.underline_off = 1;
 		}
-		this.width = this.charwidth * this.params.nColumns;
-		this.height = this.charheight * this.params.nLines;
-
-		//console.log("charwidth = " + this.charwidth + " nColumns = " + this.params.nColumns);
-		//console.log("charheight = " + this.charheight + " nLines = " + this.params.nLines);
-
-		//this.gc.canvas.width = this.width;
-		//this.gc.canvas.height = this.height;
-		this.gc.canvas.width = this.width;
-		this.gc.canvas.height = this.height;
-		// We must repeat this after a size change:
-		this.gc.font = this.fullfont;
-		this.gc.textBaseline = "bottom";
+		this._resize_canvas();
 
 
 		// Scrollbar management
@@ -2231,7 +2319,7 @@ export class AnsiTerm {
 					this.viewpoint = rv.value;
 
 					if (! this.params.blinkIsBold) {
-						// TODO: Adjust blink_list: add to the list the lines
+						// Adjust blink_list: add to the list the lines
 						// that are visible now, and remove the lines that
 						// aren't visible anymore.
 
@@ -4297,6 +4385,92 @@ export class AnsiTerm {
 			this.selection_timer = null;
 		}
 	} 
+
+	/**
+	 * This method resizes the terminal to the given number of lines and columns.
+	 * The selection and the viewpoint are cleared, and the cursor is adjusted
+	 * accordingly. The alternate screen is simply cleared, as it is usually
+	 * redrawn when the terminal is resized.
+	 * @param {number} nLines - The number of lines for the terminal.
+	 * @param {number} nColumns - The number of columns for the terminal.
+	 */
+
+	resize(nLines, nColumns)
+	{
+		if (nLines < 1 || nColumns < 1) {
+			return;
+		}
+		if (nLines == this.params.nLines && nColumns == this.params.nColumns) {
+			return;
+		}
+
+		// For simplicity, the resize method clears the selection
+		// and resets the viewpoint.
+		// This is not strictly necessary, but it is a good idea
+		// to avoid confusion when the terminal is resized.
+		if (this.enable_cursor) {
+			this._unblink_cursor();
+		}
+		this._clear_selection();
+		this.viewpoint = 0;
+
+		this.history.resize(nLines, nColumns);
+		
+		this.screens = this.history.screens;
+		this.screen = this.screens[this.alternate_screen ? 1 : 0];
+		this.params.nLines = nLines;
+		this.params.nColumns = nColumns;
+
+		// Resize the elements (canvas, decorations...)
+
+		this._resize_canvas();
+		
+		// Resize the scrollbar, if any.
+		if (this.scrollbar) {
+			this.scrollbar.resize();
+			this.scrollbar.verticalScrollbar.setMinValue(this.params.nLines - this.history.length)
+			this.scrollbar.verticalScrollbar.setMaxValue(0 /*this.params.nLines - 1*/);
+			this.scrollbar.verticalScrollbar.setVisibleRangeSize(this.params.nLines);
+			this.scrollbar.verticalScrollbar.setValue(0);
+		}
+
+		let yadd = Math.floor(this.posx / this.params.nColumns);
+		let x = this.posx % this.params.nColumns;
+		let y = this.posy + yadd;
+		if (y >= this.params.nLines) {
+			y = this.params.nLines - 1;
+		}
+		this.x_lastblink = x;
+		this.y_lastblink = y;
+		this._setpos(x, y);
+
+		// Rebuild blink lists. Actually, only the one belonging to the primary screen,
+		// since we count on the fact that the secondary screen is usually redrawn
+		// when the terminal is resized.
+
+		this.blink_lists[0] = [];
+		this.blink_lists[1] = [];
+		this.blink_list = this.blink_lists[this.alternate_screen ? 1 : 0];
+
+		if ((! this.blinkIsBold) && (! this.alternate_screen)) {
+			for (let y = 0; y < this.nLines; ++y) {
+				let li = this._line_by_index(y);
+				for (let x = 0; x < this.params.nColumns; ++x) {
+					if (li[x].blink) {
+						this._add_to_blink_list(x, y, this.blink_list);
+					}
+				}
+			}
+		}
+
+		
+		this._redraw();
+		this._setsize();
+
+		if (this.enable_cursor) {
+			this._do_blink_cursor();
+		}
+	}
 
 	/**
 	 * This method clears the selection and returns the focus to the terminal.

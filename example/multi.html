@@ -9,9 +9,10 @@
 </head>
 <body>
   <div style="display: grid; grid-template-columns: auto auto; width: max-content;">
-    <div style="display: grid; grid-template-columns: auto;">
+    <div style="display: grid; grid-template-columns: auto;border: 2px solid black; padding: 5px;">
       <button onclick="go_back()">BACK</button>
       <button id="openclosekbd" onclick="open_close_kbd()">OPEN SOFT KEYBOARD</button>
+      <button id="select-driver" onclick="select_driver()">USE WEBSOCKETS</button>
       <button id="open-terminal" onclick="open_terminal()">NEW TERMINAL</button>
     </div>
     <div style="display: grid; grid-template-columns: auto auto; width: max-content; margin-left: 30px;">
@@ -22,6 +23,8 @@
         <input id="selheight" type="number" oninput="set_height()">
         <label for="selfont">Select Font Size</label>
         <input id="selfont" type="number" oninput="set_font()">
+        <button onclick="resize_all()">Resize All</button>
+        <button onclick="reset_default()">Default values</button>
       </div>
       <div style="display: grid; grid-template-columns: auto; border: 2px solid black; padding: 5px; margin-left: 10px;">
         <div style="padding: 5px;">Select base color palette style</div>
@@ -56,16 +59,44 @@
 
     import "./softkeyboard.js";
 
-    var width = 80;
-    var height = 25;
-    var font_size = 12;
+    const default_width = 80;
+    const default_height = 25;
+    const default_font_size = 12;
+    
+    var width = default_width;
+    var height = default_height;
+    var font_size = default_font_size;
     var softkbd = null;
+    var use_websockets = false;
+    let terminals = [];
+    let local_clipboard = null;
+    let terminal_count = 0;
+    let clicked_terminal = null;
+    let focus_terminal = null;
+
+    if (typeof JSConsole != 'undefined') {
+      document.getElementById("select-driver").disabled = true;
+    }
+
+    reset_default();
 
     document.addEventListener("DOMContentLoaded", (e) => {
 	    document.getElementById("selwidth").value = width;
 	    document.getElementById("selheight").value = height;
 	    document.getElementById("selfont").value = font_size;
     });
+
+    function select_driver()
+    {
+      use_websockets = !use_websockets;
+      if (use_websockets) {
+        document.getElementById("select-driver").innerText = "USE HTTP";
+      }
+      else {
+        document.getElementById("select-driver").innerText = "USE WEBSOCKETS";
+      }
+    }
+    window.select_driver = select_driver;
 
     function open_close_kbd()
     {
@@ -84,6 +115,26 @@
       }
     }
     window.open_close_kbd = open_close_kbd;
+
+    function reset_default()
+    {
+      width = default_width;
+      height = default_height;
+      font_size = default_font_size;
+      document.getElementById("selwidth").value = width;
+      document.getElementById("selheight").value = height;
+      document.getElementById("selfont").value = font_size;
+      resize_all();
+    }
+    window.reset_default = reset_default;
+
+    function resize_all()
+    {
+      terminals.forEach((t) => {
+          t.ansi.resize(height, width);
+      });
+    }
+    window.resize_all = resize_all;
 
     function set_width()
     {
@@ -110,13 +161,7 @@
         palette = e.target.value;
     }
     window.set_palette = set_palette;
-
-    let local_clipboard = null;
-
-    let terminal_count = 0;
-    let clicked_terminal = null;
-    let focus_terminal = null;
-
+ 
     class Terminal {
       constructor() {
         ++terminal_count;
@@ -138,12 +183,17 @@
           <div id="term${terminal_count}" style="display: inline-block;"></div>
         </div>
         `;
+
         document.body.appendChild(this.terminal);
+
         //this.canvas = document.getElementById("term" + terminal_count);
         this.ansi = new AnsiTerm({
           
           // For "live" example on GitHub.
           driver: ((typeof JSConsole != 'undefined') ? new JSConsole() : null),
+
+          channelType: use_websockets ? "websocket" : "http", // Ignired if "driver" is not null (e.g. live example).
+					wsEndpoint: window.location.host.replace(':8000',':8001'), //for websocket only, ignored in other cases
 
           containerId: "term" + terminal_count,
           nLines : height,
@@ -286,6 +336,9 @@
           this.terminal = null;
           this.title = null;
           this.button = null;
+          terminals = terminals.filter((t) => {
+            return t != this;
+          });
         });
         this.terminal.style.zIndex = 20;
         this.terminal.show();
@@ -293,7 +346,8 @@
       }
     }
     function open_terminal() {
-      new Terminal();
+      let t = new Terminal();
+      terminals.push(t);
     }
     window.open_terminal = open_terminal;
 	/* Store the URL of the current page when the page is loaded */
