@@ -573,6 +573,11 @@ const ANSITERM_DEFAULTS = {
 	              // The object must be an instance of a class that 
 	              // implements (extends) AnsiTermDriver
 	              // interface (see below).
+
+	bell_enabled: true, // Whether the bell sound is enabled.
+	bell_duration: 0.5, // The duration of the bell sound in seconds.
+	bell_frequency: 1760, // The frequency of the bell sound in Hz.
+	bell_decay: 0.9998, // The decay ratio of the bell sound.
 };
 
 function getAbsolutePosition(element)
@@ -1375,6 +1380,10 @@ export class AnsiTermHistory
  * @param {boolean} [params.hasStatusBar=true] - Whether the terminal has a status bar.
  * @param {boolean} [params.hasSoftKeyboard=false] - Whether the terminal has a soft keyboard.
  * @param {boolean} [params.hasSoftFKeys=false] - Whether the terminal has soft function keys.
+ * @param {boolean} [params.bell_enabled] - Whether the bell sound is enabled. Default = true.
+ * @param {number} [params.bell_duration] - The duration of the bell sound in seconds. Default = 0.5 seconds.
+ * @param {number} [params.bell_frequency] - The frequency of the bell sound in Hz. Default=1760 Hz (==A6).
+ * @param {number} [params.bell_decay] - The decay ratio of the bell sound (next sample/current). Default = 0.9998.
  */
 /**
  * The `AnsiTerm` class implements a terminal emulator capable of interpreting
@@ -1611,7 +1620,7 @@ export class AnsiTerm {
 			0: {
 				"\x00": () => { this._init(); }, // NUL
 				"\x05": () => { this._init(); }, // ENQ
-				"\x07": () => { this._init(); }, //this.on_bell, // TODO
+				"\x07": () => { this._bell(); this._init(); }, // BEL
 				"\x08": () => {
 						this._flush();
 						if (this.posx == 0) {
@@ -2455,6 +2464,7 @@ export class AnsiTerm {
 
 		this.bold = false;
 		this.italic = false;
+		this.audio_context = null;
 
 		this.selection_on = false;
 		this.selection_active = false;
@@ -3796,6 +3806,84 @@ export class AnsiTerm {
 			underline: this.underline,
 		});
 		this._printchar_in_place_pix(ch, this.posx, this.posy, this.pospx, this.pospy);
+	}
+
+	_bell_samples(duration, frequency, decay)
+	{
+		if (this.params.bell_enabled) {
+			try {
+				if (! this.audio_context) {
+					this.audio_context = new (window.AudioContext || window.webkitAudioContext)();
+				}
+				let rate = this.audio_context.sampleRate;
+				let nsamples = Math.floor(rate * duration);
+				if (! this.buffer) {
+					this.buffer = this.audio_context.createBuffer(1, nsamples, rate);
+				}
+				let channel_data = this.buffer.getChannelData(0);
+				let fading = 1.0;
+				// Generate a bell sound: a wave at the given frequency, decaying exponentially over time.
+				// To add some harmonics, we use a cubic function of the sine wave,
+				// which is a bit brighter than a pure sine wave.
+				for (let i = 0; i < nsamples; ++i) {
+					channel_data[i] = Math.pow(Math.sin(2 * Math.PI * frequency * i / rate), 3) * fading;
+					fading *= decay;
+				}
+			}
+			catch (err) {
+			}
+		}
+	}
+
+	/**
+	 * This method sets the parameters for the bell sound.
+	 * The bell sound is played when the terminal receives a BEL character (0x07).
+	 * @param {boolean} enabled - Whether the bell sound is enabled.
+	 * @param {number} dration - The duration of the bell sound in seconds (no changes if undefined).
+	 * @param {number} frequency - The frequency of the bell sound in Hz (no changes if undefined).
+	 * @param {number} decay - The decay ratio of the bell sound (no changes if undefined).
+	 * @returns {void}
+	 * @example
+	 * term.setBell(true, 0.5, 1760, 0.9);
+	 * @description
+	 * This method allows you to configure the bell sound parameters for the terminal.
+	 * The bell sound is played when the terminal receives a BEL character (0x07).
+	 * You can enable or disable the bell sound, set its duration, frequency, and decay ratio.
+	 * The default values are:
+	 * - `enabled`: true
+	 * - `duration`: 0.5 seconds
+	 * - `frequency`: 1760 Hz (A6 note)
+	 * - `decay`: 0.9998 (decay ratio between a sample and the next one, i.e., next/current)
+	 */
+	setBell(enabled, duration, frequency, decay)
+	{
+		this.params.bell_enabled = enabled;
+		let rebuild = enabled
+		           && this.params.bell_duration != duration
+				   && this.params.bell_frequency != frequency
+				   && this.params.bell_decay != decay;
+		this.params.bell_duration = duration || this.params.bell_duration; // seconds
+		this.params.bell_frequency = frequency || this.params.bell_frequency; // Hz
+		this.params.bell_decay = decay || this.params.bell_decay; // decay ratio between a sample and the next one (next/current)
+		if (rebuild) {
+			this._bell_samples(this.params.bell_duration, this.params.bell_frequency, this.params.bell_decay);
+		}
+	}
+
+	_bell()
+	{
+		try {
+			if (this.params.bell_enabled) {
+				this._bell_samples(this.params.bell_duration, this.params.bell_frequency, this.params.bell_decay);
+				let source = this.audio_context.createBufferSource();
+				source.buffer = this.buffer;
+				source.connect(this.audio_context.destination);
+				source.start();
+			}
+		}
+		catch (err) {
+			console.error("Error playing bell sound: " + err.toString());
+		}
 	}
 
 	/**
