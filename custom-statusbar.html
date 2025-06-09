@@ -25,9 +25,10 @@
 </style>
 </head>
 <body>
+<!--BEGIN terminal -->
+
 <script type="module">
 
-//////BEGIN terminal
 	// Optional: import fixed-size scrollbar.
 	//import "./scrollbar.js";
 
@@ -229,7 +230,10 @@
 							text = highlightJS(text);
 							//console.log(text);
 							for (j = 1; j < elnames.length; j++) {
-								srcslices[elnames[j]] = text.replace(/\r\r/g,"\r");;
+								if (! (elnames[j] in srcslices)) {
+									srcslices[elnames[j]] = "";
+								}
+								srcslices[elnames[j]] += text.replace(/\r\r/g,"\r");;
 							}
 							popuppre.innerHTML = "";
 						}
@@ -374,7 +378,9 @@
 	window.go_back = go_back;
 	window.jack = (new Jack("All work and no play makes Jack a dull boy")).on_button();
 
+//////BEGIN terminal
 </script>
+<!--END -->
 	<h3>Hover over page elements to inspect the related code</h3>
 	<div style="display: grid; grid-template-columns: 15% max-content; column-gap: 20px;">
 		<div style="display: grid; grid-template-columns: auto;">
