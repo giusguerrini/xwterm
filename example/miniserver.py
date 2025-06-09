@@ -28,6 +28,11 @@ has_aiohttp = True
 has_websockets = True
 
 import os
+
+home_dir = os.path.dirname(os.path.abspath(__file__))
+doc_dir = home_dir
+mod_dir = os.path.join(doc_dir, 'modules')
+
 import sys
 import platform
 import string
@@ -45,11 +50,10 @@ try:
     import aiohttp
     import aiohttp.web
 except:
-    sys.path.append('/MountPnt/USER/xwterm/example/modules')
-    sys.path.append('/MountPnt/USER/xwterm/example/modules/aiohttp-3.7.4.post0')
-    sys.path.append('/MountPnt/USER/xwterm/example/modules/multidict-6.0.4')
-    sys.path.append('/MountPnt/USER/xwterm/example/modules/yarl-1.8.1')
-    sys.path.append('/MountPnt/USER/xwterm/example/modules/idna-ssl-1.1.0')
+    sys.path.append(mod_dir)
+    for p in [ 'aiohttp-3.7.4.post0', 'multidict-6.0.4', 'yarl-1.8.1', 'idna-ssl-1.1.0' ]:
+        m = os.path.join(mod_dir, p)
+        sys.path.append(m)
     try:
         import aiohttp
         import aiohttp.web
@@ -59,7 +63,8 @@ except:
 try:
     import websockets
 except:
-    sys.path.append('/MountPnt/USER/xwterm/example/modules/websockets-8.1/src')
+    sys.path.append(mod_dir)
+    sys.path.append(os.path.join(mod_dir, 'websockets-8.1/src'))
     try:
         import websockets
     except:
@@ -348,9 +353,6 @@ if platform.system() == "Linux":
 else:
     #default_encoding = 'cp1252'
     default_encoding = 'utf-8'
-
-home_dir = os.path.dirname(os.path.abspath(__file__))
-doc_dir = home_dir
 
 def find_valid_encoded(text):
     for i in range(len(text), 0, -1):
