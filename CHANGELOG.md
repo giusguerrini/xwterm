@@ -1,4 +1,8 @@
 # Changelog
+## [0.24.1] - 2025-06-09
+- miniserver.py: Fixed a wrong path in case of missing modules on
+python 3.6 and embedded linux: a hard-coded path was minstakenly published.
+
 ## [0.24.0] - 2025-05-29
 - miniserver.py: Fixed (hopefully) a long-standing malfunction in some versions
 of aiohttp when usng websockets. "--fix-aiohttp" option should not be necessary anymore.
