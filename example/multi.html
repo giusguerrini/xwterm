@@ -12,6 +12,7 @@
     <div style="display: grid; grid-template-columns: auto;border: 2px solid black; padding: 5px;">
       <button onclick="go_back()">BACK</button>
       <button id="openclosekbd" onclick="open_close_kbd()">OPEN SOFT KEYBOARD</button>
+      <button id="select-scroll" onclick="select_scrollbar()">USE FIXED-SIZE SCROLLBAR</button>
       <button id="select-driver" onclick="select_driver()">USE WEBSOCKETS</button>
       <button id="open-terminal" onclick="open_terminal()">NEW TERMINAL</button>
     </div>
@@ -52,6 +53,7 @@
   </div>
   <script type="module">
 
+    import "./scrollbar.js";
 
     import "./xwterm.js";
     // Empty in case of locl test, JSConsole class in case of live example.
@@ -68,6 +70,7 @@
     var font_size = default_font_size;
     var softkbd = null;
     var use_websockets = false;
+    var use_fixed_scrollbar = false;
     let terminals = [];
     let local_clipboard = null;
     let terminal_count = 0;
@@ -85,6 +88,18 @@
 	    document.getElementById("selheight").value = height;
 	    document.getElementById("selfont").value = font_size;
     });
+
+    function select_scrollbar()
+    {
+      use_fixed_scrollbar = !use_fixed_scrollbar;
+      if (use_fixed_scrollbar) {
+        document.getElementById("select-scroll").innerText = "USE STANDARD SCROLLBAR";
+      }
+      else {
+        document.getElementById("select-scroll").innerText = "USE FIXED-SIZE SCROLLBAR";
+      }
+    }
+    window.select_scrollbar = select_scrollbar;
 
     function select_driver()
     {
@@ -194,6 +209,8 @@
 
           channelType: use_websockets ? "websocket" : "http", // Ignired if "driver" is not null (e.g. live example).
 					wsEndpoint: window.location.host.replace(':8000',':8001'), //for websocket only, ignored in other cases
+
+          internalScrollbar: !use_fixed_scrollbar, // Use standard scrollbar if true, fixed-size scrollbar if false.
 
           containerId: "term" + terminal_count,
           nLines : height,

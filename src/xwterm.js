@@ -191,7 +191,7 @@ class AnsiTermGenericScrollBar {
 		this.div_spacer.style[m.motion_size] = this.scroll_area + 'px';
 
 	
-		// This would adjust the height in case the container,s geometry hasn't been calculated yet,
+		// This would adjust the height in case the container's geometry hasn't been calculated yet,
 		// but I'll postopone this in _update(), so the bar is left "grayed" until it is actually needed. 
 		//this.timer0 = setTimeout(() => {
 		//	this.div_scroll.style.height = this.controlled_element.clientHeight + 'px';
