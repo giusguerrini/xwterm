@@ -1044,6 +1044,7 @@ export class AnsiTermHistory
 		this.history = [];
 		this.max_ncolumns = nColumns;
 		this.max_nlines = nLines;
+		this.max_size = this.size;
 		this.loglines = [];
 		this.base_index = 0;
 		this.alternate_screen = false;
@@ -4504,10 +4505,16 @@ export class AnsiTerm {
 
 		this.history.resize(nLines, nColumns);
 		
+		let old_nLines = this.params.nLines;
+		let old_nColumns = this.params.nColumns;
+
 		this.screens = this.history.screens;
 		this.screen = this.screens[this.alternate_screen ? 1 : 0];
 		this.params.nLines = nLines;
 		this.params.nColumns = nColumns;
+
+		let xdiff = this.params.nColumns - old_nColumns;
+		let ydiff = this.params.nLines - old_nLines;
 
 		// Resize the elements (canvas, decorations...)
 
@@ -4524,7 +4531,7 @@ export class AnsiTerm {
 
 		let yadd = Math.floor(this.posx / this.params.nColumns);
 		let x = this.posx % this.params.nColumns;
-		let y = this.posy + yadd;
+		let y = this.posy + yadd + ydiff;
 		if (y >= this.params.nLines) {
 			y = this.params.nLines - 1;
 		}
@@ -4532,9 +4539,11 @@ export class AnsiTerm {
 		this.y_lastblink = y;
 		this._setpos(x, y);
 
+		this.scrollregion_h += ydiff;
+
 		// Rebuild blink lists. Actually, only the one belonging to the primary screen,
 		// since we count on the fact that the secondary screen is usually redrawn
-		// when the terminal is resized.
+		// by the application (e.g., vim, mc, htop...) when the terminal is resized.
 
 		this.blink_lists[0] = [];
 		this.blink_lists[1] = [];

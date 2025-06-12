@@ -38,7 +38,7 @@ export class AnsiSoftKeyboard
 { row: 1, space: 1,    name: '-',     normal: '-',           shift: '_',           ctrl: '\x1F',         },
 { row: 1, space: 1,    name: '+',     normal: '+',           shift: '=',           ctrl: '+',            },
 { row: 1, space: 1,    name: '=',     normal: '=',           shift: '+',           ctrl: '=',            },
-{ row: 1, space: 2,    name: 'BS',    normal: '\x08',        shift: '\x08',        ctrl: '\x08',         },
+{ row: 1, space: 2,    name: '\u2B45',    normal: '\x08',        shift: '\x08',        ctrl: '\x08',         },
 
 { row: 2, space: 1.4,  name: 'TAB',   normal: '\t',          shift: '\t',          ctrl: '\t',           },
 { row: 2, space: 1,    name: 'q',     normal: 'q',           shift: 'Q',           ctrl: '\x11',         },
@@ -68,7 +68,7 @@ export class AnsiSoftKeyboard
 { row: 3, space: 1,    name: 'l',      normal: 'l',           shift: 'L',          ctrl: '\x0C',         },
 { row: 3, space: 1,    name: ';',      normal: ';',           shift: ':',          ctrl: ';',            },
 { row: 3, space: 1,    name: '\'',     normal: '\'',          shift: '"',          ctrl: '\'',            },
-{ row: 3, space: 2.4,  name: 'ENTER',  normal: '\n',          shift: '\n',         ctrl: '\x00', display: (b) => { this.display_enter_2(b); } },
+{ row: 3, space: 2.4,  name: 'ENTER\u21B2',  normal: '\n',          shift: '\n',         ctrl: '\x00', display: (b) => { this.display_enter_2(b); } },
 { row: 3, space: 1,    name: ' ',      normal: '\n',          shift: '\n',         ctrl: '\x00', display: (b) => { this.display_enter_3(b); } },
 
 { row: 4, space: 2.5,  name: 'SHIFT',  normal: ' ',           shift: ' ',          ctrl: ' ',    handler: () => { this.toggle_shift(); } },
@@ -90,12 +90,12 @@ export class AnsiSoftKeyboard
 { row: 5, space: 1.5,  name: 'ALT',    normal: ' ',           shift: ' ',          ctrl: ' ',    handler: () => { this.toggle_alt(); } },
 { row: 5, space: 1.5,  name: 'CTRL',   normal: ' ',           shift: ' ',          ctrl: ' ',    handler: () => { this.toggle_ctrl(); } },
 
-{ row: 6, space: 1,    name: 'LEFT',   normal: '\x1B[D',      shift: '\x1B[D',      ctrl: '\x1B[D',       },
-{ row: 6, space: 1,    name: 'UP',     normal: '\x1B[A',      shift: '\x1B[A',      ctrl: '\x1B[A',       },
-{ row: 6, space: 1,    name: 'DOWN',   normal: '\x1B[B',      shift: '\x1B[B',      ctrl: '\x1B[B',       },
-{ row: 6, space: 1,    name: 'UP',     normal: '\x1B[C',      shift: '\x1B[C',      ctrl: '\x1B[C',       },
-{ row: 6, space: 1,    name: 'PgUP',   normal: '\x1B[5\x7E',  shift: '\x1B[5\x7E',  ctrl: '\x1B[5\x7E',   },
-{ row: 6, space: 1,    name: 'PgDOWN', normal: '\x1B[6\x7E',  shift: '\x1B[6\x7E',  ctrl: '\x1B[6\x7E',   },
+{ row: 6, space: 1,    name: '\u21E6',   normal: '\x1B[D',      shift: '\x1B[D',      ctrl: '\x1B[D',       },
+{ row: 6, space: 1,    name: '\u21E7',     normal: '\x1B[A',      shift: '\x1B[A',      ctrl: '\x1B[A',       },
+{ row: 6, space: 1,    name: '\u21E9',   normal: '\x1B[B',      shift: '\x1B[B',      ctrl: '\x1B[B',       },
+{ row: 6, space: 1,    name: '\u21E8',     normal: '\x1B[C',      shift: '\x1B[C',      ctrl: '\x1B[C',       },
+{ row: 6, space: 1,    name: 'Pg\u21E7',   normal: '\x1B[5\x7E',  shift: '\x1B[5\x7E',  ctrl: '\x1B[5\x7E',   },
+{ row: 6, space: 1,    name: 'Pg\u21E9', normal: '\x1B[6\x7E',  shift: '\x1B[6\x7E',  ctrl: '\x1B[6\x7E',   },
 { row: 6, space: 1,    name: 'HOME',   normal: '\x1B[H',      shift: '\x1B[H',      ctrl: '\x1B[H',       },
 { row: 6, space: 1,    name: 'END',    normal: '\x1B[F',      shift: '\x1B[F',      ctrl: '\x1B[F',       },
 
@@ -116,6 +116,8 @@ export class AnsiSoftKeyboard
 		this.div = document.createElement('div');
 		this.div.className = 'softkeyboard';
 		this.div.style.display = 'grid';
+		this.div.style.border = '1px solid black';
+		this.div.style.margin = '10px';
 		this.div.style.width = "max-content";
 		this.div.style.gridTemplateColumns = 'auto';
 
