@@ -2324,7 +2324,7 @@ export class AnsiTerm {
 
 					let dy = this.viewpoint - rv.value;
 
-					//console.log("Olb viewpoint: " + this.viewpoint + " new: " + rv.value);
+					//console.log("Old viewpoint: " + this.viewpoint + " new: " + rv.value);
 
 					this.viewpoint = rv.value;
 
@@ -2450,6 +2450,7 @@ export class AnsiTerm {
 		this.on_status_change = [];
 		this.on_freeze_change = [];
 		this.on_copy = [];
+		this.on_app_cursor_key_change = [];
 
 		// Initialize state variables.
 		this.underline = false;
@@ -2757,6 +2758,8 @@ export class AnsiTerm {
 	{
 		this._clear_timer();
 
+		//console.log(t);
+
 		for (let i = 0; i < t.length; ++i) {
 			this.ch = t[i];
 			this._sm(t[i], false);
@@ -2833,7 +2836,7 @@ export class AnsiTerm {
 	 */
 	cancelOnStatusChange(cb)
 	{
-		this.on_status_change = this.on_status_change.filter((cb) => cb != callback);
+		this.on_status_change = this.on_status_change.filter((callback) => cb != callback);
 	}
 
 	
@@ -2898,7 +2901,7 @@ export class AnsiTerm {
 	 */
 	cancelOnFreezeChange(cb)
 	{
-		this.on_freeze_change = this.on_freeze_change.filter((cb) => cb != callback);
+		this.on_freeze_change = this.on_freeze_change.filter((callback) => cb != callback);
 	}
 
 
@@ -2942,7 +2945,7 @@ export class AnsiTerm {
 	 */
 	cancelOnTitleChange(cb)
 	{
-		this.on_title_change = this.on_title_change.filter((cb) => cb != callback);
+		this.on_title_change = this.on_title_change.filter((callback) => cb != callback);
 	}
 
 
@@ -3071,10 +3074,34 @@ export class AnsiTerm {
 		this._redraw_box(0, 0, this.params.nColumns, this.params.nLines);
 	}
 
+	/**
+	 * This method adds a callback that the terminal will invoke each time the application cursor
+	 * key mode changes, i.e., when the "set application cursor" ANSI sequence is received.
+	 * The callback receives the new application cursor mode as a parameter.
+	 * Multiple callbacks may be registered in this way.
+	 * The callbacks can be removed by calling the {@link cancelOnAppCursorKeyChange} method.
+	 * @param {function} cb - The callback function to add.
+	 */
+	registerOnAppCursorKeyChange(cb)
+	{
+		this.on_app_cursor_key_change.push(cb);
+		cb(this.app_cursor_keys);
+	}
+
+	/**
+	 * This method removes the callback registered by {@link registerOnAppCursorKeyChange}.
+	 * @param {function} cb - The callback function to remove.
+	 */
+	cancelOnAppCursorKeyChange(cb)
+	{
+		this.on_app_cursor_key_change = this.on_app_cursor_key_change.filter((callback) => cb != callback);
+	}
+
 	_setfeature(a, f)
 	{
 		if (a == 1) {
 			this.app_cursor_keys = f;
+			this.on_app_cursor_key_change.forEach(callback => callback(f));
 		}
 		else if (a == 12) {
 			if (this.blink_cursor != f && !this.force_blink_cursor) {
@@ -3924,6 +3951,7 @@ export class AnsiTerm {
 
 	_send_data(t)
 	{
+		//console.log("Sending data: " + t);
 		this.params.driver.send(t);
 	}
 
@@ -4275,7 +4303,7 @@ export class AnsiTerm {
 	 */
 	cancelOnCopy(cb)
 	{
-		this.on_copy = this.on_copy.filter((cb) => cb != callback);
+		this.on_copy = this.on_copy.filter((callback) => cb != callback);
 	}
 
 	_write_to_clipboard_helper(t, as_text)

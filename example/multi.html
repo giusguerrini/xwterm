@@ -230,6 +230,15 @@
         this.ansi.registerOnCopy((t) => {
           local_clipboard = t;
         });
+        
+        this.appcursor = false;
+        this.ansi.registerOnAppCursorKeyChange((appcursor) => {
+          this.appcursor = appcursor;
+          if (softkbd != null && focus_terminal == this) {
+            softkbd.setNumMode(appcursor);
+          }
+        });
+ 
         this.title = document.getElementById("title" + terminal_count);
         this.title_pre = document.getElementById("ansipretitle" + terminal_count);
         this.ansi.registerOnFreezeChange((frozen, nbytes) => {
@@ -307,9 +316,17 @@
 
         let set_focus = (e) => {
           try {
+            /*
+            if (focus_terminal != null && focus_terminal != this) {
+              focus_terminal.terminal.style.zIndex = 10;
+            }
+              */
             this.terminal.style.zIndex = 20;
             this.ansi.focus();
             focus_terminal = this;
+            if (softkbd != null) {
+              softkbd.setNumMode(this.appcursor);
+            }
           } catch (e) {
           }
         };
@@ -321,6 +338,9 @@
           }
         };
 
+        this.title.addEventListener("mousedown", (e) => {
+          set_focus(e);
+        });
         this.title.addEventListener("click", (e) => {
           set_focus(e);
         });

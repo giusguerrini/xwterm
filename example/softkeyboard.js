@@ -288,7 +288,12 @@ export class AnsiSoftKeyboard
 
 	toggle_num()
 	{
-		this.num = !this.num;
+		this.setNumMode(!this.num);
+	}
+
+	setNumMode(mode)
+	{
+		this.num = mode;
 		this.apply_bgcolor(this.num_buttons, this.num);	
 	}
 
