@@ -493,7 +493,7 @@ const ANSITERM_DEFAULTS = {
 	nLines:  25, // Number of lines
 	nColumns:  80, // Number of columns
 
-	historySize: 1000, // Number of lines in the history buffer.
+	historySize: 20,//1000, // Number of lines in the history buffer.
 	internalScrollbar: true, // If true, the terminal uses its own scrollbar.
 	
 	fontSize:  15, // Font size in pixels. It determines the size of the canvas.
@@ -1035,16 +1035,30 @@ export class AnsiTermHistory
 	{
 		this.nColumns = nColumns;
 		this.nLines = nLines;
+		// This is only the initial value, but it may grow or drop in resize.
+		// The resize algorithm aims to keep the number of cells
+		// between this value and this value plus the number of columns
+		// (see below for details).
 		this.historySize = historySize;
 		this.history = [];
 		this.length = nLines;
 		this.size = historySize + nLines;
+		this.ncells = this.size * nColumns;
 		this.logline_start = 0;
 		this.screens = [ [], [] ];
 		this.history = [];
 		this.max_ncolumns = nColumns;
 		this.max_nlines = nLines;
 		this.max_size = this.size;
+		// This field is used to keep track of the initial number of cells.
+		// Its purpose is to avoid that the memory consumption grows indefinitely.
+		// The number of cells is maintained between the
+		// initial value and the initial value plus the number of columns.
+		// The only case in which the number of cells grows beyond this limit
+		// is when in a resize action the number of visible lines exceeds
+		// the number of lines that can be made with the current number of cells.
+		// In this case, the number of cells is increased to match the new size.
+		this.initial_ncells = this.ncells;
 		this.loglines = [];
 		this.base_index = 0;
 		this.alternate_screen = false;
@@ -1070,7 +1084,7 @@ export class AnsiTermHistory
 			for (let j = 0; j < nColumns; ++j) {
 				t[j] = { ...this.empty_cell };
 			}
-			lines[i] = { t: t, l: { span: 0, len: 0, cont: false } };
+			lines[i] = { t: t, l: { span: 0, len: 0 } };
 		}
 		return lines;
 	}
@@ -1089,14 +1103,17 @@ export class AnsiTermHistory
 		this.logline_start = 0;
 	}
 
-	getLine(y)
+	_line_index(y)
 	{
 		y = this.nLines - y - 1;
 		//if (y >= this.length || y < 0) {	
 		//	console.log(y);
 		//}
-		let i = (((y >= this.length) ? this.length - 1 : y) + this.base_index + this.size) % this.size;
-		return this.history[i].t;
+		return (((y >= this.length) ? this.length - 1 : y) + this.base_index + this.size) % this.size;
+	}
+	getLine(y)
+	{
+		return this.history[this._line_index(y)].t;
 	}
 
 	//
@@ -1125,16 +1142,16 @@ export class AnsiTermHistory
 	// Although this is not perfect, it is good enough in practice because
 	// the typical usage of the alternate screen is to display dynamic content
 	// or graphics. Applications that use the alternate screen (e.g., vim, mc, htop...)
-	// implement their own complete screen resize logic. Moreover, retrieving
+	// implement their own screen resize logic. Moreover, retrieving
 	// the history of the alternate screen is not expected, so the tracking
 	// mechanism is not needed.
 	//
 
 	startLogicalLine(y)
 	{
+		//console.log("startLogicalLine: y=", y, "logline_start=", this.logline_start);
 		this.logline_start = y;
-		y = this.nLines - y - 1;
-		this.history[y].l = { span: 0, len: 0, cont: false, };
+		this.history[this._line_index(y)].l = { span: 0, len: 0 };
 	}
 
 	completeLogicalLine(x, y)
@@ -1144,16 +1161,24 @@ export class AnsiTermHistory
 			span = -span;
 			this.logline_start = y;
 		}
-		let l = { span: span, len: x + span * this.nColumns, cont: false, };
+		let l = { span: span, len: x + span * this.nColumns };
+		//console.log("completeLogicalLine: x=", x, "y=", y, "logline_start=", this.logline_start, "span=", span, "len=", l.len);
 		for (let i = 0; i <= span; ++i) {
-			this.history[this.nLines - (this.logline_start + i) - 1].l = l;
+			this.history[this._line_index(this.logline_start + i)].l = l;
+			//console.log("completeLogicalLine: y=", y, "logline_start=", this.logline_start, "index=", this._line_index(this.logline_start + i), "l=", l);
 			if (l.span == 0) {
 				// Optimization
 				break;
 			}
-			l = { span: l.span - 1, len: l.len - this.nColumns, cont: true, };
+			l = { span: l.span - 1, len: l.len - this.nColumns };
 		}
-		this.startLogicalLine(y);
+		/*
+		for (let i = 0; i <= span; ++i) {
+			console.log("i=",i, " h.l=", this.history[this._line_index(this.logline_start + i)].l);
+		}
+			*/
+
+//		this.startLogicalLine(y);
 	}
 
 	update()
@@ -1176,10 +1201,12 @@ export class AnsiTermHistory
 			for (let i = this.nLines - 1; i > 0; --i) {
 				this.history[i].l = this.history[i - 1].l;
 			}
-			this.history[0].l = { span: 0, len: 0, cont: false };
+			this.history[0].l = { span: 0, len: 0 };
 
 			this.length = this.history.length;
 		}
+
+		--this.logline_start;
 
 		return rotate;
 	}
@@ -1200,24 +1227,28 @@ export class AnsiTermHistory
 
 		if (line.length > 0) {
 			let nspan = Math.floor((line.length - 1) / nColumns);
-			let l = { span: nspan, len: line.length, cont: false };
+			let l = { span: nspan, len: line.length };
 			for (let i = 0; i < nspan; ++i) {
 				t.push(...line.slice(t_len, t_len + nColumns));
 				slices.push({ t: t, l: l });
 				t_len += nColumns;
 				l.span -= 1;
 				l.len -= nColumns;
-				l.cont = true;
 			}
-			if (t_len > 0 && t_len < line.length) {
-				t.push(line.slice(t_len, line.length));
+			if (t_len < line.length) {
+				t.push(...line.slice(t_len, line.length));
+				rem = nColumns - (line.length - t_len);
 			}
-			rem = nColumns - (line.length - t_len);
+			else {
+				rem = 0;
+			}
 		}
 		for (let i = 0; i < rem; ++i) {
 			t.push({ ...this.empty_cell });
 		}
-		slices.push({ t: t, l: { span: 0, len: line.length - t_len, cont: false } });
+		if (rem > 0) {
+			slices.push({ t: t, l: { span: 0, len: line.length - t_len } });
+		}
 		return slices;
 	}
 
@@ -1230,7 +1261,7 @@ export class AnsiTermHistory
 			// No change
 			return;
 		}
-		
+
 		let old_length = this.history.length;
 		let old_hsize = this.historySize;
 
@@ -1240,8 +1271,9 @@ export class AnsiTermHistory
 			// of the new size.
 			// This is needed to preserve the logical line structure.
 			// The history is collected in reverse order with respect to the
-			// ordinary coordinate system, so that the last line
-			// in the screen (i.e., the bottom line) takes the index 0 in the array.
+			// ordinary coordinate system, so the last line
+			// in the screen (i.e., the bottom line) takes the index 0
+			// (+ base_index) in the array.
 			let new_hist = [];
 			let line = [];
 			for (let i = this.size - 1; i >= 0; --i) {
@@ -1250,14 +1282,21 @@ export class AnsiTermHistory
 				
 				let hl = this.history[li];
 				let nt = hl.l.len;
+				//console.log("li=", li, "hl.l=", hl.l, "nt=", nt, "nColumns=", nColumns);
 				if (nt > this.nColumns) {
 					nt = this.nColumns;
 				}
+				
+				let s = "";
 				for (let j = 0; j < nt; ++j) {
 					line.push(hl.t[j]);
+					s += hl.t[j].ch;
 				}
+				//console.log("line text=", s, "line.length=", line.length);
+			
 				if (hl.l.span == 0) {
 					let sl = this._slices(line, nColumns);
+					//console.log("line=", line, " slices=", sl);
 					for (let j = 0; j < sl.length; ++j) {
 						new_hist.push(sl[j]);
 					}
@@ -1266,8 +1305,7 @@ export class AnsiTermHistory
 			}
 			// Since slices are collected in direct order,
 			// we need to reverse the array to get the history in the correct order.
-			new_hist.reverse();
-			this.history = new_hist;
+			this.history = new_hist.reverse();
 			this.base_index = 0;
 		}
 
@@ -2758,7 +2796,7 @@ export class AnsiTerm {
 	{
 		this._clear_timer();
 
-		//console.log(t);
+		//console.log("input=",t);
 
 		for (let i = 0; i < t.length; ++i) {
 			this.ch = t[i];
