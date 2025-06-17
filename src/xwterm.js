@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "0.24.0";
+const ANSITERM_VERSION = "0.25.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -1035,10 +1035,6 @@ export class AnsiTermHistory
 	{
 		this.nColumns = nColumns;
 		this.nLines = nLines;
-		// This is only the initial value, but it may grow or drop in resize.
-		// The resize algorithm aims to keep the number of cells
-		// between this value and this value plus the number of columns
-		// (see below for details).
 		this.historySize = historySize;
 		this.history = [];
 		this.length = nLines;
@@ -1050,14 +1046,6 @@ export class AnsiTermHistory
 		this.max_ncolumns = nColumns;
 		this.max_nlines = nLines;
 		this.max_size = this.size;
-		// This field is used to keep track of the initial number of cells.
-		// Its purpose is to avoid that the memory consumption grows indefinitely.
-		// The number of cells is maintained between the
-		// initial value and the initial value plus the number of columns.
-		// The only case in which the number of cells grows beyond this limit
-		// is when in a resize action the number of visible lines exceeds
-		// the number of lines that can be made with the current number of cells.
-		// In this case, the number of cells is increased to match the new size.
 		this.initial_ncells = this.ncells;
 		this.loglines = [];
 		this.base_index = 0;
@@ -1177,6 +1165,7 @@ export class AnsiTermHistory
 			console.log("i=",i, " h.l=", this.history[this._line_index(this.logline_start + i)].l);
 		}
 			*/
+			
 
 //		this.startLogicalLine(y);
 	}
@@ -1229,14 +1218,18 @@ export class AnsiTermHistory
 			let nspan = Math.floor((line.length - 1) / nColumns);
 			let l = { span: nspan, len: line.length };
 			for (let i = 0; i < nspan; ++i) {
-				t.push(...line.slice(t_len, t_len + nColumns));
+				line.slice(t_len, t_len + nColumns).forEach((c) => {
+					t.push(c);
+				});
 				slices.push({ t: t, l: l });
 				t_len += nColumns;
 				l.span -= 1;
 				l.len -= nColumns;
 			}
 			if (t_len < line.length) {
-				t.push(...line.slice(t_len, line.length));
+				line.slice(t_len, line.length).forEach((c) => {
+					t.push(c);
+				});
 				rem = nColumns - (line.length - t_len);
 			}
 			else {
@@ -1261,6 +1254,10 @@ export class AnsiTermHistory
 			// No change
 			return;
 		}
+
+		//let oldlineprops = this.history[this._line_index(this.logline_start)].l;
+
+		this.completeLogicalLine(this.posx, this.posy);
 
 		let old_length = this.history.length;
 		let old_hsize = this.historySize;
@@ -1287,10 +1284,10 @@ export class AnsiTermHistory
 					nt = this.nColumns;
 				}
 				
-				let s = "";
+				//let s = "";
 				for (let j = 0; j < nt; ++j) {
 					line.push(hl.t[j]);
-					s += hl.t[j].ch;
+					//s += hl.t[j].ch;
 				}
 				//console.log("line text=", s, "line.length=", line.length);
 			
@@ -1344,7 +1341,7 @@ export class AnsiTermHistory
 
 		this.nColumns = nColumns;
 		this.nLines = nLines;
-		this.logline_start = 0;
+		//this.logline_start = 0;
 		if (this.nLines > this.max_nlines) {
 			this.max_nlines = nLines;
 		}
@@ -4598,7 +4595,9 @@ export class AnsiTerm {
 		let yadd = Math.floor(this.posx / this.params.nColumns);
 		let x = this.posx % this.params.nColumns;
 		let y = this.posy + yadd + ydiff;
+		this.history.logline_start += yadd + ydiff;
 		if (y >= this.params.nLines) {
+			this.history.logline_start -= y - (this.params.nLines - 1);
 			y = this.params.nLines - 1;
 		}
 		this.x_lastblink = x;
