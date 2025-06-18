@@ -218,6 +218,10 @@ class GenericScrollBar {
 
 		this.mouse_down = false;
 		this.mouse_down_pos = 0;
+
+		setTimeout(() => {
+			this.resize();
+		}, 0);
 	}
 
 	_onDivIntClick(event)
@@ -470,6 +474,26 @@ class GenericScrollBar {
 	{
 		this.on_new_position = this.on_new_position.filter((cb) => cb != callback);
 	}
+
+	resize()
+	{
+		let sz = Number(this.size);
+		this[this.mutable_properties.fixed_size] = sz;
+		this[this.mutable_properties.motion_size] = this.controlled_element[this.mutable_properties.motion_limit];
+
+		if (this.div) {
+			this.div.style.width = this.width + "px";
+			this.div.style.height = this.height + "px";
+		}
+		if (this.div_int) {
+			const m = this.mutable_properties;
+			let bsz = Number(this.button_size);
+			this.div_int.style[m.motion_size] = (this.controlled_element[m.motion_limit] - 2*bsz) + "px";
+			this.button_int.style[m.motion_size] = "100%";
+			this.button_int.style[m.fixed_size] = "100%";
+			this._updatePos();
+		}
+	}
 };
 
 class GenericScrollBarAdder
@@ -611,6 +635,18 @@ class GenericScrollBarAdder
 		this._layout();
 	}
 
+
+	resize()
+	{
+		this.width = this.controlled_element.clientWidth;
+		this.height = this.controlled_element.clientHeight;
+		if (this.verticalScrollbar) {
+			this.verticalScrollbar.resize();
+		}
+		if (this.horizontalScrollbar) {
+			this.horizontalScrollbar.resize();
+		}
+	}
 };
 
 window.GenericScrollBarAdder = GenericScrollBarAdder;

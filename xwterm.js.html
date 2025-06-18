@@ -26,7 +26,7 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>const ANSITERM_VERSION = "0.24.0";
+            <pre class="prettyprint source linenums"><code>const ANSITERM_VERSION = "0.25.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -209,7 +209,7 @@ class AnsiTermGenericScrollBar {
 		this.div.appendChild(this.div_scroll);
 
 		
-		// Hack to force scrollbar to be visibleon Firefox
+		// Hack to force scrollbar to be visible on Firefox
 		if (this.div_scroll[m.fixed_limit] == 0) {
 			this.div_scroll.style[m.min_fixed_limit] = '10px';
 		}
@@ -219,7 +219,7 @@ class AnsiTermGenericScrollBar {
 		this.div_spacer.style[m.motion_size] = this.scroll_area + 'px';
 
 	
-		// This would adjust the height in case the container,s geometry hasn't been calculated yet,
+		// This would adjust the height in case the container's geometry hasn't been calculated yet,
 		// but I'll postopone this in _update(), so the bar is left "grayed" until it is actually needed. 
 		//this.timer0 = setTimeout(() => {
 		//	this.div_scroll.style.height = this.controlled_element.clientHeight + 'px';
@@ -330,6 +330,19 @@ class AnsiTermGenericScrollBar {
 	{
 		this.on_change = cb;
 	}
+
+	resize()
+	{
+		// This method is called when the controlled element is resized.
+		// It updates the size of the scrollbar and the spacer.
+		if (this.div_scroll) {
+			const m = this.mutable_properties;
+			let l = this.controlled_element[m.motion_limit]
+			this.div_spacer.style[m.motion_size] = l + 'px';
+			this.div_scroll.style[m.motion_size] = l + 'px';
+			this._update();
+		}
+	}
 }
 
 /**
@@ -348,6 +361,20 @@ class AnsiTermGenericScrollBarAdder
 	static isIE11()
 	{
 		return !!window.MSInputMethodContext &amp;&amp; !!document.documentMode;
+	}
+
+	resize()
+	{
+		// This method is called when the controlled element is resized.
+		// It updates the size of the scrollbar and the spacer.
+		this.width = this.controlled_element.clientWidth;
+		this.height = this.controlled_element.clientHeight;
+		if (this.verticalScrollbar) {
+			this.verticalScrollbar.resize();
+		}
+		if (this.horizontalScrollbar) {
+			this.horizontalScrollbar.resize();
+		}
 	}
 
 	_layout()
@@ -494,7 +521,7 @@ const ANSITERM_DEFAULTS = {
 	nLines:  25, // Number of lines
 	nColumns:  80, // Number of columns
 
-	historySize: 1000, // Number of lines in the history buffer.
+	historySize: 20,//1000, // Number of lines in the history buffer.
 	internalScrollbar: true, // If true, the terminal uses its own scrollbar.
 	
 	fontSize:  15, // Font size in pixels. It determines the size of the canvas.
@@ -574,6 +601,11 @@ const ANSITERM_DEFAULTS = {
 	              // The object must be an instance of a class that 
 	              // implements (extends) AnsiTermDriver
 	              // interface (see below).
+
+	bell_enabled: true, // Whether the bell sound is enabled.
+	bell_duration: 0.5, // The duration of the bell sound in seconds.
+	bell_frequency: 1760, // The frequency of the bell sound in Hz.
+	bell_decay: 0.9998, // The decay ratio of the bell sound.
 };
 
 function getAbsolutePosition(element)
@@ -1033,13 +1065,16 @@ export class AnsiTermHistory
 		this.nLines = nLines;
 		this.historySize = historySize;
 		this.history = [];
-		this.length = nLines;
+		this.nused = nLines;
 		this.size = historySize + nLines;
+		this.ncells = this.size * nColumns;
 		this.logline_start = 0;
 		this.screens = [ [], [] ];
 		this.history = [];
 		this.max_ncolumns = nColumns;
 		this.max_nlines = nLines;
+		this.max_size = this.size;
+		this.initial_ncells = this.ncells;
 		this.loglines = [];
 		this.base_index = 0;
 		this.alternate_screen = false;
@@ -1057,37 +1092,44 @@ export class AnsiTermHistory
  * @returns {void}
  */
 
+	_empty_lines(nLines, nColumns)
+	{
+		let lines = [];
+		for (let i = 0; i &lt; nLines; ++i) {
+			let t = [];
+			for (let j = 0; j &lt; nColumns; ++j) {
+				t[j] = { ...this.empty_cell };
+			}
+			lines[i] = { t: t, l: { span: 0, len: 0 } };
+		}
+		return lines;
+	}
+
 	reset()
 	{
 		this.base_index = this.historySize;
 
-		for (let i = 0; i &lt; this.size; ++i) {
-			let t = [];
-			for (let j = 0; j &lt; this.nColumns; ++j) {
-				t[j] = { ...this.empty_cell };
-			} 	
-			this.history[i] = { t: t, l: { span: 0, len: 0, cont: false } };
-		}
+		this.history = this._empty_lines(this.size, this.nColumns);
 
 		this.screens = [ [], [] ];
 		for (let i = 0; i &lt; this.nLines; ++i) {
 			this.screens[0][i] = this.history[this.base_index + this.nLines - i - 1].t;
-			this.screens[1][i] = [];
-			for (let j = 0; j &lt; this.nColumns; ++j) {
-				this.screens[1][i][j] = { ...this.empty_cell };	
-			} 	
 		}
+		this.screens[1] = this._empty_lines(this.nLines, this.nColumns);
 		this.logline_start = 0;
 	}
 
-	getLine(y)
+	_line_index(y)
 	{
 		y = this.nLines - y - 1;
 		//if (y >= this.length || y &lt; 0) {	
 		//	console.log(y);
 		//}
-		let i = (((y >= this.length) ? this.length - 1 : y) + this.base_index + this.size) % this.size;
-		return this.history[i].t;
+		return (((y >= this.nused) ? this.nused - 1 : y) + this.base_index + this.size) % this.size;
+	}
+	getLine(y)
+	{
+		return this.history[this._line_index(y)].t;
 	}
 
 	//
@@ -1116,16 +1158,16 @@ export class AnsiTermHistory
 	// Although this is not perfect, it is good enough in practice because
 	// the typical usage of the alternate screen is to display dynamic content
 	// or graphics. Applications that use the alternate screen (e.g., vim, mc, htop...)
-	// implement their own complete screen resize logic. Moreover, retrieving
+	// implement their own screen resize logic. Moreover, retrieving
 	// the history of the alternate screen is not expected, so the tracking
 	// mechanism is not needed.
 	//
 
 	startLogicalLine(y)
 	{
+		//console.log("startLogicalLine: y=", y, "logline_start=", this.logline_start);
 		this.logline_start = y;
-		y = this.nLines - y - 1;
-		this.history[y].l = { span: 0, len: 0, cont: false, };
+		this.history[this._line_index(y)].l = { span: 0, len: 0 };
 	}
 
 	completeLogicalLine(x, y)
@@ -1135,16 +1177,25 @@ export class AnsiTermHistory
 			span = -span;
 			this.logline_start = y;
 		}
-		let l = { span: span, len: x + span * this.nColumns, cont: false, };
+		let l = { span: span, len: x + span * this.nColumns };
+		//console.log("completeLogicalLine: x=", x, "y=", y, "logline_start=", this.logline_start, "span=", span, "len=", l.len);
 		for (let i = 0; i &lt;= span; ++i) {
-			this.history[this.nLines - (this.logline_start + i) - 1].l = l;
+			this.history[this._line_index(this.logline_start + i)].l = l;
+			//console.log("completeLogicalLine: y=", y, "logline_start=", this.logline_start, "index=", this._line_index(this.logline_start + i), "l=", l);
 			if (l.span == 0) {
 				// Optimization
 				break;
 			}
-			l = { span: l.span - 1, len: l.len - this.nColumns, cont: true, };
+			l = { span: l.span - 1, len: l.len - this.nColumns };
 		}
-		this.startLogicalLine(y);
+		/*
+		for (let i = 0; i &lt;= span; ++i) {
+			console.log("i=",i, " h.l=", this.history[this._line_index(this.logline_start + i)].l);
+		}
+			*/
+			
+
+//		this.startLogicalLine(y);
 	}
 
 	update()
@@ -1156,54 +1207,83 @@ export class AnsiTermHistory
 			for (let i = 0; i &lt; this.nLines; ++i) {
 				this.screens[0][this.nLines - i - 1] = this.history[(this.base_index + i) % this.size].t;
 			}
-			if (this.length &lt; this.size) {
-				++this.length;
+			if (this.nused &lt; this.size) {
+				++this.nused;
 			}
 		}
 		else {
-
+// Dead code...
 			let e = { t: {...this.history[this.nLines - 1].t }, l: {...this.history[this.nLines - 1].l }};
 			this.history.splice(this.nLines, 0,  e);
 			for (let i = this.nLines - 1; i > 0; --i) {
 				this.history[i].l = this.history[i - 1].l;
 			}
-			this.history[0].l = { span: 0, len: 0, cont: false };
+			this.history[0].l = { span: 0, len: 0 };
 
-			this.length = this.history.length;
+			this.nused = this.history.length;
 		}
+
+		--this.logline_start;
 
 		return rotate;
 	}
 
 	_slices(line, nColumns)
 	{
+		// Splits a line into slices of the given number of columns.
+		// Each slice is an array of cells, and the last slice may contain
+		// fewer cells than the others, so we need to pad it with empty cells.
+		// The slices are returned as an array of objects, each containing
+		// the slice itself and the logical line information (span, length, continuation).
+		// The slices are put into the array in direct order, so that the first slice
+		// takes the index 0 in the array.
 		let t = [];
 		let slices = [];
+		let rem = nColumns;
+		let t_len = 0;
+
+		/*
+		console.log("slices: line=", line);
+		let s="";
+		line.forEach((c) => { s += c.ch; });
+		console.log("slices: line=", line, "s=", JSON.stringify(s));
+		*/
 
 		if (line.length > 0) {
 			let nspan = Math.floor((line.length - 1) / nColumns);
-			let l = { span: nspan, len: line.length, cont: false };
-			let t_len = 0;
+			let l = { span: nspan, len: line.length };
+			//s = "";
 			for (let i = 0; i &lt; nspan; ++i) {
-				t.push(...line.slice(t_len, t_len + nColumns));
+				line.slice(t_len, t_len + nColumns).forEach((c) => {
+					t.push(c);
+					//s += c.ch;
+				});
+				//console.log("slices: l=", l, "s=", JSON.stringify(s));
 				slices.push({ t: t, l: l });
+				t = [];
+				//s="";
 				t_len += nColumns;
-				l.span -= 1;
-				l.len -= nColumns;
-				l.cont = true;
+				l = { span: l.span - 1, len: l.len - nColumns };
 			}
-			if (t_len > 0 &amp;&amp; t_len &lt; line.length) {
-				t.push(line.slice(t_len, line.length));
-				let rem = nColumns - (line.length - t_len);
-				for (let i = 0; i &lt; rem; ++i) {
-					t.push({ ...this.empty_cell });
-				}
-				slices.push({ t: t, l: { span: 0, len: line.length - t_len, cont: false } });
+			if (t_len &lt; line.length) {
+				line.slice(t_len, line.length).forEach((c) => {
+					t.push(c);
+					//s += c.ch;
+				});
+				rem = nColumns - (line.length - t_len);
+				//console.log("slices: l=", l, "rem=", rem, "s=", JSON.stringify(s));
+			}
+			else {
+				rem = 0;
 			}
 		}
-		else {
-			slices.push({ t: t, l: { span: 0, len: 0, cont: false } });
+		for (let i = 0; i &lt; rem; ++i) {
+			t.push({ ...this.empty_cell });
 		}
+		if (rem > 0) {
+			slices.push({ t: t, l: { span: 0, len: line.length - t_len } });
+		}
+		//console.log("slices=", slices);
 		return slices;
 	}
 
@@ -1216,41 +1296,106 @@ export class AnsiTermHistory
 			// No change
 			return;
 		}
+
+		//let oldlineprops = this.history[this._line_index(this.logline_start)].l;
+
+		this.completeLogicalLine(this.posx, this.posy);
+
+		let old_nused = this.nused;
+		let old_size = this.size;
+		let old_hsize = this.historySize;
+
 		if (nColumns != this.nColumns) {
+
+			// Collect all lines in the history, and split them into slices
+			// of the new size.
+			// This is needed to preserve the logical line structure.
+			// The history is collected in reverse order with respect to the
+			// ordinary coordinate system, so the last line
+			// in the screen (i.e., the bottom line) takes the index 0
+			// (+ base_index) in the array.
 			let new_hist = [];
 			let line = [];
 			for (let i = this.size - 1; i >= 0; --i) {
 
 				let li = (this.base_index + i) % this.size;
+				
 				let hl = this.history[li];
 				let nt = hl.l.len;
+				//console.log("li=", li, "hl.l=", hl.l, "nt=", nt, "nColumns=", nColumns);
 				if (nt > this.nColumns) {
 					nt = this.nColumns;
 				}
-				line.push(...hl.t.slice(0, nt));
+				
+				//let s = "";
+				for (let j = 0; j &lt; nt; ++j) {
+					line.push(hl.t[j]);
+					//s += hl.t[j].ch;
+				}
+				//console.log("line text=", s, "line.length=", line.length);
+			
 				if (hl.l.span == 0) {
-					new_hist.push(...this._slices(line, nColumns));
+					let sl = this._slices(line, nColumns);
+					//console.log("line=", line, " slices=", sl);
+					sl.forEach((slice) => {
+						new_hist.push(slice);
+					});
 					line = [];
 				}
 			}
-			new_hist.reverse();
-			this.history = new_hist;
-			this.base_index = this.historySize;
+			// Since slices are collected in direct order,
+			// we need to reverse the array to get the history in the correct order.
+			//console.log("old size=", old_size, "new_hist.length=", new_hist.length);
+			this.history = new_hist.reverse();
+			this.base_index = 0;
 		}
-		
-		// TODO....
+
+		this.size = this.history.length;
+		this.nused += (this.history.length - old_size);
+		let empty_to_add = 0;
+		if (this.nused &lt; nLines) {
+			if (nLines &lt;= this.size) {
+				// Nothing to do: lines are allocated, we just need to consider them in use.
+			}
+			else {
+				empty_to_add = this.size - nLines;
+			}
+			this.nused = nLines;
+		}
+
+		this.historySize = this.size - nLines;
+		if (false) {
+			if (old_hsize > this.historySize) {
+				// If the actual history size is reduced, we need to "maintain the promise"
+				// that the history size is at least the requested size.
+				// This means that we need to add more empty lines to the history.
+				empty_to_add += old_hsize - this.historySize;
+			}
+		}
+
+		if (empty_to_add > 0) {
+			let e = this._empty_lines(empty_to_add, nColumns);
+			e.forEach((el) => {
+				this.history.push(el);
+			});		
+			this.base_index = (this.base_index + empty_to_add) % this.size;
+		}
+
+		this.size = this.history.length;
+
 		this.nColumns = nColumns;
 		this.nLines = nLines;
-		this.size = this.historySize + nLines;
-		this.length = this.history.length;
-		this.logline_start = 0;
-		this.max_ncolumns = nColumns;
-		this.max_nlines = nLines;
+		//this.logline_start = 0;
+		if (this.nLines > this.max_nlines) {
+			this.max_nlines = nLines;
+		}
+		if (this.nColumns > this.max_ncolumns) {
+			this.max_ncolumns = nColumns;
+		}
 
-		let screens = [ [], [] ];
 		for (let i = 0; i &lt; nLines; ++i) {
-			screens[0][i] = this.history[this.base_index + this.nLines - i - 1].t;
-			screens[1][i] = [];
+			this.screens[0][i] = this.getLine(i);
+			this.screens[1][i] = [];
 			for (let j = 0; j &lt; this.nColumns; ++j) {
 				this.screens[1][i][j] = { ...this.empty_cell };	
 			} 	
@@ -1315,6 +1460,10 @@ export class AnsiTermHistory
  * @param {boolean} [params.hasStatusBar=true] - Whether the terminal has a status bar.
  * @param {boolean} [params.hasSoftKeyboard=false] - Whether the terminal has a soft keyboard.
  * @param {boolean} [params.hasSoftFKeys=false] - Whether the terminal has soft function keys.
+ * @param {boolean} [params.bell_enabled] - Whether the bell sound is enabled. Default = true.
+ * @param {number} [params.bell_duration] - The duration of the bell sound in seconds. Default = 0.5 seconds.
+ * @param {number} [params.bell_frequency] - The frequency of the bell sound in Hz. Default=1760 Hz (==A6).
+ * @param {number} [params.bell_decay] - The decay ratio of the bell sound (next sample/current). Default = 0.9998.
  */
 /**
  * The `AnsiTerm` class implements a terminal emulator capable of interpreting
@@ -1551,7 +1700,7 @@ export class AnsiTerm {
 			0: {
 				"\x00": () => { this._init(); }, // NUL
 				"\x05": () => { this._init(); }, // ENQ
-				"\x07": () => { this._init(); }, //this.on_bell, // TODO
+				"\x07": () => { this._bell(); this._init(); }, // BEL
 				"\x08": () => {
 						this._flush();
 						if (this.posx == 0) {
@@ -2108,6 +2257,18 @@ export class AnsiTerm {
 		}
 	}
 
+	_resize_canvas()
+	{
+		this.width = this.charwidth * this.params.nColumns;
+		this.height = this.charheight * this.params.nLines;
+		this.gc.canvas.width = this.width;
+		this.gc.canvas.height = this.height;
+				
+		// We must repeat this after a size change:
+		this.gc.font = this.fullfont;
+		this.gc.textBaseline = "bottom";
+	}
+
 	//
 	// Layout generator.
 	//
@@ -2202,19 +2363,7 @@ export class AnsiTerm {
 		if (this.underline_off &lt; 1) {
 			this.underline_off = 1;
 		}
-		this.width = this.charwidth * this.params.nColumns;
-		this.height = this.charheight * this.params.nLines;
-
-		//console.log("charwidth = " + this.charwidth + " nColumns = " + this.params.nColumns);
-		//console.log("charheight = " + this.charheight + " nLines = " + this.params.nLines);
-
-		//this.gc.canvas.width = this.width;
-		//this.gc.canvas.height = this.height;
-		this.gc.canvas.width = this.width;
-		this.gc.canvas.height = this.height;
-		// We must repeat this after a size change:
-		this.gc.font = this.fullfont;
-		this.gc.textBaseline = "bottom";
+		this._resize_canvas();
 
 
 		// Scrollbar management
@@ -2239,7 +2388,7 @@ export class AnsiTerm {
 			this.scrollbar.verticalScrollbar.setValue(0);
 
 			this.scrollbar.verticalScrollbar.registerOnChange( (rv)	=> {
-				rv.value = rv.minValue + (rv.value - rv.minValue); 
+				//rv.value = rv.minValue + (rv.value - rv.minValue); 
 				rv.value = Math.floor(rv.value + 0.5);
 				//console.log(rv);
 				if (rv.value != this.viewpoint) {
@@ -2254,12 +2403,12 @@ export class AnsiTerm {
 
 					let dy = this.viewpoint - rv.value;
 
-					//console.log("Olb viewpoint: " + this.viewpoint + " new: " + rv.value);
+					//console.log("Old viewpoint: " + this.viewpoint + " new: " + rv.value);
 
 					this.viewpoint = rv.value;
 
 					if (! this.params.blinkIsBold) {
-						// TODO: Adjust blink_list: add to the list the lines
+						// Adjust blink_list: add to the list the lines
 						// that are visible now, and remove the lines that
 						// aren't visible anymore.
 
@@ -2380,6 +2529,7 @@ export class AnsiTerm {
 		this.on_status_change = [];
 		this.on_freeze_change = [];
 		this.on_copy = [];
+		this.on_app_cursor_key_change = [];
 
 		// Initialize state variables.
 		this.underline = false;
@@ -2395,6 +2545,7 @@ export class AnsiTerm {
 
 		this.bold = false;
 		this.italic = false;
+		this.audio_context = null;
 
 		this.selection_on = false;
 		this.selection_active = false;
@@ -2686,6 +2837,8 @@ export class AnsiTerm {
 	{
 		this._clear_timer();
 
+		//console.log("input=",t);
+
 		for (let i = 0; i &lt; t.length; ++i) {
 			this.ch = t[i];
 			this._sm(t[i], false);
@@ -2762,7 +2915,7 @@ export class AnsiTerm {
 	 */
 	cancelOnStatusChange(cb)
 	{
-		this.on_status_change = this.on_status_change.filter((cb) => cb != callback);
+		this.on_status_change = this.on_status_change.filter((callback) => cb != callback);
 	}
 
 	
@@ -2827,7 +2980,7 @@ export class AnsiTerm {
 	 */
 	cancelOnFreezeChange(cb)
 	{
-		this.on_freeze_change = this.on_freeze_change.filter((cb) => cb != callback);
+		this.on_freeze_change = this.on_freeze_change.filter((callback) => cb != callback);
 	}
 
 
@@ -2871,7 +3024,7 @@ export class AnsiTerm {
 	 */
 	cancelOnTitleChange(cb)
 	{
-		this.on_title_change = this.on_title_change.filter((cb) => cb != callback);
+		this.on_title_change = this.on_title_change.filter((callback) => cb != callback);
 	}
 
 
@@ -3000,10 +3153,34 @@ export class AnsiTerm {
 		this._redraw_box(0, 0, this.params.nColumns, this.params.nLines);
 	}
 
+	/**
+	 * This method adds a callback that the terminal will invoke each time the application cursor
+	 * key mode changes, i.e., when the "set application cursor" ANSI sequence is received.
+	 * The callback receives the new application cursor mode as a parameter.
+	 * Multiple callbacks may be registered in this way.
+	 * The callbacks can be removed by calling the {@link cancelOnAppCursorKeyChange} method.
+	 * @param {function} cb - The callback function to add.
+	 */
+	registerOnAppCursorKeyChange(cb)
+	{
+		this.on_app_cursor_key_change.push(cb);
+		cb(this.app_cursor_keys);
+	}
+
+	/**
+	 * This method removes the callback registered by {@link registerOnAppCursorKeyChange}.
+	 * @param {function} cb - The callback function to remove.
+	 */
+	cancelOnAppCursorKeyChange(cb)
+	{
+		this.on_app_cursor_key_change = this.on_app_cursor_key_change.filter((callback) => cb != callback);
+	}
+
 	_setfeature(a, f)
 	{
 		if (a == 1) {
 			this.app_cursor_keys = f;
+			this.on_app_cursor_key_change.forEach(callback => callback(f));
 		}
 		else if (a == 12) {
 			if (this.blink_cursor != f &amp;&amp; !this.force_blink_cursor) {
@@ -3329,7 +3506,7 @@ export class AnsiTerm {
 			 &amp;&amp; (this.scrollregion_l == 0 &amp;&amp; this.scrollregion_h == this.params.nLines - 1)) {
 
 				this._scroll_and_update_history();
-				this.scrollbar.verticalScrollbar.setMinValue(this.params.nLines - this.history.length);
+				this.scrollbar.verticalScrollbar.setMinValue(this.params.nLines - this.history.nused);
 			}
 			else {
 				this._scroll();
@@ -3738,6 +3915,84 @@ export class AnsiTerm {
 		this._printchar_in_place_pix(ch, this.posx, this.posy, this.pospx, this.pospy);
 	}
 
+	_bell_samples(duration, frequency, decay)
+	{
+		if (this.params.bell_enabled) {
+			try {
+				if (! this.audio_context) {
+					this.audio_context = new (window.AudioContext || window.webkitAudioContext)();
+				}
+				let rate = this.audio_context.sampleRate;
+				let nsamples = Math.floor(rate * duration);
+				if (! this.buffer) {
+					this.buffer = this.audio_context.createBuffer(1, nsamples, rate);
+				}
+				let channel_data = this.buffer.getChannelData(0);
+				let fading = 1.0;
+				// Generate a bell sound: a wave at the given frequency, decaying exponentially over time.
+				// To add some harmonics, we use a cubic function of the sine wave,
+				// which is a bit brighter than a pure sine wave.
+				for (let i = 0; i &lt; nsamples; ++i) {
+					channel_data[i] = Math.pow(Math.sin(2 * Math.PI * frequency * i / rate), 3) * fading;
+					fading *= decay;
+				}
+			}
+			catch (err) {
+			}
+		}
+	}
+
+	/**
+	 * This method sets the parameters for the bell sound.
+	 * The bell sound is played when the terminal receives a BEL character (0x07).
+	 * @param {boolean} enabled - Whether the bell sound is enabled.
+	 * @param {number} dration - The duration of the bell sound in seconds (no changes if undefined).
+	 * @param {number} frequency - The frequency of the bell sound in Hz (no changes if undefined).
+	 * @param {number} decay - The decay ratio of the bell sound (no changes if undefined).
+	 * @returns {void}
+	 * @example
+	 * term.setBell(true, 0.5, 1760, 0.9);
+	 * @description
+	 * This method allows you to configure the bell sound parameters for the terminal.
+	 * The bell sound is played when the terminal receives a BEL character (0x07).
+	 * You can enable or disable the bell sound, set its duration, frequency, and decay ratio.
+	 * The default values are:
+	 * - `enabled`: true
+	 * - `duration`: 0.5 seconds
+	 * - `frequency`: 1760 Hz (A6 note)
+	 * - `decay`: 0.9998 (decay ratio between a sample and the next one, i.e., next/current)
+	 */
+	setBell(enabled, duration, frequency, decay)
+	{
+		this.params.bell_enabled = enabled;
+		let rebuild = enabled
+		           &amp;&amp; this.params.bell_duration != duration
+				   &amp;&amp; this.params.bell_frequency != frequency
+				   &amp;&amp; this.params.bell_decay != decay;
+		this.params.bell_duration = duration || this.params.bell_duration; // seconds
+		this.params.bell_frequency = frequency || this.params.bell_frequency; // Hz
+		this.params.bell_decay = decay || this.params.bell_decay; // decay ratio between a sample and the next one (next/current)
+		if (rebuild) {
+			this._bell_samples(this.params.bell_duration, this.params.bell_frequency, this.params.bell_decay);
+		}
+	}
+
+	_bell()
+	{
+		try {
+			if (this.params.bell_enabled) {
+				this._bell_samples(this.params.bell_duration, this.params.bell_frequency, this.params.bell_decay);
+				let source = this.audio_context.createBufferSource();
+				source.buffer = this.buffer;
+				source.connect(this.audio_context.destination);
+				source.start();
+			}
+		}
+		catch (err) {
+			console.error("Error playing bell sound: " + err.toString());
+		}
+	}
+
 	/**
 	 * This method writes the given sequence of characters. The sequence
 	 * is processed by the ANSI interpreter, which modifies the screen
@@ -3775,6 +4030,7 @@ export class AnsiTerm {
 
 	_send_data(t)
 	{
+		//console.log("Sending data: " + t);
 		this.params.driver.send(t);
 	}
 
@@ -4126,7 +4382,7 @@ export class AnsiTerm {
 	 */
 	cancelOnCopy(cb)
 	{
-		this.on_copy = this.on_copy.filter((cb) => cb != callback);
+		this.on_copy = this.on_copy.filter((callback) => cb != callback);
 	}
 
 	_write_to_clipboard_helper(t, as_text)
@@ -4325,6 +4581,102 @@ export class AnsiTerm {
 			this.selection_timer = null;
 		}
 	} 
+
+	/**
+	 * This method resizes the terminal to the given number of lines and columns.
+	 * The selection and the viewpoint are cleared, and the cursor is adjusted
+	 * accordingly. The alternate screen is simply cleared, as it is usually
+	 * redrawn when the terminal is resized.
+	 * @param {number} nLines - The number of lines for the terminal.
+	 * @param {number} nColumns - The number of columns for the terminal.
+	 */
+
+	resize(nLines, nColumns)
+	{
+		if (nLines &lt; 1 || nColumns &lt; 1) {
+			return;
+		}
+		if (nLines == this.params.nLines &amp;&amp; nColumns == this.params.nColumns) {
+			return;
+		}
+
+		// For simplicity, the resize method clears the selection
+		// and resets the viewpoint.
+		// This is not strictly necessary, but it is a good idea
+		// to avoid confusion when the terminal is resized.
+		if (this.enable_cursor) {
+			this._unblink_cursor();
+		}
+		this._clear_selection();
+		this.viewpoint = 0;
+
+		this.history.resize(nLines, nColumns);
+		
+		let old_nLines = this.params.nLines;
+		let old_nColumns = this.params.nColumns;
+
+		this.screens = this.history.screens;
+		this.screen = this.screens[this.alternate_screen ? 1 : 0];
+		this.params.nLines = nLines;
+		this.params.nColumns = nColumns;
+
+		let xdiff = this.params.nColumns - old_nColumns;
+		let ydiff = this.params.nLines - old_nLines;
+
+		// Resize the elements (canvas, decorations...)
+
+		this._resize_canvas();
+		
+		// Resize the scrollbar, if any.
+		if (this.scrollbar) {
+			this.scrollbar.resize();
+			this.scrollbar.verticalScrollbar.setMinValue(this.params.nLines - this.history.nused);
+			this.scrollbar.verticalScrollbar.setMaxValue(0 /*this.params.nLines - 1*/);
+			this.scrollbar.verticalScrollbar.setVisibleRangeSize(this.params.nLines);
+			this.scrollbar.verticalScrollbar.setValue(0);
+		}
+
+		let yadd = Math.floor(this.posx / this.params.nColumns);
+		let x = this.posx % this.params.nColumns;
+		let y = this.posy + yadd + ydiff;
+		this.history.logline_start += yadd + ydiff;
+		if (y >= this.params.nLines) {
+			this.history.logline_start -= y - (this.params.nLines - 1);
+			y = this.params.nLines - 1;
+		}
+		this.x_lastblink = x;
+		this.y_lastblink = y;
+		this._setpos(x, y);
+
+		this.scrollregion_h += ydiff;
+
+		// Rebuild blink lists. Actually, only the one belonging to the primary screen,
+		// since we count on the fact that the secondary screen is usually redrawn
+		// by the application (e.g., vim, mc, htop...) when the terminal is resized.
+
+		this.blink_lists[0] = [];
+		this.blink_lists[1] = [];
+		this.blink_list = this.blink_lists[this.alternate_screen ? 1 : 0];
+
+		if ((! this.blinkIsBold) &amp;&amp; (! this.alternate_screen)) {
+			for (let y = 0; y &lt; this.nLines; ++y) {
+				let li = this._line_by_index(y);
+				for (let x = 0; x &lt; this.params.nColumns; ++x) {
+					if (li[x].blink) {
+						this._add_to_blink_list(x, y, this.blink_list);
+					}
+				}
+			}
+		}
+
+		
+		this._redraw();
+		this._setsize();
+
+		if (this.enable_cursor) {
+			this._do_blink_cursor();
+		}
+	}
 
 	/**
 	 * This method clears the selection and returns the focus to the terminal.
@@ -5051,7 +5403,7 @@ window.AnsiTermWebSocketDriver = AnsiTermWebSocketDriver;
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Mon Jun 09 2025 15:03:40 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Wed Jun 18 2025 22:46:01 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>
