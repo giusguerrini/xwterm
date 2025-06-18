@@ -1037,7 +1037,7 @@ export class AnsiTermHistory
 		this.nLines = nLines;
 		this.historySize = historySize;
 		this.history = [];
-		this.length = nLines;
+		this.nused = nLines;
 		this.size = historySize + nLines;
 		this.ncells = this.size * nColumns;
 		this.logline_start = 0;
@@ -1097,7 +1097,7 @@ export class AnsiTermHistory
 		//if (y >= this.length || y < 0) {	
 		//	console.log(y);
 		//}
-		return (((y >= this.length) ? this.length - 1 : y) + this.base_index + this.size) % this.size;
+		return (((y >= this.nused) ? this.nused - 1 : y) + this.base_index + this.size) % this.size;
 	}
 	getLine(y)
 	{
@@ -1179,8 +1179,8 @@ export class AnsiTermHistory
 			for (let i = 0; i < this.nLines; ++i) {
 				this.screens[0][this.nLines - i - 1] = this.history[(this.base_index + i) % this.size].t;
 			}
-			if (this.length < this.size) {
-				++this.length;
+			if (this.nused < this.size) {
+				++this.nused;
 			}
 		}
 		else {
@@ -1192,7 +1192,7 @@ export class AnsiTermHistory
 			}
 			this.history[0].l = { span: 0, len: 0 };
 
-			this.length = this.history.length;
+			this.nused = this.history.length;
 		}
 
 		--this.logline_start;
@@ -1214,23 +1214,36 @@ export class AnsiTermHistory
 		let rem = nColumns;
 		let t_len = 0;
 
+		/*
+		console.log("slices: line=", line);
+		let s="";
+		line.forEach((c) => { s += c.ch; });
+		console.log("slices: line=", line, "s=", JSON.stringify(s));
+		*/
+
 		if (line.length > 0) {
 			let nspan = Math.floor((line.length - 1) / nColumns);
 			let l = { span: nspan, len: line.length };
+			//s = "";
 			for (let i = 0; i < nspan; ++i) {
 				line.slice(t_len, t_len + nColumns).forEach((c) => {
 					t.push(c);
+					//s += c.ch;
 				});
+				//console.log("slices: l=", l, "s=", JSON.stringify(s));
 				slices.push({ t: t, l: l });
+				t = [];
+				//s="";
 				t_len += nColumns;
-				l.span -= 1;
-				l.len -= nColumns;
+				l = { span: l.span - 1, len: l.len - nColumns };
 			}
 			if (t_len < line.length) {
 				line.slice(t_len, line.length).forEach((c) => {
 					t.push(c);
+					//s += c.ch;
 				});
 				rem = nColumns - (line.length - t_len);
+				//console.log("slices: l=", l, "rem=", rem, "s=", JSON.stringify(s));
 			}
 			else {
 				rem = 0;
@@ -1242,6 +1255,7 @@ export class AnsiTermHistory
 		if (rem > 0) {
 			slices.push({ t: t, l: { span: 0, len: line.length - t_len } });
 		}
+		//console.log("slices=", slices);
 		return slices;
 	}
 
@@ -1259,7 +1273,8 @@ export class AnsiTermHistory
 
 		this.completeLogicalLine(this.posx, this.posy);
 
-		let old_length = this.history.length;
+		let old_nused = this.nused;
+		let old_size = this.size;
 		let old_hsize = this.historySize;
 
 		if (nColumns != this.nColumns) {
@@ -1294,29 +1309,30 @@ export class AnsiTermHistory
 				if (hl.l.span == 0) {
 					let sl = this._slices(line, nColumns);
 					//console.log("line=", line, " slices=", sl);
-					for (let j = 0; j < sl.length; ++j) {
-						new_hist.push(sl[j]);
-					}
+					sl.forEach((slice) => {
+						new_hist.push(slice);
+					});
 					line = [];
 				}
 			}
 			// Since slices are collected in direct order,
 			// we need to reverse the array to get the history in the correct order.
+			//console.log("old size=", old_size, "new_hist.length=", new_hist.length);
 			this.history = new_hist.reverse();
 			this.base_index = 0;
 		}
 
 		this.size = this.history.length;
-		this.length += this.history.length - old_length;
-		let empty_to_add = 0;		
-		if (this.length < nLines) {
+		this.nused += (this.history.length - old_size);
+		let empty_to_add = 0;
+		if (this.nused < nLines) {
 			if (nLines <= this.size) {
-				// Nothing to do: lines are allocated, we just need to use them.
+				// Nothing to do: lines are allocated, we just need to consider them in use.
 			}
 			else {
 				empty_to_add = this.size - nLines;
 			}
-			this.length = nLines;
+			this.nused = nLines;
 		}
 
 		this.historySize = this.size - nLines;
@@ -1331,10 +1347,10 @@ export class AnsiTermHistory
 
 		if (empty_to_add > 0) {
 			let e = this._empty_lines(empty_to_add, nColumns);
-			let pos = (this.base_index + this.size - 1) % this.size;
-			this.history.splice(pos, 0, ...e);
+			e.forEach((el) => {
+				this.history.push(el);
+			});		
 			this.base_index = (this.base_index + empty_to_add) % this.size;
-			this.size += empty_to_add;
 		}
 
 		this.size = this.history.length;
@@ -2344,7 +2360,7 @@ export class AnsiTerm {
 			this.scrollbar.verticalScrollbar.setValue(0);
 
 			this.scrollbar.verticalScrollbar.registerOnChange( (rv)	=> {
-				rv.value = rv.minValue + (rv.value - rv.minValue); 
+				//rv.value = rv.minValue + (rv.value - rv.minValue); 
 				rv.value = Math.floor(rv.value + 0.5);
 				//console.log(rv);
 				if (rv.value != this.viewpoint) {
@@ -3462,7 +3478,7 @@ export class AnsiTerm {
 			 && (this.scrollregion_l == 0 && this.scrollregion_h == this.params.nLines - 1)) {
 
 				this._scroll_and_update_history();
-				this.scrollbar.verticalScrollbar.setMinValue(this.params.nLines - this.history.length);
+				this.scrollbar.verticalScrollbar.setMinValue(this.params.nLines - this.history.nused);
 			}
 			else {
 				this._scroll();
@@ -4586,7 +4602,7 @@ export class AnsiTerm {
 		// Resize the scrollbar, if any.
 		if (this.scrollbar) {
 			this.scrollbar.resize();
-			this.scrollbar.verticalScrollbar.setMinValue(this.params.nLines - this.history.length)
+			this.scrollbar.verticalScrollbar.setMinValue(this.params.nLines - this.history.nused);
 			this.scrollbar.verticalScrollbar.setMaxValue(0 /*this.params.nLines - 1*/);
 			this.scrollbar.verticalScrollbar.setVisibleRangeSize(this.params.nLines);
 			this.scrollbar.verticalScrollbar.setValue(0);

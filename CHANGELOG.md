@@ -1,4 +1,11 @@
 # Changelog
+## [0.25.0] - 2025-06-19
+- AnsiTerm: Added a "resize" method (experimental), and a method to
+register/cancel a callback when the terminal receives one of the ANSI
+sequences that change te cursor key mappings (see "multi.html" for an
+example of use).
+- Fixed an error (typo) in some of the methods that cancel callbacks.
+
 ## [0.24.0] - 2025-05-29
 - miniserver.py: Fixed (hopefully) a long-standing malfunction in some versions
 of aiohttp when usng websockets. "--fix-aiohttp" option should not be necessary anymore.
