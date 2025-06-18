@@ -5,6 +5,8 @@ register/cancel a callback when the terminal receives one of the ANSI
 sequences that change te cursor key mappings (see "multi.html" for an
 example of use).
 - Fixed an error (typo) in some of the methods that cancel callbacks.
+- Added sound (ASCII "BEL", code 0x07) ad a method to turn it on, off,
+and configure some characteristics.
 
 ## [0.24.1] - 2025-06-09
 - miniserver.py: Fixed a wrong path in case of missing modules on
