@@ -1,4 +1,11 @@
 # Changelog
+## [0.25.0] - 2025-06-19
+- AnsiTerm: Added a "resize" method (experimental), and a method to
+register/cancel a callback when the terminal receives one of the ANSI
+sequences that change te cursor key mappings (see "multi.html" for an
+example of use).
+- Fixed an error (typo) in some of the methods that cancel callbacks.
+
 ## [0.24.1] - 2025-06-09
 - miniserver.py: Fixed a wrong path in case of missing modules on
 python 3.6 and embedded linux: a hard-coded path was minstakenly published.

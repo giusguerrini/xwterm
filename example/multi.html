@@ -9,9 +9,11 @@
 </head>
 <body>
   <div style="display: grid; grid-template-columns: auto auto; width: max-content;">
-    <div style="display: grid; grid-template-columns: auto;">
+    <div style="display: grid; grid-template-columns: auto;border: 2px solid black; padding: 5px;">
       <button onclick="go_back()">BACK</button>
       <button id="openclosekbd" onclick="open_close_kbd()">OPEN SOFT KEYBOARD</button>
+      <button id="select-scroll" onclick="select_scrollbar()">USE FIXED-SIZE SCROLLBAR</button>
+      <button id="select-driver" onclick="select_driver()">USE WEBSOCKETS</button>
       <button id="open-terminal" onclick="open_terminal()">NEW TERMINAL</button>
     </div>
     <div style="display: grid; grid-template-columns: auto auto; width: max-content; margin-left: 30px;">
@@ -22,6 +24,8 @@
         <input id="selheight" type="number" oninput="set_height()">
         <label for="selfont">Select Font Size</label>
         <input id="selfont" type="number" oninput="set_font()">
+        <button onclick="resize_all()">Resize All</button>
+        <button onclick="reset_default()">Default values</button>
       </div>
       <div style="display: grid; grid-template-columns: auto; border: 2px solid black; padding: 5px; margin-left: 10px;">
         <div style="padding: 5px;">Select base color palette style</div>
@@ -49,6 +53,7 @@
   </div>
   <script type="module">
 
+    import "./scrollbar.js";
 
     import "./xwterm.js";
     // Empty in case of locl test, JSConsole class in case of live example.
@@ -56,16 +61,57 @@
 
     import "./softkeyboard.js";
 
-    var width = 80;
-    var height = 25;
-    var font_size = 12;
+    const default_width = 80;
+    const default_height = 25;
+    const default_font_size = 12;
+    
+    var width = default_width;
+    var height = default_height;
+    var font_size = default_font_size;
     var softkbd = null;
+    var use_websockets = false;
+    var use_fixed_scrollbar = false;
+    let terminals = [];
+    let local_clipboard = null;
+    let terminal_count = 0;
+    let clicked_terminal = null;
+    let focus_terminal = null;
+
+    if (typeof JSConsole != 'undefined') {
+      document.getElementById("select-driver").disabled = true;
+    }
+
+    reset_default();
 
     document.addEventListener("DOMContentLoaded", (e) => {
 	    document.getElementById("selwidth").value = width;
 	    document.getElementById("selheight").value = height;
 	    document.getElementById("selfont").value = font_size;
     });
+
+    function select_scrollbar()
+    {
+      use_fixed_scrollbar = !use_fixed_scrollbar;
+      if (use_fixed_scrollbar) {
+        document.getElementById("select-scroll").innerText = "USE STANDARD SCROLLBAR";
+      }
+      else {
+        document.getElementById("select-scroll").innerText = "USE FIXED-SIZE SCROLLBAR";
+      }
+    }
+    window.select_scrollbar = select_scrollbar;
+
+    function select_driver()
+    {
+      use_websockets = !use_websockets;
+      if (use_websockets) {
+        document.getElementById("select-driver").innerText = "USE HTTP";
+      }
+      else {
+        document.getElementById("select-driver").innerText = "USE WEBSOCKETS";
+      }
+    }
+    window.select_driver = select_driver;
 
     function open_close_kbd()
     {
@@ -84,6 +130,26 @@
       }
     }
     window.open_close_kbd = open_close_kbd;
+
+    function reset_default()
+    {
+      width = default_width;
+      height = default_height;
+      font_size = default_font_size;
+      document.getElementById("selwidth").value = width;
+      document.getElementById("selheight").value = height;
+      document.getElementById("selfont").value = font_size;
+      resize_all();
+    }
+    window.reset_default = reset_default;
+
+    function resize_all()
+    {
+      terminals.forEach((t) => {
+          t.ansi.resize(height, width);
+      });
+    }
+    window.resize_all = resize_all;
 
     function set_width()
     {
@@ -110,13 +176,7 @@
         palette = e.target.value;
     }
     window.set_palette = set_palette;
-
-    let local_clipboard = null;
-
-    let terminal_count = 0;
-    let clicked_terminal = null;
-    let focus_terminal = null;
-
+ 
     class Terminal {
       constructor() {
         ++terminal_count;
@@ -131,19 +191,26 @@
           <div id="title${terminal_count}" style="align-items: center; display: grid; grid-template-columns: auto 1fr auto auto auto; border: 1px solid gray; margin: 1px; padding: 1px; background-color: #0000ff; color: #ffffff;">
             <div id="ansipretitle${terminal_count}" style="color: #FF00FF; padding-right: 20px">[${terminal_count}]</div>
             <div id="ansititle${terminal_count}"></div>
-            <button id="copy${terminal_count}" style="border: 1px solid white; padding: 0px; margin: 0px; background-color: #ff6060; color: #ffffff; width: 30px; height: 30px; justify-self: end">C</button>
-            <button id="paste${terminal_count}" style="border: 1px solid white; padding: 0px; margin: 0px; background-color: #ff6060; color: #ffffff; width: 30px; height: 30px; justify-self: end">P</button>
-            <button id="close${terminal_count}" style="border: 1px solid white; padding: 0px; margin: 0px; background-color: #ff0000; color: #ffffff; width: 30px; height: 30px; justify-self: end">X</button>
+            <button id="copy${terminal_count}" style="border: 1px solid white; padding: 0px; margin: 0px; background-color: #ff6060; color: #ffffff; width: 30px; height: 30px; justify-self: end">&#x2BBA;</button>
+            <button id="paste${terminal_count}" style="border: 1px solid white; padding: 0px; margin: 0px; background-color: #ff6060; color: #ffffff; width: 30px; height: 30px; justify-self: end">&#x2BB6;</button>
+            <button id="close${terminal_count}" style="border: 1px solid white; padding: 0px; margin: 0px; background-color: #ff0000; color: #ffffff; width: 30px; height: 30px; justify-self: end">&#x2715;</button>
           </div>
           <div id="term${terminal_count}" style="display: inline-block;"></div>
         </div>
         `;
+
         document.body.appendChild(this.terminal);
+
         //this.canvas = document.getElementById("term" + terminal_count);
         this.ansi = new AnsiTerm({
           
           // For "live" example on GitHub.
           driver: ((typeof JSConsole != 'undefined') ? new JSConsole() : null),
+
+          channelType: use_websockets ? "websocket" : "http", // Ignired if "driver" is not null (e.g. live example).
+					wsEndpoint: window.location.host.replace(':8000',':8001'), //for websocket only, ignored in other cases
+
+          internalScrollbar: !use_fixed_scrollbar, // Use standard scrollbar if true, fixed-size scrollbar if false.
 
           containerId: "term" + terminal_count,
           nLines : height,
@@ -163,6 +230,15 @@
         this.ansi.registerOnCopy((t) => {
           local_clipboard = t;
         });
+        
+        this.appcursor = false;
+        this.ansi.registerOnAppCursorKeyChange((appcursor) => {
+          this.appcursor = appcursor;
+          if (softkbd != null && focus_terminal == this) {
+            softkbd.setNumMode(appcursor);
+          }
+        });
+ 
         this.title = document.getElementById("title" + terminal_count);
         this.title_pre = document.getElementById("ansipretitle" + terminal_count);
         this.ansi.registerOnFreezeChange((frozen, nbytes) => {
@@ -240,9 +316,17 @@
 
         let set_focus = (e) => {
           try {
+            /*
+            if (focus_terminal != null && focus_terminal != this) {
+              focus_terminal.terminal.style.zIndex = 10;
+            }
+              */
             this.terminal.style.zIndex = 20;
             this.ansi.focus();
             focus_terminal = this;
+            if (softkbd != null) {
+              softkbd.setNumMode(this.appcursor);
+            }
           } catch (e) {
           }
         };
@@ -254,6 +338,9 @@
           }
         };
 
+        this.title.addEventListener("mousedown", (e) => {
+          set_focus(e);
+        });
         this.title.addEventListener("click", (e) => {
           set_focus(e);
         });
@@ -286,6 +373,9 @@
           this.terminal = null;
           this.title = null;
           this.button = null;
+          terminals = terminals.filter((t) => {
+            return t != this;
+          });
         });
         this.terminal.style.zIndex = 20;
         this.terminal.show();
@@ -293,7 +383,8 @@
       }
     }
     function open_terminal() {
-      new Terminal();
+      let t = new Terminal();
+      terminals.push(t);
     }
     window.open_terminal = open_terminal;
 	/* Store the URL of the current page when the page is loaded */

@@ -409,10 +409,19 @@
 <!--END -->
 			<p></p>
 <!--BEGIN sendevkey -->
-			<button id="sendevkey" onclick="ansi.sendKeyByKeyEvent({ key: 'l', code: 'KeyL', composed: true, ctrlKey: true, altKey: false, metaKey: false, })">Send CTRL-L<br>as key event</button>
+			<button id="sendevkey" onclick="ansi.sendKeyByKeyEvent({ key: 'g', code: 'KeyG', composed: true, ctrlKey: true, altKey: false, metaKey: false, })">Send CTRL-G (BEL)<br>as key event</button>
 <!--END -->
 <!--BEGIN sendtxtkey -->
-			<button id="sendtxtkey" onclick="ansi.sendText('\x0C')">Send CTRL-L<br>as text</button>
+			<button id="sendtxtkey" onclick="ansi.sendText('\x07')">Send CTRL-G (BEL)<br>as text</button>
+<!--END -->
+<!--BEGIN enablebelbass -->
+			<button id="enablebelbass" onclick="ansi.setBell(true, 0.5, 440, 0.9998)">Set BEL at 440 Hz</button>
+<!--END -->
+<!--BEGIN enablebeltreble -->
+			<button id="enablebeltreble" onclick="ansi.setBell(true, 0.5, 1760, 0.9998)">Set BEL at 1760 Hz</button>
+<!--END -->
+<!--BEGIN disablebel -->
+			<button id="disablebel" onclick="ansi.setBell(false)">Disable BEL</button>
 <!--END -->
 			<button id="jack" onclick="jack()">Jack!</button>
 		</div>
