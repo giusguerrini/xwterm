@@ -1,4 +1,14 @@
 # Changelog
+## [0.25.1] - 2025-06-19
+- AnsiTerm: Added a "resize" method (experimental), and a method to
+register/cancel a callback when the terminal receives one of the ANSI
+sequences that change te cursor key mappings (see "multi.html" for an
+example of use).
+- Fixed an error (typo) in some of the methods that cancel callbacks.
+- Added sound (ASCII "BEL", code 0x07) ad a method to turn it on, off,
+and configure some characteristics.
+- Restored history size default to 1000 (it was left to 20 for testing).
+
 ## [0.25.0] - 2025-06-19
 - AnsiTerm: Added a "resize" method (experimental), and a method to
 register/cancel a callback when the terminal receives one of the ANSI
