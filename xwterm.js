@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "0.25.0";
+const ANSITERM_VERSION = "0.25.1";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -493,7 +493,7 @@ const ANSITERM_DEFAULTS = {
 	nLines:  25, // Number of lines
 	nColumns:  80, // Number of columns
 
-	historySize: 20,//1000, // Number of lines in the history buffer.
+	historySize: 1000, // Number of lines in the history buffer.
 	internalScrollbar: true, // If true, the terminal uses its own scrollbar.
 	
 	fontSize:  15, // Font size in pixels. It determines the size of the canvas.
