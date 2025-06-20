@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "0.25.1";
+const ANSITERM_VERSION = "0.26.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -2239,6 +2239,26 @@ export class AnsiTerm {
 		// We must repeat this after a size change:
 		this.gc.font = this.fullfont;
 		this.gc.textBaseline = "bottom";
+	}
+
+	/**
+	 * This method returns the dimensions of a character rectangle
+	 * in pixels, including the underline height and offset.
+	 * @returns {Object} An object with the character rectangle dimensions.
+	 *                   The object has the following properties:
+	 *                   - width: the character width in pixels.
+	 *                   - height: the character height in pixels.
+	 *                   - underline_height: the height of the underline in pixels.
+	 *                   - underline_off: the offset of the underline from the bottom of the character in pixels.
+	 */
+	getCharRect()
+	{
+		return {
+			width: this.charwidth,
+			height: this.charheight,
+			underline_height: this.underline_height,
+			underline_off: this.underline_off
+		};
 	}
 
 	//

@@ -184,7 +184,7 @@
         this.terminal = document.createElement('dialog');
         this.terminal.style.position = "absolute";
         this.terminal.style.padding = "0px";
-        this.terminal.style.margin = "0px";
+        this.terminal.style.margin = "4px";
         this.terminal.style.overflow = "visible";
         this.terminal.innerHTML = `
         <div style="display: grid; grid-tamplate-columns: auto; border: 1px solid gray; margin: 0px; padding: 0px;">
@@ -380,13 +380,110 @@
         this.terminal.style.zIndex = 20;
         this.terminal.show();
         this.ansi.focus();
+
+        this.terminal.addEventListener("mousemove", (e) => {
+          let rect = this.terminal.getBoundingClientRect();
+          let x = e.clientX - rect.left;
+          let y = e.clientY - rect.top;
+          let m = 10;
+          if (x < m && y < m) {
+            this.terminal.style.cursor = "nw-resize";
+          } else if (x > rect.width - m && y < m) {
+            this.terminal.style.cursor = "ne-resize";
+          } else if (x < m && y > rect.height - m) {
+            this.terminal.style.cursor = "sw-resize";
+          } else if (x > rect.width - m && y > rect.height - m) {
+            this.terminal.style.cursor = "se-resize";
+          } else if (x < m) {
+            this.terminal.style.cursor = "w-resize";
+          } else if (y < m) {
+            this.terminal.style.cursor = "n-resize";
+          } else if (x > rect.width - m) {
+            this.terminal.style.cursor = "e-resize";
+          } else if (y > rect.height - m) {
+            this.terminal.style.cursor = "s-resize";
+          } else {
+            this.terminal.style.cursor = "default";
+          }
+        });
+
+        this.terminal.addEventListener("mousedown", (e) => {
+          if (this.terminal.style.cursor == "nw-resize") {
+            this.resize_terminal(e, "nw");
+          } else if (this.terminal.style.cursor == "ne-resize") {
+            this.resize_terminal(e, "ne");
+          } else if (this.terminal.style.cursor == "sw-resize") {
+            this.resize_terminal(e, "sw");
+          } else if (this.terminal.style.cursor == "se-resize") {
+            this.resize_terminal(e, "se");
+          } else if (this.terminal.style.cursor == "w-resize") {
+            this.resize_terminal(e, "w");
+          } else if (this.terminal.style.cursor == "n-resize") {
+            this.resize_terminal(e, "n");
+          } else if (this.terminal.style.cursor == "e-resize") {
+            this.resize_terminal(e, "e");
+          } else if (this.terminal.style.cursor == "s-resize") {
+            this.resize_terminal(e, "s");
+          }
+        });
+
+      }
+
+      resize_terminal(e, direction) {
+        e.preventDefault();
+        e.stopPropagation();
+        let start_x = e.screenX;
+        let start_y = e.screenY;
+        let rect = this.terminal.getBoundingClientRect();
+        let start_width = rect.width;
+        let start_height = rect.height;
+
+        let resize = (e) => {
+          let dx = e.screenX - start_x;
+          let dy = e.screenY - start_y;
+          let new_width = start_width;
+          let new_height = start_height;
+
+          if (direction.includes("w")) {
+            new_width -= dx;
+            this.terminal.style.left = (rect.left + dx) + "px";
+          } else if (direction.includes("e")) {
+            new_width += dx;
+          }
+          if (direction.includes("n")) {
+            new_height -= dy;
+            this.terminal.style.top = (rect.top + dy) + "px";
+          } else if (direction.includes("s")) {
+            new_height += dy;
+          }
+
+          //this.terminal.style.width = new_width + "px";
+          //this.terminal.style.height = new_height + "px";
+          let cr = this.ansi.getCharRect();
+          this.ansi.resize(Math.floor(new_height / cr.height), Math.floor(new_width / cr.width));
+        };
+
+        let stop_resize = () => {
+          document.removeEventListener("mousemove", resize);
+          document.removeEventListener("mouseup", stop_resize);
+          //document.removeEventListener("touchmove", tt(resize));
+          //document.removeEventListener("touchend", stop_resize);
+        };
+
+        document.addEventListener("mousemove", resize);
+        document.addEventListener("mouseup", stop_resize);
+        //document.addEventListener("touchmove", tt(resize));
+        //document.addEventListener("touchend", stop_resize);
       }
     }
+
     function open_terminal() {
       let t = new Terminal();
       terminals.push(t);
     }
+
     window.open_terminal = open_terminal;
+
 	/* Store the URL of the current page when the page is loaded */
 	window.onload = function() {
 		localStorage.setItem('previous_page', document.referrer);
