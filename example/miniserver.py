@@ -22,7 +22,7 @@
 # find any citation in aiohttp's changelog.
 #
 
-VERSION = '1.6'
+VERSION = '1.7'
 
 has_aiohttp = True
 has_websockets = True
@@ -31,6 +31,13 @@ import os
 
 home_dir = os.path.dirname(os.path.abspath(__file__))
 doc_dir = home_dir
+upload_dir = os.path.join(doc_dir, 'uploads')
+try:
+    if not os.path.exists(upload_dir):
+        os.makedirs(upload_dir)
+except OSError as e:
+    print("Cannot create upload directory: ", e, ", upload disabled")
+    upload_dir = None
 mod_dir = os.path.join(doc_dir, 'modules')
 
 import sys
@@ -1287,7 +1294,35 @@ async def do_POST(request, session):
 
 @Session.decorator
 async def do_PUT(request, session):
-    response = aiohttp.web.Response(text='Bad request', status = 400)
+    #print("PUT: Session=", session.sid)
+    if upload_dir is None:        
+        response = aiohttp.web.Response(text='Bad request', status = 500)
+    else:
+        file_path = request.match_info.get('file_path', 'default.bin')
+        fp = os.path.join(upload_dir, file_path)
+
+        async def upload():
+            try:
+                file = open(fp, 'wb')
+                while True:
+                    chunk = await request.content.read(1024)
+                    if not chunk:
+                        file.close()
+                        break
+                    file.write(chunk)
+            except (asyncio.CancelledError, GeneratorExit):
+                raise
+            except Exception as e:
+                print("Error opening file for upload:", e)
+                return False
+            return True
+        
+        result = await upload()
+        if not result:
+            response = aiohttp.web.Response(text='Error uploading file', status = 500)
+        else:
+            print(f'File {file_path} uploaded successfully to {fp}')
+            response = aiohttp.web.Response(text='', status = 200)
     return response
 
 async def websocket_server():
@@ -1366,7 +1401,7 @@ async def init_http_server():
     http_server.add_routes([aiohttp.web.get('/', do_GET),
                             aiohttp.web.get('/{file_path:.*}', do_GET_files),
                             aiohttp.web.post('/', do_POST),
-                            aiohttp.web.put('/', do_PUT)])
+                            aiohttp.web.put('/{file_path:.*}', do_PUT)])
 
     session_manager = Session.setup()
 
