@@ -720,8 +720,8 @@ export class AnsiTermDecoration
 			this.freeze_div.innerText = "Unfrozen";
 			this.status_div_container.appendChild(this.freeze_div);
 
-			this.term.registerOnFreezeChange( (frozen, length_pending, freeze_count) => {
-				this._update_status_element(this.freeze_div, !frozen, "Unfrozen", "Frozen [+" + freeze_count + "]- " + length_pending+ " bytes pending");
+			this.term.registerOnFreezeChange( (frozen, length_pending, freeze_state) => {
+				this._update_status_element(this.freeze_div, !frozen, "Unfrozen", "Frozen [+" + freeze_state + "]- " + length_pending+ " bytes pending");
 			});
 			
 			this.status_div = document.createElement("div");
@@ -863,7 +863,8 @@ export class AnsiTermDecoration
 
 			this.freeze_button.addEventListener("click",
 				(event) => {
-					this.term.toggleFreezeState();
+					let f = this.term.toggleFreezeState();
+					this.freeze_button.innerText = f ? "Freeze" : "Unfreeze";
 				});
 		}
 
@@ -2384,14 +2385,8 @@ export class AnsiTerm {
 				rv.value = Math.floor(rv.value + 0.5);
 				//console.log(rv);
 				if (rv.value != this.viewpoint) {
-					if ((this.viewpoint != 0) != (rv.value != 0)) {
-						if (rv.value != 0) {
-							this._inc_freeze();
-						}
-						else {
-							this._dec_freeze();
-						}
-					}
+
+					this._set_freeze_reason(AnsiTerm.FREEZE_SCROLL, (rv.value != 0));
 
 					let dy = this.viewpoint - rv.value;
 
@@ -2523,6 +2518,9 @@ export class AnsiTerm {
 		this.on_copy = [];
 		this.on_app_cursor_key_change = [];
 
+		this.jobs_pending_tail = null;
+		this.jobs_pending_head = null;
+
 		// Initialize state variables.
 		this.underline = false;
 		this.blink = false;
@@ -2540,16 +2538,13 @@ export class AnsiTerm {
 		this.audio_context = null;
 
 		this.selection_on = false;
-		this.selection_active = false;
 		this.selection_start = -1;
 		this.selection_end = -1;
 		this.selection_last = -1;
 		
 		this.incoming_text = "";
 
-		this.output_frozen_by_user = false;
-
-		this.freeze_count = 0;
+		this.freeze_state = 0;
 
 		this.fullfont = this.params.fontSize.toString() + "px " + this.params.font;
 		this.status_fullfont = /* this.params.fontSize.toString() + "px " + */ this.params.statusFont;
@@ -2825,18 +2820,92 @@ export class AnsiTerm {
 		//console.log(this.posy);
 	}
 
+	_apply_fragment(t, start, limit)
+	{	
+		// Interpret the text "t" starting from "start" position.
+		// The interpretation stops when the end of the text is reached,
+		// or when the terminal is in its idle state (state 0) and a
+		// newline character is received, and the number of characters
+		// processed is greater than "limit" (which is usually the number of columns
+		// in the terminal, or 0 if <limit> is not set). In this case, the remaining text is processed
+		// asynchronously, in the next iteration of the event loop.
+
+		let i = start;
+		let n = 0;
+		for ( ; i < t.length; ++i) {
+			this.ch = t[i];
+			this._sm(t[i], false);
+			++n;
+			if ((! this.alternate_screen) &&  this.state == 0 && this.ch == '\n' && n > limit && limit > 0) {
+				++i;
+				break;
+			}
+		}
+
+		if (i >= t.length) {
+			this._flush();
+			this._complete_job();
+			if (this.jobs_pending_head) {
+				let job = this.jobs_pending_head;
+				setTimeout(() => {
+					job.func();
+				}, 0);
+			}
+		}
+		else {
+			setTimeout(() => {
+				this._apply_fragment(t, i, limit);
+			}, 0);
+		}
+	}
+
+	_complete_job()
+	{
+		if (this.jobs_pending_head) {
+			this.jobs_pending_head = this.jobs_pending_head.next;
+			if (this.jobs_pending_head == null) {
+				this.jobs_pending_tail = null;
+			}
+		}
+	}
+
 	_apply(t)
 	{
 		this._clear_timer();
+		let limit = this.params.nColumns; // 0 // TODO: Define a configuration parameter
 
 		//console.log("input=",t);
 
-		for (let i = 0; i < t.length; ++i) {
-			this.ch = t[i];
-			this._sm(t[i], false);
-		}
+		let f = () => {
+			//console.log("fragment=",t);
+			this._apply_fragment(t, 0, limit);
+		};
 
-		this._flush();
+		if (limit > 0) {
+			// We could simply call "_apply_fragment" here, but the terminal would
+			// hang for a while in case of very large data packets (i.e.: "cat large_file"). It is safer to
+			// let the terminal "take a breath", and stop interpreting the incoming data
+			// when the state machine is in its idle state and an EOL is received.
+			// The remaining data will be managed asynchronously (via setTimeout(0)).
+			// If more data are received, the terminal will process them in the next iteration,
+			// after the current sequence is terminated. A job queue is maintained to
+			// make sure that data are processed in their natural order.
+
+			let tail = this.jobs_pending_tail;
+			this.jobs_pending_tail = { next: null, func: f };
+
+			if (tail) {
+				tail.next = this.jobs_pending_tail;
+			}
+			else {
+				this.jobs_pending_head = this.jobs_pending_tail;
+				f(); // If the queue was empty, we can process the data immediately.
+			}
+		}
+		else {
+			// If the limit is 0, we can process the data immediately.
+			f();
+		}
 	}
 
 	_setcell(x, y, src)
@@ -2913,7 +2982,7 @@ export class AnsiTerm {
 	
 	_is_frozen()
 	{
-		return (this.freeze_count != 0);
+		return (this.freeze_state != 0);
 	}
 
 	_update_freeze_state()
@@ -2923,23 +2992,24 @@ export class AnsiTerm {
 			this._apply(this.incoming_text);
 			this.incoming_text = "";
 		}
-		this.on_freeze_change.forEach(callback => callback(frozen, this.incoming_text.length, this.freeze_count));
+		this.on_freeze_change.forEach(callback => callback(frozen, this.incoming_text.length, this.freeze_state));
 	}
 
-	_inc_freeze()
+	_set_freeze_reason(r, f)
 	{
-		++this.freeze_count;
-		this._update_freeze_state();
-	}
-
-	_dec_freeze()
-	{
-		if (this.freeze_count > 0) {
-			--this.freeze_count;
+		let fs = this.freeze_state;
+		if (f) {
+			this.freeze_state |= r; // Set the freeze reason.
+		}
+		else {
+			this.freeze_state &= ~r; // Clear the freeze reason.
+		}
+		if (fs != this.freeze_state) {
 			this._update_freeze_state();
 		}
-
+		return (fs & r) != 0;
 	}
+
 
 	/**
 	 * This method adds a callback that the terminal will invoke each time one of these events happens:
@@ -2964,7 +3034,7 @@ export class AnsiTerm {
 	registerOnFreezeChange(cb)
 	{
 		this.on_freeze_change.push(cb);
-		cb(this._is_frozen(), this.incoming_text.length, this.freeze_count);
+		cb(this._is_frozen(), this.incoming_text.length, this.freeze_state);
 	}
 	/**
 	 * This method removes the callback registered by {@link registerOnFreezeChange}.
@@ -2975,20 +3045,11 @@ export class AnsiTerm {
 		this.on_freeze_change = this.on_freeze_change.filter((callback) => cb != callback);
 	}
 
-
 	_toggle_freeze()
 	{
-		this.output_frozen_by_user = ! this.output_frozen_by_user;
-		if (this.output_frozen_by_user) {
-			this._inc_freeze();
-		}
-		else {
-			this._dec_freeze();
-		}
-		if (this.freeze_button) {
-			this.freeze_button.innerText = this.output_frozen_by_user ? "Unfreeze" : "Freeze";
-		}
-		this._update_freeze_state();
+		let f = !(this.freeze_state & AnsiTerm.FREEZE_USER);
+		this._set_freeze_reason(AnsiTerm.FREEZE_USER, f);
+		return !f;
 	}
 
 	_set_title(t)
@@ -4277,11 +4338,7 @@ export class AnsiTerm {
 		this.selection_end = -1;
 		this.selection_last = -1;
 		this.selection_on = false;
-		if (this.selection_active) {
-			this._dec_freeze();
-		}
-		this.selection_active = false;
-		this._update_freeze_state();
+		this._set_freeze_reason(AnsiTerm.FREEZE_SELECTION, false);
 		return rv;
 	}
 
@@ -4750,13 +4807,73 @@ export class AnsiTerm {
 		this.canvas.focus();
 	}
 
-	/*
+	/**
+	 * These "constants" are used to define the freeze state of the terminal.
+	 * The freeze state is a bitmask that can be used to determine the reason
+	 * why the terminal is frozen.
+	 */
+
+	static FREEZE_USER = 1;	// User freeze, e.g., by clicking the "freeze" button ("toggleFreeze" method).
+	static FREEZE_SELECTION = 2;	// Selection freeze, e.g., by selecting text.
+	static FREEZE_SCROLL = 4;	// Scroll freeze, e.g., by scrolling the view.
+
+	/**
+	 * This method returns the current freeze state of the terminal.
+	 * The freeze state is a bitmask that can be used to determine the reason
+	 * why the terminal is frozen. To correctly interpret the bit mask,
+	 * the following constants are defined:
+	 * 
+	 * AnsiTerm.FREEZE_USER: direct user action
+	 * AnsiTerm.FREEZE_SCROLL: scroll by scrollbar
+	 * AnsiTerm.FREEZE_SELECTION: clipboard selection.
+	 * 
+	 * The {@link setFreezeState} and {@link toggleFreezeState} methods modify FREEZE_USER flag.
+	 * @returns {number} The current freeze state bit mask.
+	 */
+	getFreezeState()
+	{
+		return this.freeze_state;
+	}
+
+	/**
 	 * This method toggles the freeze state of the terminal.
+	 * If the terminal is frozen, it is unfrozen, and vice versa.
+	 * The freeze state is used to stop the terminal from updating the screen
+	 * and accumulating incoming characters instead of showing them.
+	 * Note that there are many source of freeze. Each source is handled separately.
+	 * The terminal is frozen when at least one of the following sources is active:
+	 * - selection
+	 * - scroll by scrollbar
+	 * - direct user action.
+	 * This method only modifies the latter, so if the terminal is frozen
+	 * by one of the other sources, it will remain frozen.
+	 * NOTE: Obsoleted by {@link setFreezeState}.
+	 * @returns {boolean} The previous freeze state: "true" if the terminal was frozen, "false" if not.
 	 */
 	toggleFreezeState()
 	{
-		this._toggle_freeze();
+		let f = !(this.freeze_state & AnsiTerm.FREEZE_USER);
+		return this.setFreezeState(f);
+	}
+
+	/**
+	 * This method sets the freeze state of the terminal to the required state.
+	 * The freeze state is used to stop the terminal from updating the screen
+	 * and accumulating incoming characters instead of showing them.
+	 * Note that there are many source of freeze. Each source is handled separately.
+	 * The terminal is frozen when at least one of the following sources is active:
+	 * - selection
+	 * - scroll by scrollbar
+	 * - direct user action.
+	 * This method only modifies the latter, so if the terminal is frozen
+	 * by one of the other sources, it will remain frozen.
+	 * @returns {boolean} The previous freeze state: "true" if the terminal was frozen, "false" if not.
+	 */
+	setFreezeState(f)
+	{
+		let rv = this._set_freeze_reason(AnsiTerm.FREEZE_USER, f);
 		this.canvas.focus();
+		return rv;
 	}
 
 	_start_selection(x, y)
@@ -4766,12 +4883,8 @@ export class AnsiTerm {
 		this.selection_end = -1;
 		this.selection_last = -1;
 		this.selection_on = true;
-		if (! this.selection_active) {
-			this._inc_freeze();
-		}
-		this.selection_active = true;
 		this._update_selection(x, y);
-		this._update_freeze_state();
+		this._set_freeze_reason(AnsiTerm.FREEZE_SELECTION, true);
 	}
 
 	_end_selection()

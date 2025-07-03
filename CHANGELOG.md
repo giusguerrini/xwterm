@@ -1,4 +1,13 @@
 # Changelog
+## [0.26.0] - 2025-07-03
+- Added a "getFreezeState" and "setFreezeState" methods
+for a better control of freeze state.
+- Fixed a bug in freeze management in case of resize.
+- Added a mechanism to avoid that the terminal hangs when a very
+large packet of data is received (e.g. a "cat large_file"). The
+incoming data are rendered in slices of about one line, and an event
+loop is executed between parts. 
+
 ## [0.25.1] - 2025-06-19
 - AnsiTerm: Added a "resize" method (experimental), and a method to
 register/cancel a callback when the terminal receives one of the ANSI
