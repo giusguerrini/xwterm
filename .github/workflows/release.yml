@@ -6,10 +6,6 @@ on:
     tags:
       - 'v*.*.*'
 
-permissions:
-  contents: write
-  pages: write
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -38,8 +34,9 @@ jobs:
       - name: Create release
         id: create_release
         uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.XWTERM_TOKEN }}
         with:
-          token: ${{ secrets.XWTERM_TOKEN }}
           tag_name: ${{ github.ref }}
           release_name: Release ${{ github.ref }}
           draft: false
@@ -47,8 +44,9 @@ jobs:
 
       - name: Upload minified xwterm.js
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.XWTERM_TOKEN }}
         with:
-          token: ${{ secrets.XWTERM_TOKEN }}
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: dist/xwterm.min.js
           asset_name: xwterm.min.js
@@ -56,8 +54,9 @@ jobs:
 
       - name: Upload minified scrollbar.js
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.XWTERM_TOKEN }}
         with:
-          token: ${{ secrets.XWTERM_TOKEN }}
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: dist/scrollbar.min.js
           asset_name: scrollbar.min.js
@@ -80,6 +79,8 @@ jobs:
       
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.XWTERM_TOKEN }}
         with:
           #github_token: ${{ secrets.XWTERM_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
