@@ -87,13 +87,13 @@ class GenericScrollBar {
 	{
 		let button = document.createElement("button");
 		button.style.margin = "0px";
-		if (true) {
+
 		button.style.borderWidth = this.button_border_size + "px";
 		button.style.borderRadius = (2*this.button_border_size) + "px";
 		button.style.borderStyle = "outset";
 		button.style.borderColor = this.foreground;
 		button.style.backgroundColor = this.button_background;
-		button.style.foregroundColor = this.foreground;
+		button.style.color = this.foreground;
 		let down = false;
 		let hover = false;
 		button.addEventListener("mousedown",
@@ -132,7 +132,7 @@ class GenericScrollBar {
 			}
 		);
 
-		}
+		button.setAttribute("tabIndex", "0");
 
 		return button;
 	}
@@ -258,15 +258,15 @@ class GenericScrollBar {
 		else {
 			this.mouse_down_pos = event.clientX;
 		}
-		document.addEventListener("mouseup", this._onDocumentMouseUp.bind(this));
-		document.addEventListener("mousemove", this._onDocumentMouseMove.bind(this));
+		document.addEventListener("mouseup", this._onDocumentMouseUpCb);
+		document.addEventListener("mousemove", this._onDocumentMouseMoveCb);
 	}
 
 	_onDocumentMouseUp(event) 
 	{
 		this.mouse_down = false;
-		document.removeEventListener("mouseup", this._onDocumentMouseUp.bind(this));
-		document.removeEventListener("mousemove", this._onDocumentMouseMove.bind(this));
+		document.removeEventListener("mouseup", this._onDocumentMouseUpCb);
+		document.removeEventListener("mousemove", this._onDocumentMouseMoveCb);
 		this.controlled_element.focus();
 	}
 
@@ -377,6 +377,9 @@ class GenericScrollBar {
 		this.curr_value = 0;
 		this.max_value = 0;
 		this.visible_range_size = 0;
+
+		this._onDocumentMouseUpCb = this._onDocumentMouseUp.bind(this);
+		this._onDocumentMouseMoveCb = this._onDocumentMouseMove.bind(this);
 
 		this._layout();
 	}

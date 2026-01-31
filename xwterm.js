@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "0.26.0";
+const ANSITERM_VERSION = "1.0.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -238,7 +238,7 @@ class AnsiTermGenericScrollBar {
 		this.curr_value = 0;
 		this.max_value = 0;
 		this.visible_range_size = 0;
-		this.on_change = [];
+		this.on_change = null;
 		this.on_new_position = [];
 
 		this._layout();
@@ -655,6 +655,8 @@ export class AnsiTermDecoration
 
 		this.container = null;
 		this.no_container = false;
+		this.status_fullfont = this.params.statusFont;
+
 
 		if (this.params.containerId != "") {
 			this.container = document.getElementById(this.params.containerId);
@@ -1260,7 +1262,7 @@ export class AnsiTermHistory
 		return slices;
 	}
 
-	resize(nLines, nColumns)
+	resize(nLines, nColumns, posx, posy)
 	{
 		if (nColumns < 1 || nLines < 1) {
 			return; //throw new Error("Invalid terminal size: " + nLines + "x" + nColumns);
@@ -1272,7 +1274,7 @@ export class AnsiTermHistory
 
 		//let oldlineprops = this.history[this._line_index(this.logline_start)].l;
 
-		this.completeLogicalLine(this.posx, this.posy);
+		this.completeLogicalLine(posx, posy);
 
 		let old_nused = this.nused;
 		let old_size = this.size;
@@ -4497,7 +4499,7 @@ export class AnsiTerm {
 					rv += '\x1B[48;2;1;' + ch.background.replace(/rgb\(/,"").replace(/\)/,"").replace(/,/g,";") + 'm';
 				}
 				if (ch.foreground != prev.foreground) {
-					rv += '\x1B[38;2;1;' + ch.background.replace(/rgb\(/,"").replace(/\)/,"").replace(/,/g,";") + 'm';				
+					rv += '\x1B[38;2;1;' + ch.foreground.replace(/rgb\(/,"").replace(/\)/,"").replace(/,/g,";") + 'm';				
 				}
 				if (ch.blink != prev.blink) {
 					rv += ch.blink ? '\x1B[5m' : '\x1B[25m';				
@@ -4659,7 +4661,7 @@ export class AnsiTerm {
 		this._clear_selection();
 		this.viewpoint = 0;
 
-		this.history.resize(nLines, nColumns);
+		this.history.resize(nLines, nColumns, this.posx, this.posy);
 		
 		let old_nLines = this.params.nLines;
 		let old_nColumns = this.params.nColumns;
@@ -4707,7 +4709,7 @@ export class AnsiTerm {
 		this.blink_lists[1] = [];
 		this.blink_list = this.blink_lists[this.alternate_screen ? 1 : 0];
 
-		if ((! this.blinkIsBold) && (! this.alternate_screen)) {
+		if ((! this.params.blinkIsBold) && (! this.alternate_screen)) {
 			for (let y = 0; y < this.nLines; ++y) {
 				let li = this._line_by_index(y);
 				for (let x = 0; x < this.params.nColumns; ++x) {
@@ -5450,7 +5452,7 @@ export class AnsiTermWebSocketDriver extends AnsiTermDriver
 	{
 		console.log('WS Connection closed');
 		try {
-			socket.close();
+			this.socket.close();
 		} catch {}
 		this.socket = null;
 	}
