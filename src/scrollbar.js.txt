@@ -93,7 +93,7 @@ class GenericScrollBar {
 		button.style.borderStyle = "outset";
 		button.style.borderColor = this.foreground;
 		button.style.backgroundColor = this.button_background;
-		button.style.color = this.foreground;
+		button.style.foregroundColor = this.foreground;
 		let down = false;
 		let hover = false;
 		button.addEventListener("mousedown",
@@ -258,15 +258,15 @@ class GenericScrollBar {
 		else {
 			this.mouse_down_pos = event.clientX;
 		}
-		document.addEventListener("mouseup", this._onDocumentMouseUpCb);
-		document.addEventListener("mousemove", this._onDocumentMouseMoveCb);
+		document.addEventListener("mouseup", this._onDocumentMouseUp.bind(this));
+		document.addEventListener("mousemove", this._onDocumentMouseMove.bind(this));
 	}
 
 	_onDocumentMouseUp(event) 
 	{
 		this.mouse_down = false;
-		document.removeEventListener("mouseup", this._onDocumentMouseUpCb);
-		document.removeEventListener("mousemove", this._onDocumentMouseMoveCb);
+		document.removeEventListener("mouseup", this._onDocumentMouseUp.bind(this));
+		document.removeEventListener("mousemove", this._onDocumentMouseMove.bind(this));
 		this.controlled_element.focus();
 	}
 
@@ -377,9 +377,6 @@ class GenericScrollBar {
 		this.curr_value = 0;
 		this.max_value = 0;
 		this.visible_range_size = 0;
-
-		this._onDocumentMouseUpCb = this._onDocumentMouseUp.bind(this);
-		this._onDocumentMouseMoveCb = this._onDocumentMouseMove.bind(this);
 
 		this._layout();
 	}

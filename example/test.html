@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>xterm.js + miniserver</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm/css/xterm.css" />
+  <style>
+    html, body { margin: 0; height: 100%; background: black; }
+    #terminal { height: 100%; width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="terminal"></div>
+  <script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
+  <script>
+    const term = new Terminal({
+      cursorBlink: true,
+      fontFamily: 'monospace',
+      fontSize: 14,
+      theme: {
+        background: '#000000',
+        foreground: '#ffffff'
+      }
+    });
+    term.open(document.getElementById('terminal'));
+
+    const socket = new WebSocket('ws://' + location.hostname + ':8001/');
+
+    socket.onopen = () => {
+      term.focus();
+      term.write('\x1b[32mConnected to miniserver\x1b[0m\r\n');
+    };
+
+    socket.onmessage = (event) => {
+      const data = event.data;
+      if (typeof data === 'string') {
+        term.write(data);
+      } else {
+        const reader = new FileReader();
+        reader.onload = () => term.write(reader.result);
+        reader.readAsText(data);
+      }
+    };
+
+    term.onData(data => {
+      socket.send(data);
+    });
+
+    socket.onclose = () => {
+      term.write('\r\n\x1b[31mDisconnected\x1b[0m');
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multiple terminals</title>
+  <style>
+  </style>
+</head>
+<body>
+  <div style="display: grid; grid-template-columns: auto auto; width: max-content;">
+    <div style="display: grid; grid-template-columns: auto;border: 2px solid black; padding: 5px;">
+      <button onclick="go_back()">BACK</button>
+      <button id="openclosekbd" onclick="open_close_kbd()">OPEN SOFT KEYBOARD</button>
+      <button id="select-scroll" onclick="select_scrollbar()">USE FIXED-SIZE SCROLLBAR</button>
+      <button id="select-driver" onclick="select_driver()">USE WEBSOCKETS</button>
+      <button id="open-terminal" onclick="open_terminal()">NEW TERMINAL</button>
+    </div>
+    <div style="display: grid; grid-template-columns: auto auto auto; width: max-content; margin-left: 30px;">
+      <div style="display: grid; grid-template-columns: auto auto; border: 2px solid black; padding: 5px; margin-left: 10px;">
+        <label for="selwidth">Select Columns</label>
+        <input id="selwidth" type="number" oninput="set_width()">
+        <label for="selheight">Select Lines</label>
+        <input id="selheight" type="number" oninput="set_height()">
+        <label for="selfont">Select Font Size</label>
+        <input id="selfont" type="number" oninput="set_font()">
+        <button onclick="resize_all()">Resize All</button>
+        <button onclick="reset_default()">Default values</button>
+      </div>
+      <div style="display: grid; grid-template-columns: auto; border: 2px solid black; padding: 5px; margin-left: 10px;">
+        <div style="padding: 5px;">Select base color palette style</div>
+        <div style="display: grid; grid-template-columns: auto auto auto auto;">
+          <div style="display: grid; grid-template-columns: auto auto; border: 2px solid black; padding: 5px;">
+            <label for="option1">XWTerm (default)</label>
+            <input type="radio" id="option1" name="options" value="default" onchange="set_palette(event)" checked>
+          </div>
+          <div style="display: grid; grid-template-columns: auto auto; border: 2px solid black; padding: 5px;">
+            <label for="option2">Windows</label>
+            <input type="radio" id="option2" name="options" value="windows" onchange="set_palette(event)">
+          </div>
+          <div style="display: grid; grid-template-columns: auto auto; border: 2px solid black; padding: 5px;">
+            <label for="option3">VSCode</label>
+            <input type="radio" id="option3" name="options" value="vscode" onchange="set_palette(event)">
+          </div>
+          <div style="display: grid; grid-template-columns: auto auto; border: 2px solid black; padding: 5px;">
+            <label for="option4">Xterm</label>
+            <input type="radio" id="option4" name="options" value="xterm" onchange="set_palette(event)">
+          </div>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: auto; border: 2px solid black; padding: 5px; margin: 10px;">
+        <input type="file" id="fileinput" style="margin: 0px; width: 100%; border: 1px solid black;"/>
+        <button id="upload" onclick="upload_file()">UPLOAD FILE</button>
+        <label id="progress">-</label>
+      </div>
+    </form>
+    </div>
+  </div>
+  <script type="module">
+
+    import "./scrollbar.js";
+
+    import "./xwterm.js";
+    // Empty in case of locl test, JSConsole class in case of live example.
+    import "./jsconsole.js";
+
+    import "./softkeyboard.js";
+
+    const default_width = 80;
+    const default_height = 25;
+    const default_font_size = 12;
+    
+    var width = default_width;
+    var height = default_height;
+    var font_size = default_font_size;
+    var softkbd = null;
+    var use_websockets = false;
+    var use_fixed_scrollbar = false;
+    let terminals = [];
+    let local_clipboard = null;
+    let terminal_count = 0;
+    let clicked_terminal = null;
+    let focus_terminal = null;
+
+    if (typeof JSConsole != 'undefined') {
+      document.getElementById("select-driver").disabled = true;
+    }
+
+    reset_default();
+
+    document.addEventListener("DOMContentLoaded", (e) => {
+	    document.getElementById("selwidth").value = width;
+	    document.getElementById("selheight").value = height;
+	    document.getElementById("selfont").value = font_size;
+    });
+
+    function select_scrollbar()
+    {
+      use_fixed_scrollbar = !use_fixed_scrollbar;
+      if (use_fixed_scrollbar) {
+        document.getElementById("select-scroll").innerText = "USE STANDARD SCROLLBAR";
+      }
+      else {
+        document.getElementById("select-scroll").innerText = "USE FIXED-SIZE SCROLLBAR";
+      }
+    }
+    window.select_scrollbar = select_scrollbar;
+
+    function select_driver()
+    {
+      use_websockets = !use_websockets;
+      if (use_websockets) {
+        document.getElementById("select-driver").innerText = "USE HTTP";
+      }
+      else {
+        document.getElementById("select-driver").innerText = "USE WEBSOCKETS";
+      }
+    }
+    window.select_driver = select_driver;
+
+    function open_close_kbd()
+    {
+      if (softkbd != null) {
+        softkbd.close();
+        softkbd = null;
+        document.getElementById("openclosekbd").innerText = "OPEN SOFT KEYBOARD";
+      }
+      else {
+        softkbd = new AnsiSoftKeyboard((t) => {
+          if (focus_terminal != null) {
+            focus_terminal.ansi.sendText(t);
+          }
+        });
+        document.getElementById("openclosekbd").innerText = "CLOSE SOFT KEYBOARD";
+      }
+    }
+    window.open_close_kbd = open_close_kbd;
+
+    function reset_default()
+    {
+      width = default_width;
+      height = default_height;
+      font_size = default_font_size;
+      document.getElementById("selwidth").value = width;
+      document.getElementById("selheight").value = height;
+      document.getElementById("selfont").value = font_size;
+      resize_all();
+    }
+    window.reset_default = reset_default;
+
+    function resize_all()
+    {
+      terminals.forEach((t) => {
+          t.ansi.resize(height, width);
+      });
+    }
+    window.resize_all = resize_all;
+
+    function set_width()
+    {
+	    width = Number(document.getElementById("selwidth").value);
+    }
+    window.set_width = set_width;
+
+    function set_height()
+    {
+	    height = Number(document.getElementById("selheight").value);
+    }
+    window.set_height = set_height;
+
+    function set_font()
+    {
+	    font_size = Number(document.getElementById("selfont").value);
+    }
+    window.set_font = set_font;
+
+    var palette = "default";
+
+    function set_palette(e)
+    {
+        palette = e.target.value;
+    }
+    window.set_palette = set_palette;
+ 
+    class Terminal {
+      constructor() {
+        ++terminal_count;
+        console.log("Terminal " + terminal_count);
+        this.terminal = document.createElement('dialog');
+        this.terminal.style.position = "absolute";
+        this.terminal.style.padding = "0px";
+        this.terminal.style.margin = "4px";
+        this.terminal.style.overflow = "visible";
+        this.terminal.innerHTML = `
+        <div style="display: grid; grid-tamplate-columns: auto; border: 1px solid gray; margin: 0px; padding: 0px;">
+          <div id="title${terminal_count}" style="align-items: center; display: grid; grid-template-columns: auto 1fr auto auto auto; border: 1px solid gray; margin: 1px; padding: 1px; background-color: #0000ff; color: #ffffff;">
+            <div id="ansipretitle${terminal_count}" style="color: #FF00FF; padding-right: 20px">[${terminal_count}]</div>
+            <div id="ansititle${terminal_count}"></div>
+            <button id="copy${terminal_count}" style="border: 1px solid white; padding: 0px; margin: 0px; background-color: #ff6060; color: #ffffff; width: 30px; height: 30px; justify-self: end">&#x2BBA;</button>
+            <button id="paste${terminal_count}" style="border: 1px solid white; padding: 0px; margin: 0px; background-color: #ff6060; color: #ffffff; width: 30px; height: 30px; justify-self: end">&#x2BB6;</button>
+            <button id="close${terminal_count}" style="border: 1px solid white; padding: 0px; margin: 0px; background-color: #ff0000; color: #ffffff; width: 30px; height: 30px; justify-self: end">&#x2715;</button>
+          </div>
+          <div id="term${terminal_count}" style="display: inline-block;"></div>
+        </div>
+        `;
+
+        document.body.appendChild(this.terminal);
+
+        //this.canvas = document.getElementById("term" + terminal_count);
+        this.ansi = new AnsiTerm({
+          
+          // For "live" example on GitHub.
+          driver: ((typeof JSConsole != 'undefined') ? new JSConsole() : null),
+
+          channelType: use_websockets ? "websocket" : "http", // Ignired if "driver" is not null (e.g. live example).
+					wsEndpoint: window.location.host.replace(':8000',':8001'), //for websocket only, ignored in other cases
+
+          internalScrollbar: !use_fixed_scrollbar, // Use standard scrollbar if true, fixed-size scrollbar if false.
+
+          containerId: "term" + terminal_count,
+          nLines : height,
+          nColumns : width,
+          fontSize : font_size,
+          palette: palette,
+          autocenter: false,
+          hasTitleBar: false,
+          hasStatusBar: false,
+          hasSoftKeyboard: false,          
+          hasSoftFKeys: false,          
+        });
+        this.ansititle = document.getElementById("ansititle" + terminal_count);
+        this.ansi.registerOnTitleChange((t) => {
+          this.ansititle.innerText = t;
+        });
+        this.ansi.registerOnCopy((t) => {
+          local_clipboard = t;
+        });
+        
+        this.appcursor = false;
+        this.ansi.registerOnAppCursorKeyChange((appcursor) => {
+          this.appcursor = appcursor;
+          if (softkbd != null && focus_terminal == this) {
+            softkbd.setNumMode(appcursor);
+          }
+        });
+ 
+        this.title = document.getElementById("title" + terminal_count);
+        this.title_pre = document.getElementById("ansipretitle" + terminal_count);
+        this.ansi.registerOnFreezeChange((frozen, nbytes) => {
+          
+          if (frozen) {
+            this.title_pre.style.color = "#FFFF00";
+            this.title.style.backgroundColor = "#8080C0";
+            if (nbytes > 0) {
+              this.title_pre.innerText = "[" + terminal_count + " - " + nbytes + " bytes pending]";
+            }
+          }
+          else {
+            this.title_pre.style.color = "#FF00FF";
+            this.title.style.backgroundColor = "#0000FF";
+            this.title_pre.innerText = "[" + terminal_count + "]"
+          }
+        });
+
+        let tt = (f) => {
+          return (e) => {
+            if (this.ansititle != clicked_terminal) {
+              return;
+            }
+            e.screenX = e.touches[0].screenX;
+            e.screenY = e.touches[0].screenY;
+            f(e);
+          };
+        };
+
+        let ttmd = (f) => {
+          return (e) => {
+            if (clicked_terminal != null) {
+              return;
+            }
+            clicked_terminal = e.target;
+            (tt(f))(e);
+          };
+        };
+
+        let md = (e) => {
+          this.start_ex = e.screenX;
+          this.start_ey = e.screenY;
+          let b = this.title.getBoundingClientRect();
+          this.start_x = b.x;
+          this.start_y = b.y;
+          e.preventDefault();
+          e.stopPropagation();
+          let f = (e) => {
+            let x = e.screenX - this.start_ex + this.start_x;
+            let y = e.screenY - this.start_ey + this.start_y;
+            this.terminal.style.left = x + "px";
+            this.terminal.style.top = y + "px";
+            e.preventDefault();
+            e.stopPropagation();
+          };
+          document.addEventListener("mousemove", f);
+          document.addEventListener("touchmove", tt(f));
+          let f2 = (e) => {
+            document.removeEventListener("mousemove", f);
+            document.removeEventListener("touchmove", tt(f));
+            document.removeEventListener("mouseup", f2);
+            document.removeEventListener("touchend", f2);
+            document.removeEventListener("touchcancel", f2);
+            e.preventDefault();
+            e.stopPropagation();
+            clicked_terminal = null;
+          };
+          document.addEventListener("mouseup", f2);
+          document.addEventListener("touchend", f2);
+          document.addEventListener("touchcancel", f2);
+        };
+
+        this.title.addEventListener("mousedown", md)
+        this.title.addEventListener("touchstart", ttmd(md));
+
+        let set_focus = (e) => {
+          try {
+            /*
+            if (focus_terminal != null && focus_terminal != this) {
+              focus_terminal.terminal.style.zIndex = 10;
+            }
+              */
+            this.terminal.style.zIndex = 20;
+            this.ansi.focus();
+            focus_terminal = this;
+            if (softkbd != null) {
+              softkbd.setNumMode(this.appcursor);
+            }
+          } catch (e) {
+          }
+        };
+
+        let leave_top = (e) => {
+          try {
+            this.terminal.style.zIndex = 10;
+          } catch (e) {
+          }
+        };
+
+        this.title.addEventListener("mousedown", (e) => {
+          set_focus(e);
+        });
+        this.title.addEventListener("click", (e) => {
+          set_focus(e);
+        });
+        this.ansi.getCanvas().addEventListener("click", (e) => {
+          set_focus(e);
+        });
+        this.ansi.getCanvas().addEventListener("blur", (e) => {
+          leave_top(e);
+        });
+        this.copy = document.getElementById("copy" + terminal_count);
+        this.copy.addEventListener("click", (e) => {
+          this.ansi.clipboardCopyAsText();
+        });
+        this.paste = document.getElementById("paste" + terminal_count);
+        this.paste.addEventListener("click", (e) => {
+          if (local_clipboard == null) {
+            this.ansi.clipboardPaste();
+          }
+          else {
+            this.ansi.sendText(local_clipboard);
+            local_clipboard = null;
+          }
+        });
+        this.close = document.getElementById("close" + terminal_count);
+        this.close.addEventListener("click", (e) => {
+          this.ansi.close();
+          this.ansi = null;
+          this.terminal.close();
+          this.terminal.remove();
+          this.terminal = null;
+          this.title = null;
+          this.button = null;
+          terminals = terminals.filter((t) => {
+            return t != this;
+          });
+        });
+        this.terminal.style.zIndex = 20;
+        this.terminal.show();
+        this.ansi.focus();
+
+        this.terminal.addEventListener("mousemove", (e) => {
+          let rect = this.terminal.getBoundingClientRect();
+          let x = e.clientX - rect.left;
+          let y = e.clientY - rect.top;
+          let m = 10;
+          if (x < m && y < m) {
+            this.terminal.style.cursor = "nw-resize";
+          } else if (x > rect.width - m && y < m) {
+            this.terminal.style.cursor = "ne-resize";
+          } else if (x < m && y > rect.height - m) {
+            this.terminal.style.cursor = "sw-resize";
+          } else if (x > rect.width - m && y > rect.height - m) {
+            this.terminal.style.cursor = "se-resize";
+          } else if (x < m) {
+            this.terminal.style.cursor = "w-resize";
+          } else if (y < m) {
+            this.terminal.style.cursor = "n-resize";
+          } else if (x > rect.width - m) {
+            this.terminal.style.cursor = "e-resize";
+          } else if (y > rect.height - m) {
+            this.terminal.style.cursor = "s-resize";
+          } else {
+            this.terminal.style.cursor = "default";
+          }
+        });
+
+        this.terminal.addEventListener("mousedown", (e) => {
+          if (this.terminal.style.cursor == "nw-resize") {
+            this.resize_terminal(e, "nw");
+          } else if (this.terminal.style.cursor == "ne-resize") {
+            this.resize_terminal(e, "ne");
+          } else if (this.terminal.style.cursor == "sw-resize") {
+            this.resize_terminal(e, "sw");
+          } else if (this.terminal.style.cursor == "se-resize") {
+            this.resize_terminal(e, "se");
+          } else if (this.terminal.style.cursor == "w-resize") {
+            this.resize_terminal(e, "w");
+          } else if (this.terminal.style.cursor == "n-resize") {
+            this.resize_terminal(e, "n");
+          } else if (this.terminal.style.cursor == "e-resize") {
+            this.resize_terminal(e, "e");
+          } else if (this.terminal.style.cursor == "s-resize") {
+            this.resize_terminal(e, "s");
+          }
+        });
+
+      }
+
+      resize_terminal(e, direction) {
+        e.preventDefault();
+        e.stopPropagation();
+        let start_x = e.screenX;
+        let start_y = e.screenY;
+        let rect = this.terminal.getBoundingClientRect();
+        let start_width = rect.width;
+        let start_height = rect.height;
+
+        let resize = (e) => {
+          let dx = e.screenX - start_x;
+          let dy = e.screenY - start_y;
+          let new_width = start_width;
+          let new_height = start_height;
+
+          if (direction.includes("w")) {
+            new_width -= dx;
+            this.terminal.style.left = (rect.left + dx) + "px";
+          } else if (direction.includes("e")) {
+            new_width += dx;
+          }
+          if (direction.includes("n")) {
+            new_height -= dy;
+            this.terminal.style.top = (rect.top + dy) + "px";
+          } else if (direction.includes("s")) {
+            new_height += dy;
+          }
+
+          //this.terminal.style.width = new_width + "px";
+          //this.terminal.style.height = new_height + "px";
+          let cr = this.ansi.getCharRect();
+          this.ansi.resize(Math.floor(new_height / cr.height), Math.floor(new_width / cr.width));
+        };
+
+        let stop_resize = () => {
+          document.removeEventListener("mousemove", resize);
+          document.removeEventListener("mouseup", stop_resize);
+          //document.removeEventListener("touchmove", tt(resize));
+          //document.removeEventListener("touchend", stop_resize);
+        };
+
+        document.addEventListener("mousemove", resize);
+        document.addEventListener("mouseup", stop_resize);
+        //document.addEventListener("touchmove", tt(resize));
+        //document.addEventListener("touchend", stop_resize);
+      }
+    }
+
+    function open_terminal() {
+      let t = new Terminal();
+      terminals.push(t);
+    }
+
+    window.open_terminal = open_terminal;
+
+    function upload_file() {
+      let input = document.getElementById("fileinput");
+      let progress = document.getElementById("progress");
+      let file = input.files[0];
+      if (file) {
+        let xhr = new XMLHttpRequest();
+  
+        let url = new  URL(window.location.origin);
+        url.pathname += file.name;
+        xhr.open("PUT", url.toString(), true);
+        xhr.setRequestHeader("content-type", "application/octet-stream");
+        xhr.onreadystatechange = () => {
+          if (xhr.readyState == 4 && xhr.status == 200) {
+            progress.innerText = "File " + file.name + " uploaded successfully";
+          }
+          else if (xhr.readyState == 4) {
+            progress.innerText = "Error uploading file " + file.name + ": " + xhr.statusText;
+          }
+        };
+        xhr.onprogress = (e) => {
+          if (e.lengthComputable) {
+            progress.innerText = "Uploading: " + file.name + " (" + e.loaded + "/" + e.total + " bytes)";
+          }
+        };
+        xhr.send(file);
+        progress.innerText = "Uploading: " + file.name + " (0/" + file.size + " bytes)";
+      }
+      else {
+        alert("Please select a file to upload.");
+      }
+    }
+
+    window.upload_file = upload_file;
+
+	/* Store the URL of the current page when the page is loaded */
+	window.onload = function() {
+		localStorage.setItem('previous_page', document.referrer);
+	};
+
+	export function go_back() {
+		/* Retrieve the URL of the previous page from localStorage */
+		var previous_page = localStorage.getItem('previous_page');
+		if (previous_page) {
+			window.location.href = previous_page;
+		} else {
+			/* If there is no previous page stored, use window.history.back() */
+			window.history.back();
+		}
+	}
+	window.go_back = go_back;
+
+	
+  </script>
+</body>
+</html>
+
