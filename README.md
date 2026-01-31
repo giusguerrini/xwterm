@@ -143,7 +143,7 @@ If you want to contribute, please take a look at the coding rules used in this p
 [Coding conventions](https://giusguerrini.github.io/xwterm/tutorial-60-coding-conventions.html)
 
 ## Caveats
-Please remember the project was born out of a specific need of mine in a controlled environment;
+Please remember that the project was born out of a specific need of mine in a controlled environment;
 to make it fully usable, a certain effort of generalization is still required.
 
 Development and test have been done mainly on recent versions of Chrome and Firefox.
