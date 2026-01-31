@@ -21,8 +21,6 @@ The goal of this project is to provide a simple, pure javascript terminal emulat
 (i.e., the client side). Connecting to a terminal service is a user's responsibility.
 For testing purposes, a very basic terminal server is available here.
 
-This project is still under development.
-
 ## Setup
 The source is a single JavaScript file (**src/xwterm.js**); once downloaded (e.g.,
 by cloning the repository), it is ready to use. To produce a minified version,
@@ -145,12 +143,8 @@ If you want to contribute, please take a look at the coding rules used in this p
 [Coding conventions](https://giusguerrini.github.io/xwterm/tutorial-60-coding-conventions.html)
 
 ## Caveats
-Please remember that this project is in its early stage.
-The project was born out of a specific need of mine in a controlled environment; to make it
-fully usable, a certain effort of generalization is still required.
-
-As the project grows, some details in the public interface (e.g., parameter names) may change.
-This may happen at least until the first "non-beta" release (v1.0.0) is published.
+Please remember the project was born out of a specific need of mine in a controlled environment;
+to make it fully usable, a certain effort of generalization is still required.
 
 Development and test have been done mainly on recent versions of Chrome and Firefox.
 Safari has been tested very superficially. No other browsers have been tested at this time.
