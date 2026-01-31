@@ -87,7 +87,7 @@ class GenericScrollBar {
 	{
 		let button = document.createElement("button");
 		button.style.margin = "0px";
-		if (true) {
+
 		button.style.borderWidth = this.button_border_size + "px";
 		button.style.borderRadius = (2*this.button_border_size) + "px";
 		button.style.borderStyle = "outset";
@@ -132,7 +132,7 @@ class GenericScrollBar {
 			}
 		);
 
-		}
+		button.setAttribute("tabIndex", "0");
 
 		return button;
 	}
