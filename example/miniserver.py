@@ -22,7 +22,7 @@
 # find any citation in aiohttp's changelog.
 #
 
-VERSION = '1.7'
+VERSION = '1.8'
 
 has_aiohttp = True
 has_websockets = True
@@ -976,13 +976,16 @@ class Session:
         self.task = None
         self.job = None
         self.pending_data = b""
+        self.shell_started = False
         Session.sessions[self.sid] = self
 
     async def activate(self):
 
-        if self.shell:
+        if self.shell_started:
             return
         
+        self.shell_started = True
+
         self.shell = await Shell.create(self.sid)
 
         print("Session ", self.sid, ": starting shell")
