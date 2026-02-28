@@ -22,7 +22,7 @@
 # find any citation in aiohttp's changelog.
 #
 
-VERSION = '1.8'
+VERSION = '1.9'
 
 has_aiohttp = True
 has_websockets = True
@@ -333,6 +333,8 @@ DEFAULT_FILE="index.html"
 
 DEFAULT_WEBSOCKET_PORT = 8001
 
+RESIZE_MITIGATION_TIME_S = 1 # 4 # 0 # 1
+
 #DEBUG_FLAGS = {"async", "process", "session", "http", "websocket"}
 DEBUG_FLAGS = {"async", "process", "session", "websocket"}
 
@@ -470,6 +472,15 @@ class Shell:
         self.pty = None
         self.li = DEFAULT_NLINES
         self.co = DEFAULT_NCOLUMNS
+        self.last_resize_time = time.time() - RESIZE_MITIGATION_TIME_S
+        self.resize_pending = False
+        self.resize_pending_event = asyncio.Event()
+        if RESIZE_MITIGATION_TIME_S > 0:
+            self.resize_polling_task = asyncio.create_task(self.resize_poll())
+            self.resize_pending_event = asyncio.Event()
+        else:
+            self.resize_polling_task = None
+            self.resize_pending_event = None
 
         #print("New shell: name=", self.name)
         if platform.system() == "Linux":
@@ -500,15 +511,37 @@ class Shell:
             if result != 0:
                 raise ctypes.WinError(ctypes.get_last_error())
 
-    def set_size(self, li, co):
-        print("Process ", self.name, ": Size=", li, ",", co)
+    def set_size_internal(self):
         try:
-            self.set_size_core(li, co)
-            self.li = li
-            self.co = co
+            self.last_resize_time = time.time()
+            self.set_size_core(self.li, self.co)
+            self.resize_pending = False
+            print("Process ", self.name, ": Size=", self.li, ",", self.co, " applied")
         except Exception as e:
             print("Process ", self.name, ": resize failed: ", e)
 
+    def set_size(self, li, co):
+        print("Process ", self.name, ": Resize request, Size=", li, ",", co)
+        self.li = li
+        self.co = co
+        if RESIZE_MITIGATION_TIME_S == 0:
+                self.set_size_internal()
+        elif not self.resize_pending:
+            if self.last_resize_time - time.time() >= RESIZE_MITIGATION_TIME_S:
+                self.set_size_internal()
+            else:
+                self.resize_pending = True
+                self.resize_pending_event.set()
+
+    async def resize_poll(self):
+        try:
+            while True:
+                await self.resize_pending_event.wait()
+                await asyncio.sleep(RESIZE_MITIGATION_TIME_S)
+                self.resize_pending_event.clear()
+                self.set_size_internal()
+        except asyncio.CancelledError:
+            raise
 
     # Platoform-specific shell process management
 
@@ -940,13 +973,6 @@ class Shell:
         self.wr = writer
         self.err = reader_err
         self.kill = end_shell
-
-    async def run(self):
-        #print("New shell: name=", self.name)
-        if platform.system() == "Linux":
-            return await self.run_linux()
-        else:
-            return await self.run_windows()
         
     async def create(name):
         shell = Shell(name)
@@ -992,6 +1018,8 @@ class Session:
 
         tasks = list()
 
+        if self.shell.resize_polling_task:
+            tasks.append(self.shell.resize_polling_task)
         tasks.append(asyncio.create_task(self.read_from_process(self.shell.rd)))
         tasks.append(asyncio.create_task(self.write_to_process(self.shell.wr)))
         if self.shell.err:

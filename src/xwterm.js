@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "1.0.0";
+const ANSITERM_VERSION = "1.1.0";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -578,6 +578,7 @@ const ANSITERM_DEFAULTS = {
 	bell_duration: 0.5, // The duration of the bell sound in seconds.
 	bell_frequency: 1760, // The frequency of the bell sound in Hz.
 	bell_decay: 0.9998, // The decay ratio of the bell sound.
+	resizeMitigationTimeMS: 750, // Inhibition time to limit the frequency of resizes (milliseconds).
 };
 
 function getAbsolutePosition(element)
@@ -1439,6 +1440,7 @@ export class AnsiTermHistory
  * @param {number} [params.bell_duration] - The duration of the bell sound in seconds. Default = 0.5 seconds.
  * @param {number} [params.bell_frequency] - The frequency of the bell sound in Hz. Default=1760 Hz (==A6).
  * @param {number} [params.bell_decay] - The decay ratio of the bell sound (next sample/current). Default = 0.9998.
+ * @param {number} [params.resizeMitigationTimeMS=1000] - Ah inhibition time to limit the frequency of resizes. DEfault = 1000 milliseconds).
  */
 /**
  * The `AnsiTerm` class implements a terminal emulator capable of interpreting
@@ -2562,6 +2564,12 @@ export class AnsiTerm {
 			underline: false,
 		};
 
+		
+		this.pending_resize_nlines = this.params.nLines;
+		this.pending_resize_ncolumns = this.params.nColumns;	
+		this.resize_timer = null;
+		this.last_resize_time = Date.now() - this.params.resizeMitigationTimeMS;
+
 		this.history = new AnsiTermHistory(this.params.nLines, this.params.nColumns, this.params.historySize, this.empty_cell);
 		this.viewpoint = 0;
 
@@ -2683,6 +2691,11 @@ export class AnsiTerm {
 		this._clear_selection();
 		this.params.driver.close();
 		this._clear_timer();
+		if (this.resize_timer) {
+			clearTimeout(this.resize_timer);
+			this.resize_timer = null;
+		}
+
 		if (this.decoration) {
 			this.decoration.close();
 			this.decoration = null;
@@ -4647,9 +4660,34 @@ export class AnsiTerm {
 		if (nLines < 1 || nColumns < 1) {
 			return;
 		}
+
+		this.pending_resize_nlines = nLines;
+		this.pending_resize_ncolumns = nColumns;
+	
+		if (! this.resize_timer) {
+			let difftm = Date.now() - this.last_resize_time;
+			if (difftm >= this.params.resizeMitigationTimeMS) {
+				this.resize_internal_();
+			}
+			else {
+				this.resize_timer = setTimeout( () => {
+					this.resize_internal_();
+					this.resize_timer = null;
+				}, this.params.resizeMitigationTimeMS - difftm);
+			}
+		}
+	}
+
+	resize_internal_()
+	{
+		let nLines = this.pending_resize_nlines;
+		let nColumns = this.pending_resize_ncolumns;
+
 		if (nLines == this.params.nLines && nColumns == this.params.nColumns) {
 			return;
 		}
+
+		this.last_resize_time = Date.now();
 
 		// For simplicity, the resize method clears the selection
 		// and resets the viewpoint.
@@ -5177,6 +5215,7 @@ export class AnsiTermHttpDriver extends AnsiTermDriver
 		this.pending_data_in_transaction = "";
 		this.immedate_refresh_request_count = 0;
 		this.timer = null;
+		this.refresh_timer = null;
 
 	// Fix some defaults that can't be set in the defaults table.
 	
@@ -5202,6 +5241,9 @@ export class AnsiTermHttpDriver extends AnsiTermDriver
 		if (this.timer) {
 			clearTimeout(this.timer);
 			this.timer = null;
+		}
+		if (this.refresh_timer) {
+			clearTimeout(this.refresh_timer);
 		}
 	}
 
@@ -5353,9 +5395,13 @@ export class AnsiTermHttpDriver extends AnsiTermDriver
 						}
 						this._set_connection_state(true);
 
-						setTimeout(() => {
+						if (this.refresh_timer) {
+							clearTimeout(this.refresh_timer);
+						}
+						this.refresh_timer = setTimeout(() => {
 							this.pending_data_in_transaction = "";
-							this._tx("")
+							this._tx("");
+							this.refresh_timer = null;
 						}, this.params.immediateRefresh);
 					},
 
