@@ -1,4 +1,42 @@
 # Changelog
+
+## [1.2.3] - 2026-02-28
+- Updated changelog!
+
+## [1.2.2] - 2026-02-28
+- Small improvement in resize: the canvas is not cleared anymore.
+- Version number was not updated.
+
+## [1.2.1] - 2026-02-28
+- Resizing the object do changes its geometry (but the canvas is temporarily
+  cleared). The mitigations to full event management and commands still
+  apply. 
+- minor fix in multiterminal example. 
+
+## [1.1.0] - 2026-02-28
+- Added "resizeMitigationTimeMS" parameter. It defines an inhibition time to
+  mitigate the effects of a storm of resize events. The default il 750 ms.
+- mininiserver.py 1.9: added a server-side mitigation mechanism to
+  mitigate the effects of a storm of resize commands. The inhibition period
+  has a fixed duration of 1 second.
+- Note: incomplete - resize is still quite ugly.
+
+## [1.0.1] - 2026-02-26
+-  miniserver.py 1.8: prevented spurious shell launch in case of very slow server.
+
+## [1.0.0] - 2026-01-31
+- Fixed color encoding in "copy as ANSI" function.
+- Fixed WebSocket close handling to reference the correct socket.
+- Fixed current line hangìdling in resize function.
+- Fixed event listener removal in scrollbar.js to use stored bound functions.
+- Fixed foreground color property name.
+
+## [0.26.2] - 2025-07-03
+- Minor fix to workflow
+
+## [0.26.1] - 2025-07-03
+- Minor fix to workflow
+
 ## [0.26.0] - 2025-07-03
 - Added a "getFreezeState" and "setFreezeState" methods
 for a better control of freeze state.
