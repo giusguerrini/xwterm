@@ -2238,9 +2238,14 @@ export class AnsiTerm {
 	{
 		this.width = this.charwidth * this.params.nColumns;
 		this.height = this.charheight * this.params.nLines;
+
+		const tmp = document.createElement('canvas');
+		tmp.width = this.gc.canvas.width;
+		tmp.height = this.gc.canvas.height;
+		tmp.getContext('2d').drawImage(this.gc.canvas, 0, 0);
 		this.gc.canvas.width = this.width;
 		this.gc.canvas.height = this.height;
-				
+		this.gc.drawImage(tmp, 0, 0);
 		// We must repeat this after a size change:
 		this.gc.font = this.fullfont;
 		this.gc.textBaseline = "bottom";
