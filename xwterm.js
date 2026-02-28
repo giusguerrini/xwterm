@@ -4664,6 +4664,16 @@ export class AnsiTerm {
 		this.pending_resize_nlines = nLines;
 		this.pending_resize_ncolumns = nColumns;
 	
+		// TODO: this is a hack, make it better
+		let ol = this.params.nLines;
+		let oc = this.params.nColumns;
+		this.params.nLines = nLines;
+		this.params.nColumns = nColumns;
+		this._resize_canvas();
+		this.params.nLines = ol;
+		this.params.nColumns = oc;
+		//
+
 		if (! this.resize_timer) {
 			let difftm = Date.now() - this.last_resize_time;
 			if (difftm >= this.params.resizeMitigationTimeMS) {
