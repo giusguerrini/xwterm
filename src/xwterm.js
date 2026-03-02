@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "1.2.3";
+const ANSITERM_VERSION = "1.2.4";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -1825,7 +1825,6 @@ export class AnsiTerm {
 					this._setpos(this.posx, this.posy + this._getarg(0, 1));
 				}), // VPR	Move cursor down the indicated # of rows.
 				"f": this._ti(() => {
-					//this._setpos(this._getarg(0, 1) - 1, this._getarg(1, 1) - 1);
 					this._setpos(this._getarg(1, 1) - 1, this._getarg(0, 1) - 1);
 				}), // HVP	Move cursor to the indicated row, column.
 				"g": () => { this._init(); }, // TBC	Without parameter: clear tab stop at current position.

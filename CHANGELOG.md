@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.4] - 2026-03-03
+- Fixed interpretation of "\e*y*;*x*f" sequence: *x* and *y* where swapped.
+- Sanitized the parameters of "\e*top*;*bottom*r" sequence: values are now trimmed
+  to always fit the window.
+
 ## [1.2.3] - 2026-02-28
 - Updated changelog!
 

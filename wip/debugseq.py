@@ -2,8 +2,9 @@
 
 import json
 import time
+import sys
 
-with open("test", "r", encoding="utf8") as f:
+with open(sys.argv[1], "r", encoding="utf8") as f:
     for line in f:
         s= json.loads(line.strip())
         time.sleep(0.5)
