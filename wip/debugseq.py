@@ -3,9 +3,9 @@
 import json
 import time
 
-with open("apt-out.txt", "r", encoding="utf8") as f:
+with open("test", "r", encoding="utf8") as f:
     for line in f:
         s= json.loads(line.strip())
-        time.sleep(2)
+        time.sleep(0.5)
         print(s, end="")
 
