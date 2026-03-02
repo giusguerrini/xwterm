@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "1.2.3";
+const ANSITERM_VERSION = "1.2.4";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -1825,7 +1825,7 @@ export class AnsiTerm {
 					this._setpos(this.posx, this.posy + this._getarg(0, 1));
 				}), // VPR	Move cursor down the indicated # of rows.
 				"f": this._ti(() => {
-					this._setpos(this._getarg(0, 1) - 1, this._getarg(1, 1) - 1);
+					this._setpos(this._getarg(1, 1) - 1, this._getarg(0, 1) - 1);
 				}), // HVP	Move cursor to the indicated row, column.
 				"g": () => { this._init(); }, // TBC	Without parameter: clear tab stop at current position.
 						// ESC [ 3 g: delete all tab stops.
@@ -1849,6 +1849,18 @@ export class AnsiTerm {
 				"r": this._ti(() => {
 					this.scrollregion_l = this._getarg(0,1) - 1;
 					this.scrollregion_h = this._getarg(1,this.params.nLines) - 1;
+					if (this.scrollregion_l < 0) {
+						this.scrollregion_l = 0;
+					}
+					if (this.scrollregion_l >= this.params.nLines) {
+						this.scrollregion_l = this.params.nLines - 1;
+					}
+					if (this.scrollregion_h >= this.params.nLines) {
+						this.scrollregion_h = this.params.nLines - 1;
+					}
+					if (this.scrollregion_l > this.scrollregion_h) {
+						this.scrollregion_h = this.scrollregion_l;
+					}
 				}), // DECSTBM	Set scrolling region; parameters are top and bottom row.
 				"s": this._ti(() => {
 					this.save_posx = this.posx;
@@ -2894,7 +2906,7 @@ export class AnsiTerm {
 		this._clear_timer();
 		let limit = this.params.nColumns; // 0 // TODO: Define a configuration parameter
 
-		//console.log("input=",t);
+		//console.log(JSON.stringify(t))
 
 		let f = () => {
 			//console.log("fragment=",t);
