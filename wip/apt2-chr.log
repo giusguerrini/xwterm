@@ -1,0 +1,71 @@
+Script started on 2026-03-03 23:21:35+01:00 [TERM="xterm-256color" TTY="/dev/pts/1" COLUMNS="115" LINES="28"]
+[?2004h]0;root@beppe-Ubuntu24: /home/beppe/xwtermroot@beppe-Ubuntu24:/home/beppe/xwterm# exit[Kls -lrt
+[?2004ltotal 88
+-rw-rw-r-- 1 beppe beppe  8432 Feb 20 23:32 README.md
+-rw-rw-r-- 1 beppe beppe   388 Feb 20 23:32 Makefile
+-rw-rw-r-- 1 beppe beppe  1069 Feb 20 23:32 LICENSE
+-rw-rw-r-- 1 beppe beppe    49 Feb 20 23:32 CONTRIBUTORS.md
+-rw-rw-r-- 1 beppe beppe   213 Feb 20 23:32 CONTRIBUTING.md
+drwxrwxr-x 2 beppe beppe  4096 Feb 20 23:32 [0m[01;34mdoc[0m
+drwxrwxr-x 2 beppe beppe  4096 Feb 20 23:32 [01;34mdocs[0m
+drwxrwxr-x 3 beppe beppe  4096 Feb 20 23:32 [01;34mjsdoc-template[0m
+-rw-rw-r-- 1 beppe beppe   506 Feb 20 23:32 jsdoc.json
+drwxrwxr-x 3 beppe beppe  4096 Mar  2 23:40 [01;34mexample[0m
+drwxrwxr-x 2 beppe beppe  4096 Mar  3 23:09 [01;34mwip[0m
+drwxrwxr-x 2 beppe beppe  4096 Mar  3 23:09 [01;34msrc[0m
+-rw-rw-r-- 1 beppe beppe 10797 Mar  3 23:09 CHANGELOG.md
+-rw-rw-r-- 1 beppe beppe 10247 Mar  3 23:14 typescript
+-rw-r--r-- 1 root  root    123 Mar  3 23:21 t.log
+-rw-r--r-- 1 root  root    231 Mar  3 23:21 s.log
+[?2004h]0;root@beppe-Ubuntu24: /home/beppe/xwtermroot@beppe-Ubuntu24:/home/beppe/xwterm# ls -lrt[3Pexitresize[2Pexitls -lrt[Kls -lrt[Kapt remove xterm
+[?2004lReading package lists... 0%Reading package lists... 100%Reading package lists... Done
+Building dependency tree... 0%Building dependency tree... 0%Building dependency tree... 50%Building dependency tree... 50%Building dependency tree... Done
+Reading state information... 0% Reading state information... 0%Reading state information... Done
+The following package was automatically installed and is no longer required:
+  libutempter0
+Use 'apt autoremove' to remove it.
+The following packages will be REMOVED:
+  xterm
+0 upgraded, 0 newly installed, 1 to remove and 14 not upgraded.
+After this operation, 2,504 kB disk space will be freed.
+Do you want to continue? [Y/n] y
+
+7[0;27r8[1A(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 160346 files and directories currently installed.)
+Removing xterm (390-1ubuntu3) ...
+7[28;0f[42m[30mProgress: [  0%][49m[39m [.............................................................................................] 87[28;0f[42m[30mProgress: [ 33%][49m[39m [##############################...............................................................] 87[28;0f[42m[30mProgress: [ 67%][49m[39m [#############################################################................................] 8Processing triggers for hicolor-icon-theme (0.17-2) ...
+Processing triggers for gnome-menus (3.36.0-1.1ubuntu3) ...
+Processing triggers for man-db (2.12.0-4build2) ...
+Processing triggers for mailcap (3.70+nmu1ubuntu1) ...
+Processing triggers for desktop-file-utils (0.27-2build1) ...
+
+7[0;28r8[1A[J[?2004h]0;root@beppe-Ubuntu24: /home/beppe/xwtermroot@beppe-Ubuntu24:/home/beppe/xwterm# apt install xterm
+[?2004lReading package lists... 0%Reading package lists... 100%Reading package lists... Done
+Building dependency tree... 0%Building dependency tree... 0%Building dependency tree... 50%Building dependency tree... 50%Building dependency tree... Done
+Reading state information... 0% Reading state information... 0%Reading state information... Done
+Suggested packages:
+  xfonts-cyrillic
+Recommended packages:
+  luit | x11-utils
+The following NEW packages will be installed:
+  xterm
+0 upgraded, 1 newly installed, 0 to remove and 14 not upgraded.
+Need to get 883 kB of archives.
+After this operation, 2,504 kB of additional disk space will be used.
+[33m0% [Working][0m            Get:1 http://it.archive.ubuntu.com/ubuntu noble/universe amd64 xterm amd64 390-1ubuntu3 [883 kB]
+[33m0% [1 xterm 0 B/883 kB 0%][0m[33m4% [1 xterm 38.9 kB/883 kB 4%][0m[33m4% [1 xterm 40.4 kB/883 kB 5%][0m[33m5% [1 xterm 54.9 kB/883 kB 6%][0m[33m8% [1 xterm 88.3 kB/883 kB 10%][0m[33m12% [1 xterm 135 kB/883 kB 15%][0m[33m15% [1 xterm 162 kB/883 kB 18%][0m[33m18% [1 xterm 194 kB/883 kB 22%][0m[33m21% [1 xterm 228 kB/883 kB 26%][0m[33m22% [1 xterm 238 kB/883 kB 27%][0m[33m25% [1 xterm 273 kB/883 kB 31%][0m[33m25% [1 xterm 278 kB/883 kB 32%][0m[33m29% [1 xterm 316 kB/883 kB 36%]                                                                      49.7 kB/s 11s[0m[33m30% [1 xterm 328 kB/883 kB 37%]                                                                      49.7 kB/s 11s[0m[33m30% [1 xterm 337 kB/883 kB 38%]                                                                      49.7 kB/s 11s[0m[33m31% [1 xterm 345 kB/883 kB 39%]                                                                      49.7 kB/s 10s[0m[33m31% [1 xterm 347 kB/883 kB 39%]                                                                      49.7 kB/s 10s[0m[33m32% [1 xterm 358 kB/883 kB 41%]                                                                      49.7 kB/s 10s[0m[33m33% [1 xterm 360 kB/883 kB 41%]                                                                      49.7 kB/s 10s[0m[33m34% [1 xterm 373 kB/883 kB 42%]                                                                      49.7 kB/s 10s[0m[33m35% [1 xterm 392 kB/883 kB 44%]                                                                       49.7 kB/s 9s[0m[33m36% [1 xterm 400 kB/883 kB 45%]                                                                       49.7 kB/s 9s[0m[33m37% [1 xterm 411 kB/883 kB 46%]                                                                       49.7 kB/s 9s[0m[33m38% [1 xterm 425 kB/883 kB 48%]                                                                       49.7 kB/s 9s[0m[33m41% [1 xterm 454 kB/883 kB 51%]                                                                      22.7 kB/s 18s[0m[33m43% [1 xterm 477 kB/883 kB 54%]                                                                      22.7 kB/s 17s[0m[33m45% [1 xterm 502 kB/883 kB 57%]                                                                      22.7 kB/s 16s[0m[33m46% [1 xterm 508 kB/883 kB 57%]                                                                      22.7 kB/s 16s[0m[33m49% [1 xterm 540 kB/883 kB 61%]                                                                      22.7 kB/s 15s[0m[33m51% [1 xterm 559 kB/883 kB 63%]                                                                      22.7 kB/s 14s[0m[33m51% [1 xterm 560 kB/883 kB 63%]                                                                      22.7 kB/s 14s[0m[33m52% [1 xterm 576 kB/883 kB 65%]                                                                      22.7 kB/s 13s[0m[33m55% [1 xterm 604 kB/883 kB 68%]                                                                      22.7 kB/s 12s[0m[33m56% [1 xterm 614 kB/883 kB 69%]                                                                      22.7 kB/s 11s[0m[33m59% [1 xterm 649 kB/883 kB 73%]                                                                      22.7 kB/s 10s[0m[33m60% [1 xterm 659 kB/883 kB 75%]                                                                       22.7 kB/s 9s[0m[33m60% [1 xterm 665 kB/883 kB 75%]                                                                       34.9 kB/s 6s[0m[33m62% [1 xterm 685 kB/883 kB 78%]                                                                       34.9 kB/s 5s[0m[33m65% [1 xterm 713 kB/883 kB 81%]                                                                       34.9 kB/s 4s[0m[33m65% [1 xterm 723 kB/883 kB 82%]                                                                       34.9 kB/s 4s[0m[33m66% [1 xterm 733 kB/883 kB 83%]                                                                       34.9 kB/s 4s[0m[33m67% [1 xterm 745 kB/883 kB 84%]                                                                       34.9 kB/s 3s[0m[33m71% [1 xterm 779 kB/883 kB 88%]                                                                       34.9 kB/s 2s[0m[33m73% [1 xterm 801 kB/883 kB 91%]                                                                       34.9 kB/s 2s[0m[33m75% [1 xterm 824 kB/883 kB 93%]                                                                       34.9 kB/s 1s[0m[33m75% [1 xterm 829 kB/883 kB 94%]                                                                       34.9 kB/s 1s[0m[33m78% [1 xterm 864 kB/883 kB 98%]                                                                       34.9 kB/s 0s[0m[33m100% [Working]                                                                                        34.9 kB/s 0s[0m                                                                                                                  Fetched 883 kB in 24s (36.8 kB/s)
+
+7[0;27r8[1ASelecting previously unselected package xterm.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 160301 files and directories currently installed.)
+Preparing to unpack .../xterm_390-1ubuntu3_amd64.deb ...
+7[28;0f[42m[30mProgress: [  0%][49m[39m [.............................................................................................] 87[28;0f[42m[30mProgress: [ 20%][49m[39m [##################...........................................................................] 8Unpacking xterm (390-1ubuntu3) ...
+7[28;0f[42m[30mProgress: [ 40%][49m[39m [#####################################........................................................] 8Setting up xterm (390-1ubuntu3) ...
+7[28;0f[42m[30mProgress: [ 60%][49m[39m [#######################################################......................................] 87[28;0f[42m[30mProgress: [ 80%][49m[39m [##########################################################################...................] 8Processing triggers for desktop-file-utils (0.27-2build1) ...
+Processing triggers for hicolor-icon-theme (0.17-2) ...
+Processing triggers for gnome-menus (3.36.0-1.1ubuntu3) ...
+Processing triggers for man-db (2.12.0-4build2) ...
+Processing triggers for mailcap (3.70+nmu1ubuntu1) ...
+
+7[0;28r8[1A[J[?2004h]0;root@beppe-Ubuntu24: /home/beppe/xwtermroot@beppe-Ubuntu24:/home/beppe/xwterm# exit
+[?2004lexit
+
+Script done on 2026-03-03 23:22:48+01:00 [COMMAND_EXIT_CODE="0"]
