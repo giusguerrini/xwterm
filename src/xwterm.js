@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "1.2.4";
+const ANSITERM_VERSION = "1.2.5";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -3582,13 +3582,13 @@ export class AnsiTerm {
 
 	_nextline()
 	{
-		if (this.posy >= this.scrollregion_h) {
+		if (this.posy == this.scrollregion_h) {
 			// The line on top of the primary screen is going to be scrolled out.
 			// We must save it in the history. We do it only if the
-			// scroll region is the whole screen, because lines lost in partial scrolls
+			// scroll region is at the top of the screen, because lines lost in partial scrolls
 			// are not expected to be retrieved in the history.
 			if ((! this.alternate_screen)
-			 && (this.scrollregion_l == 0 && this.scrollregion_h == this.params.nLines - 1)) {
+			 && (this.scrollregion_l == 0 /* && this.scrollregion_h == this.params.nLines - 1 */)) {
 
 				this._scroll_and_update_history();
 				this.scrollbar.verticalScrollbar.setMinValue(this.params.nLines - this.history.nused);

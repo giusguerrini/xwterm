@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.5] - 2026-03-04
+- Sequence "\e*top*;*bottom*r" was not handled properly: text
+  outside the scroll region shouldn't be scrolled.
+  TODO: more compliance test required, I couldn't find
+  a precise description of the expected behaviour.
+
 ## [1.2.4] - 2026-03-03
 - Fixed interpretation of "\e*y*;*x*f" sequence: *x* and *y* where swapped.
 - Sanitized the parameters of "\e*top*;*bottom*r" sequence: values are now trimmed
