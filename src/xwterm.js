@@ -1627,8 +1627,8 @@ export class AnsiTerm {
 		this._setbold(this.grstate.bold);
 		this._setitalic(this.grstate.italic);
 		this._setpos(this.grstate.posx, this.grstate.posy);
-		this.scrollregion_l = this.grstate.scrollregion_l;
-		this.scrollregion_h = this.grstate.scrollregion_h;
+		//this.scrollregion_l = this.grstate.scrollregion_l;
+		//this.scrollregion_h = this.grstate.scrollregion_h;
 	}
 
 	/*
