@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "1.2.4";
+const ANSITERM_VERSION = "1.2.6";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -1627,8 +1627,8 @@ export class AnsiTerm {
 		this._setbold(this.grstate.bold);
 		this._setitalic(this.grstate.italic);
 		this._setpos(this.grstate.posx, this.grstate.posy);
-		this.scrollregion_l = this.grstate.scrollregion_l;
-		this.scrollregion_h = this.grstate.scrollregion_h;
+		//this.scrollregion_l = this.grstate.scrollregion_l;
+		//this.scrollregion_h = this.grstate.scrollregion_h;
 	}
 
 	/*
@@ -1847,19 +1847,21 @@ export class AnsiTerm {
 						// ESC [ 2 q: set Num Lock LED
 						// ESC [ 3 q: set Caps Lock LED
 				"r": this._ti(() => {
-					this.scrollregion_l = this._getarg(0,1) - 1;
-					this.scrollregion_h = this._getarg(1,this.params.nLines) - 1;
-					if (this.scrollregion_l < 0) {
-						this.scrollregion_l = 0;
+					let scrollregion_l = this._getarg(0,1) - 1;
+					let scrollregion_h = this._getarg(1,this.params.nLines) - 1;
+					if (scrollregion_l < 0) {
+						scrollregion_l = 0;
 					}
-					if (this.scrollregion_l >= this.params.nLines) {
-						this.scrollregion_l = this.params.nLines - 1;
+					if (scrollregion_l >= this.params.nLines) {
+						scrollregion_l = this.params.nLines - 1;
 					}
-					if (this.scrollregion_h >= this.params.nLines) {
-						this.scrollregion_h = this.params.nLines - 1;
+					if (scrollregion_h >= this.params.nLines) {
+						scrollregion_h = this.params.nLines - 1;
 					}
-					if (this.scrollregion_l > this.scrollregion_h) {
-						this.scrollregion_h = this.scrollregion_l;
+					if (scrollregion_l < scrollregion_h) {
+						this.scrollregion_l = scrollregion_l;
+						this.scrollregion_h = scrollregion_h;
+						this._setpos(0, 0);
 					}
 				}), // DECSTBM	Set scrolling region; parameters are top and bottom row.
 				"s": this._ti(() => {
@@ -3582,13 +3584,13 @@ export class AnsiTerm {
 
 	_nextline()
 	{
-		if (this.posy >= this.scrollregion_h) {
+		if (this.posy == this.scrollregion_h) {
 			// The line on top of the primary screen is going to be scrolled out.
 			// We must save it in the history. We do it only if the
-			// scroll region is the whole screen, because lines lost in partial scrolls
+			// scroll region is at the top of the screen, because lines lost in partial scrolls
 			// are not expected to be retrieved in the history.
 			if ((! this.alternate_screen)
-			 && (this.scrollregion_l == 0 && this.scrollregion_h == this.params.nLines - 1)) {
+			 && (this.scrollregion_l == 0 /* && this.scrollregion_h == this.params.nLines - 1 */)) {
 
 				this._scroll_and_update_history();
 				this.scrollbar.verticalScrollbar.setMinValue(this.params.nLines - this.history.nused);
