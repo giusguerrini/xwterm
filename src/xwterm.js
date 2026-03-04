@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "1.2.5";
+const ANSITERM_VERSION = "1.2.6";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -1847,19 +1847,21 @@ export class AnsiTerm {
 						// ESC [ 2 q: set Num Lock LED
 						// ESC [ 3 q: set Caps Lock LED
 				"r": this._ti(() => {
-					this.scrollregion_l = this._getarg(0,1) - 1;
-					this.scrollregion_h = this._getarg(1,this.params.nLines) - 1;
-					if (this.scrollregion_l < 0) {
-						this.scrollregion_l = 0;
+					let scrollregion_l = this._getarg(0,1) - 1;
+					let scrollregion_h = this._getarg(1,this.params.nLines) - 1;
+					if (scrollregion_l < 0) {
+						scrollregion_l = 0;
 					}
-					if (this.scrollregion_l >= this.params.nLines) {
-						this.scrollregion_l = this.params.nLines - 1;
+					if (scrollregion_l >= this.params.nLines) {
+						scrollregion_l = this.params.nLines - 1;
 					}
-					if (this.scrollregion_h >= this.params.nLines) {
-						this.scrollregion_h = this.params.nLines - 1;
+					if (scrollregion_h >= this.params.nLines) {
+						scrollregion_h = this.params.nLines - 1;
 					}
-					if (this.scrollregion_l > this.scrollregion_h) {
-						this.scrollregion_h = this.scrollregion_l;
+					if (scrollregion_l < scrollregion_h) {
+						this.scrollregion_l = scrollregion_l;
+						this.scrollregion_h = scrollregion_h;
+						this._setpos(0, 0);
 					}
 				}), // DECSTBM	Set scrolling region; parameters are top and bottom row.
 				"s": this._ti(() => {

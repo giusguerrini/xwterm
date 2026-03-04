@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.6] - 2026-03-04
+- More corrections to "\e*top*;*bottom*r" management:
+  cursor position is now set to 1,1; sequence is discarded
+  if top >= bottom.
+  TODO: edge cases are still under investigation.
+
 ## [1.2.5] - 2026-03-04
 - Sequence "\e*top*;*bottom*r" was not handled properly: text
   outside the scroll region shouldn't be scrolled.
