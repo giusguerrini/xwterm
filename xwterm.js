@@ -1,4 +1,4 @@
-const ANSITERM_VERSION = "1.2.6";
+const ANSITERM_VERSION = "1.2.7";
 /*	
  A simple XTerm/ANSIterm emulator for web applications.
  
@@ -3553,7 +3553,8 @@ export class AnsiTerm {
 		// the history buffer and setting the new screen to the
 		// last line of the history. The screen map is updated
 		// to point to the new screen.
-		this._scroll_core(0, this.params.nLines - 1, 1, true)
+		//this._scroll_core(0, this.params.nLines - 1, 1, true)
+		this._scroll_core(0, this.scrollregion_h, 1, true)
 	}
 
 
