@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.2.7] - 2026-03-05
+- Scrolling ignored the bottom scroll‑region limit
+  when the top limit was the first line.
+
 ## [1.2.6] - 2026-03-04
 - More corrections to "\e*top*;*bottom*r" management:
   cursor position is now set to 1,1; sequence is discarded
