@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.2.8] - 2026-08-29
+- No functional changes. Moved some notes to
+  contributors in a separate document.
+
 ## [1.2.7] - 2026-03-05
 - Scrolling ignored the bottom scroll‑region limit
   when the top limit was the first line.
