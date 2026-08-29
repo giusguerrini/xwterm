@@ -42,8 +42,8 @@
 <li><a href="#special-notes">Special notes...</a></li>
 </ul>
 <h2 id="Introduction">Introduction</h2>
-<p>In this section I will describe the coding rules used in <strong>xwterm</strong>.</p>
-<p>In general, I am not an enthusiast of rigid coding rules, especially those that were not invented by me. However,
+<p>In this section I describe the coding rules used in <strong>xwterm</strong>.</p>
+<p>In general, I'm not an enthusiast of rigid coding rules, especially those that were not invented by me. However,
 there are some simple, widely known conventions that I have decided to adopt in this project.
 Contributors are encouraged to adhere to them - unless doing so distracts from adding new, smart, and innovative features.</p>
 <h2 id="language">Language</h2>
@@ -52,7 +52,7 @@ I recommend applying basic OOP principles (e.g., classes and simple inheritance)
 small classes that perform only trivial operations.</p>
 <p>For callbacks (e.g., deferred actions, group operations, timeouts...), I suggest using the new syntax <code>() =&gt;</code>, which
 eliminates headaches when used within methods.</p>
-<p>Constants, when needed, should be written in UPPERCASE. Where to place a constant (e.g., global scope or class local
+<p>Constants, when needed, should be written in UPPERCASE. Where to place a constant (e.g., global scope or class-local
 scope) depends on the meaning of the symbol and individual preference.</p>
 <h2 id="classes">Classes</h2>
 <p>Class names are <strong>PascalCase</strong>.
@@ -60,19 +60,19 @@ As mentioned above, classes should be &quot;big enough.&quot; I do not recommend
 classes that contain only a few fields and elementary methods. A JavaScript dictionary is often a better and
 more readable choice.</p>
 <h2 id="public-methods">Public methods</h2>
-<p>Method and members intendended to be public are <strong>camelCase</strong>.</p>
+<p>Methods and members intended to be public are <strong>camelCase</strong>.</p>
 <h2 id="private-methods">Private methods</h2>
 <p>Although modern JavaScript implements private methods, for the sake of compatibility I prefer not to use them.
 In this project, methods that are intended to be private are prefixed by an underscore.
 This rule does not apply to non-function members whose intended scope is &quot;private&quot;. Plain lowercase
-identifiers are preferred for them.</p>
+identifiers are preferred for those.</p>
 <h2 id="coding-style">Coding style</h2>
 <p>As mentioned above, I am not a fan of rigid, abstract coding conventions. The purpose of coding conventions should
 be readability, because while writing code is hard, reading it is even harder.</p>
 <p>I have often encountered long and detailed &quot;coding manuals&quot; from corporate Quality Departments.
-These manuals tend to focus on trivial formalities, failing miserably at making the source code clean and understandable.</p>
-<p>I understand that this is a matter of personal taste, but in my experience, some so-called &quot;best practices&quot; make
-code worse. For example: unnecessary prefixes and descriptive identifiers that fail to actually clarify anything.
+These manuals tend to focus on trivial formalities and fail to make the source code clean and understandable.</p>
+<p>I understand that this is a matter of personal taste, but in my experience some so-called &quot;best practices&quot; make
+code worse. For example: unnecessary prefixes and overly descriptive identifiers that do not actually clarify anything.
 Let's consider this fragment of code:</p>
 <pre class="prettyprint source lang-javascript"><code>	for (iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere = 0;
 	     iIndexOfTheThingIAmLookingForButIAmNotSureIfItIsThere &lt; fArrayOfThingsIAmLookingFor.length;
@@ -84,111 +84,18 @@ Let's consider this fragment of code:</p>
 		}
 	}
 </code></pre>
-<p>Some QAs would consider this a &quot;conformat code&quot;. Any questions?</p>
-<p>Today's screens are wide, but, please, just use a plain &quot;i&quot; for index. Please.</p>
-<p>Beside my personal quirks, I'll impose at least two rules:</p>
+<p>Some QAs would consider this &quot;conformant code.&quot; Any questions?</p>
+<p>Today's screens are wide, but please just use a plain &quot;i&quot; for the index.</p>
+<p>Besides my personal quirks, I'll impose at least two rules:</p>
 <ul>
 <li>Always put semicolons at the end of statements: do not rely on JavaScript's inconsistent handling of EOL.</li>
 <li>Always use braces for control structures: do not rely on your focus when adding the second line
 of a conditional.</li>
 </ul>
 <h2 id="special-notes">Special notes...</h2>
-<h3 id="...for-c%2B%2B-programmers">...for C++ programmers</h3>
-<p>Dear C++ programmer, everything is under your full control. Resources are allocated and released at your command. You skillfully
-apply the RAII idiom to prevent leaks in case of exceptions. Every algorithm is perfectly optimized for the specific instance of
-your wisely engineered templates. Smart pointer templates are your powerful weapon against dangling references. You know how to take
-advantage of the SFINAE rule to solve even the most convoluted overloading problems. You have mastered the art of managing and converting any
-possible implementation of strings: <code>std::string</code>, <code>std::wstring</code>, <code>std::u16string</code>, <code>boost::string_ref</code>...; and the platform-dependant ones:
-<code>::BSTR</code>, <code>Qt::QString</code>, <code>wx::wxString</code>...
-You know how to interpret any compiler error from <code>std</code> or <code>boost</code>, no matter the nesting level in library's templates.
-If you want, you can make an object non-copyable,
-non-movable, or even both. You can prevent a derived class from accessing its parent's members. You can also prevent a class from
-being derived at all. Recursive templates hold no secrets for you. Your carefully programmed build process eliminates every misalignment
-between different compilation units.</p>
-<p>You are the zenith of human evolution.</p>
-<p>But I have a question for you: WHY?</p>
-<ul>
-<li>Why is the only way to avoid getting screwed by exceptions to collect all resource allocations in constructors?</li>
-<li>Why do you need smart pointers?</li>
-<li>Why do you have convoluted overloading problems?</li>
-<li>Why does a simple spelling error in a parameter of <code>std</code> or <code>boost</code> methods produce a single, huge error message involving a dozen of
-nested templates?</li>
-<li>Why do you need a non-copyable, non-movable object?</li>
-<li>Why should a derived class not access its parent's members?</li>
-<li>Why do you need to recompile all your modules to ensure all binaries are up-to-date?</li>
-</ul>
-<p>I'll answer for you.</p>
-<ul>
-<li>You need RAII idiom because you don't actually control resource allocation and descrtuction, but the language puts the
-responsibility on you anyway.</li>
-<li>You need smart pointers because language's native pointers are not smart. And their management is on you.</li>
-<li>You have convoluted overloading problems because
-<ul>
-<li>probably the &quot;advanced&quot; libraries you are using force you to deal with such problems, and</li>
-<li>you firmly refuse to create a named method if there is any standard operator that vaguely resembles the function. So you &quot;add&quot;
-and &quot;subtract&quot; objects to/from collections, &quot;left shift&quot; output streams &quot;by&quot; strings, &quot;multiply&quot; a collection by a filter
-predicate function, but also &quot;multiply&quot; the same collection by an integer to make it contain the same objects multiple times. And finally...</li>
-<li>you love convoluted overloading problems.</li>
-</ul>
-</li>
-<li>Compilation errors involving standard libraries are huge and unreadable (therefore useless) because these &quot;libraries&quot; are just
-headers that the compiler must process every time. This happens because C++ makes the distribution of real precompiled
-libraries nearly impossible: you would need the same compiler, the same compilation options and the same environment that were
-used to compile the libraries. In short: C++ leaks an ABI. (What? Precompiled headers? Oh, please...).</li>
-<li>You need non-copyable or non-movable objects because
-<ul>
-<li>your usual habit is copying or moving objects, regardless their size and complexity, rather than moving or copying references.
-&quot;Non-copying&quot; and &quot;non-moving&quot; seem odd to you, so you feel the need to devise special expedients to highlight these cases.</li>
-<li>you do have pointers (even &quot;smart&quot; ones), but you prefer to declare single instances of objects whenever possible. That's why
-you also love that sort of fake references with ampersands, which I'd rather call &quot;aliases&quot;.</li>
-<li>instead of sharing some simple usage rules of your classes, you claim that the compiler should protect you and your team from errors in logic.</li>
-<li>you love convoluted language problems in general.</li>
-</ul>
-</li>
-<li>For the same reasons, you want to limit the accessibility of your classes.</li>
-<li>And finally, you need to recompile everything every time because:
-<ul>
-<li>You can't reliably create precompiled libraries (see above).</li>
-<li>Public C++ classes, including their private parts, must be declared completely in headers. &quot;Information hiding&quot; principle, where are you?</li>
-<li>You love <code>inline</code> methods; they give you a false feeling of efficiency.</li>
-<li>Although C++ supports abstract classes and virtual methods to define pure interfaces, from which you
-could derive concrete implementations valid only in the minimal necessary context (even C++ has something good), you insist on not using
-them because of their alleged poor performances.</li>
-</ul>
-</li>
-</ul>
-<p>Astonishing news: there are programming languages in which things are references. No, not pointers to objects whose lifecycle is
-on you. References, with builtin reference counter and automatic cleanup of underlying resources. Even more shocking revelation: there are
-languages for whom there is no shuch thing like binary compatibility of modules. Indeed, there are languages in which strings are native types!
-Unicode strings, of course.</p>
-<p>By the way, you, dear C++ programmer, you are an ardent believer in OOP priciples, right? Everything is an object, with a precise lifecyle.
-Also, you diligently apply good coding practices, don't you?</p>
-<ul>
-<li>global, or even static objects are a gift from the devil. Everything must be created at runtime (especially because static constructors
-are hopelessly broken in C++).</li>
-<li>Every variable must be a member of a class.</li>
-<li>Methods should be reasonably short and easy-to-read blocks of code.</li>
-</ul>
-<p>In your code there are only few local variables, and they are valid only in short internal compounds; the vast majority of symbols
-are methods or members, aren't they?</p>
-<p>So, why on earth do you put that useless <code>m_</code> prefix at the beginning of every member?</p>
-<h3 id="...for-angular%2C-electron%2C-react%2C-etc...-programmers">...for Angular, Electron, React, etc... programmers</h3>
-<p>You had a difficult childhood and learned early on how harsh life can be. Browsers were unreliable, ready to betray you at the first opportunity.
-<code>this</code> changed its meaning without any apparent reason. Features upon which you had built your applications were suddenly deprecated and killed.
-Even the few things in which you placed your trust - Adobe Flash, Microsoft Silverlight - have abandoned you.
-But you didn't surrender. You worked hard. You fought. And eventually, you made it. Now, you live in a stunning loft on the top floor of a
-building. What a wonderful skyline!</p>
-<p>You have unlimited power. Dozens of megabytes of open-source code kneel before you, ready to fulfill your every wish.
-You can create an entire portal in just a few lines. There is no convoluted
-backend logic, no overly complicated DB report that you can't handle with just a few instructions.</p>
-<p>But don't you feel a subtle uneasiness? A hint of dissatisfaction?</p>
-<p>Yes, your life is comfortable now, but you are losing the ability to enjoy simple things. Here's some advice for you: leave your loft for just one day and step out onto the street. Experience the simple joy of creating a <code>&lt;div&gt;</code>, giving it a name - not an automatically generated one, but a real, unique name: you can't love anything if you haven't given it a name -, seeing it run towards you, wagging his tail, when you call it with <code>document.getElementById</code>, changing its text color by tenderly caressing its <code>style.color</code> property...</p>
-<h3 id="...for-c-programmers">...for C programmers</h3>
-<p>Dear C programmer, I have Good News for you: the Lord is not going to punish you for having duplicated an array, nor for not having sorted it in place. In His infinite mercy, He hasn't even punished those who invented the <code>cmd.exe</code> syntax.</p>
-<p>Dear C programmer, listen: release the burden of guilt that oppresses you for every single byte you wasted, for every single machine cycle
-you added. Managed languages like JavaScript are there to set us free!</p>
-<p>Dear C programmer, I am one of you too. I know what lies deep within your soul: the longing for a simple life, filled with small joys. The love for old things, from a time when the world was simple and people knew how a CPU worked. Today nobody cares about
-memory and processor usage anymore. But, in the depths of our passionate hearts, we preserve the awareness of how valuable a well-optimized piece of code is. &quot;We few, we happy few, we band of brothers&quot;.</p>
+<p>Some &quot;special notes&quot; for non-native JavaScript speakers here:
+<a href="https://giusguerrini.github.io/xwterm/tutorial-65-special-notes.html">Special notes</a>
+(No, actually, a collection of idiosyncrasies of mine — forgive me)</p>
 </article>
 
 </section>
@@ -196,13 +103,13 @@ memory and processor usage anymore. But, in the depths of our passionate hearts,
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AnsiTerm.html">AnsiTerm</a></li><li><a href="AnsiTermDecoration.html">AnsiTermDecoration</a></li><li><a href="AnsiTermDriver.html">AnsiTermDriver</a></li><li><a href="AnsiTermGenericScrollBar.html">AnsiTermGenericScrollBar</a></li><li><a href="AnsiTermGenericScrollBarAdder.html">AnsiTermGenericScrollBarAdder</a></li><li><a href="AnsiTermHistory.html">AnsiTermHistory</a></li><li><a href="AnsiTermHttpDriver.html">AnsiTermHttpDriver</a></li><li><a href="AnsiTermWebSocketDriver.html">AnsiTermWebSocketDriver</a></li></ul><h3>Tutorials</h3><ul><li><a href="tutorial-10-basic-page.html">10-basic-page</a></li><li><a href="tutorial-40-communication-drivers.html">40-communication-drivers</a></li><li><a href="tutorial-60-coding-conventions.html">60-coding-conventions</a></li><li><a href="tutorial-90-sample-server.html">90-sample-server</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AnsiTerm.html">AnsiTerm</a></li><li><a href="AnsiTermDecoration.html">AnsiTermDecoration</a></li><li><a href="AnsiTermDriver.html">AnsiTermDriver</a></li><li><a href="AnsiTermGenericScrollBar.html">AnsiTermGenericScrollBar</a></li><li><a href="AnsiTermGenericScrollBarAdder.html">AnsiTermGenericScrollBarAdder</a></li><li><a href="AnsiTermHistory.html">AnsiTermHistory</a></li><li><a href="AnsiTermHttpDriver.html">AnsiTermHttpDriver</a></li><li><a href="AnsiTermWebSocketDriver.html">AnsiTermWebSocketDriver</a></li></ul><h3>Tutorials</h3><ul><li><a href="tutorial-10-basic-page.html">10-basic-page</a></li><li><a href="tutorial-40-communication-drivers.html">40-communication-drivers</a></li><li><a href="tutorial-60-coding-conventions.html">60-coding-conventions</a></li><li><a href="tutorial-65-special-notes.html">65-special-notes</a></li><li><a href="tutorial-90-sample-server.html">90-sample-server</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Thu Mar 05 2026 23:09:57 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Sat Aug 29 2026 21:18:09 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>

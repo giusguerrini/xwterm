@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>xwterm / AnsiTerm: Tutorial: 65-special-notes</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Tutorial: 65-special-notes</h1>
+
+    <section>
+
+<header>
+    
+
+    <h2>65-special-notes</h2>
+</header>
+
+<article>
+    <h1 id="xwterm---special-notes"><strong>xwterm</strong> - Special notes</h1>
+<p><a href="https://github.com/giusguerrini/xwterm">Project Home</a></p>
+<p><strong>For contributors</strong></p>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#cplusplus">To C++ Programmes</a></li>
+<li><a href="#frameworks">To Angular, React, Vue etc. Programmes</a></li>
+<li><a href="#plainc">To C Programmes</a></li>
+</ul>
+<h2 id="Introduction">Introduction</h2>
+<p>This is a collection of irrational thoughts about the alleged &quot;top technologies&quot; of software development. It is composed of
+some &quot;open letters&quot; to devotees of some of the most commonly used programming languages. Don't take them too seriously.
+Just read and enjoy (if you haven't been made blind by anger yet - but if you have, I'd suggest you meditate on &quot;why&quot; you felt angry).</p>
+<h2 id="cplusplus">To C++ Programmers</h2>
+Dear C++ programmer, everything is under your full control. Resources are allocated and released at your command. You skillfully
+apply the RAII idiom to prevent leaks in case of exceptions. Every algorithm is perfectly optimized for the specific instance of
+your wisely engineered templates. Smart pointer templates are your powerful weapon against dangling references. You know how to take
+advantage of the SFINAE rule to solve even the most convoluted overloading problems. You have mastered the art of managing and converting any
+possible implementation of strings: `std::string`, `std::wstring`, `std::u16string`, `boost::string_ref`...; and the platform-dependent ones:
+`::BSTR`, `Qt::QString`, `wx::wxString`...
+You know how to interpret any compiler error from `std` or `boost`, no matter the nesting level in the libraries' templates.
+If you want, you can make an object non-copyable,
+non-movable, or even both. You can prevent a derived class from accessing its parent's members. You can also prevent a class from
+being derived at all. Recursive templates hold no secrets for you. Your carefully programmed build process eliminates every misalignment
+between different compilation units.
+<p>You are the zenith of human evolution.</p>
+<p>But I have a question for you: WHY?</p>
+<ul>
+<li>Why is the only way to avoid getting screwed by exceptions to collect all resource allocations in constructors?</li>
+<li>Why do you need smart pointers?</li>
+<li>Why do you have convoluted overloading problems?</li>
+<li>Why does a simple spelling error in a parameter of <code>std</code> or <code>boost</code> methods produce a single, huge error message involving a dozen
+nested templates?</li>
+<li>Why do you need a non-copyable, non-movable object?</li>
+<li>Why should a derived class not access its parent's members?</li>
+<li>Why do you need to recompile all your modules to ensure all binaries are up to date?</li>
+</ul>
+<p>I'll answer for you.</p>
+<ul>
+<li>You need the RAII idiom because you don't actually control resource allocation and destruction, but the language puts the
+responsibility on you anyway.</li>
+<li>You need smart pointers because the language's native pointers are not smart, and their management is on you.</li>
+<li>You have convoluted overloading problems because
+<ul>
+<li>probably the &quot;advanced&quot; libraries you are using force you to deal with such problems, and</li>
+<li>you firmly refuse to create a named method if there is any standard operator that vaguely resembles the function. So you &quot;add&quot;
+and &quot;subtract&quot; objects to and from collections, &quot;left shift&quot; output streams &quot;by&quot; strings, &quot;multiply&quot; a collection by a filter
+predicate function, but also &quot;multiply&quot; the same collection by an integer to make it contain the same objects multiple times. And finally...</li>
+<li>you love convoluted overloading problems.</li>
+</ul>
+</li>
+<li>Compilation errors involving standard libraries are huge and unreadable (therefore useless) because these &quot;libraries&quot; are just
+headers that the compiler must process every time. This happens because C++ makes the distribution of real precompiled
+libraries nearly impossible: you would need the same compiler, the same compilation options, and the same environment that were
+used to compile the libraries. In short: C++ leaks an ABI. (What? Precompiled headers? Oh, please...).</li>
+<li>You need non-copyable or non-movable objects because
+<ul>
+<li>your usual habit is copying or moving objects, regardless of their size and complexity, rather than moving or copying references.
+&quot;Non-copying&quot; and &quot;non-moving&quot; seem odd to you, so you feel the need to devise special expedients to highlight these cases.</li>
+<li>you do have pointers (even &quot;smart&quot; ones), but you prefer to declare single instances of objects whenever possible. That's why
+you also love that sort of fake references with ampersands, which I'd rather call &quot;aliases&quot;.</li>
+<li>instead of sharing some simple usage rules for your classes, you claim that the compiler should protect you and your team from errors in logic.</li>
+<li>you love convoluted language problems in general.</li>
+</ul>
+</li>
+<li>For the same reasons, you want to limit the accessibility of your classes.</li>
+<li>And finally, you need to recompile everything every time because:
+<ul>
+<li>You can't reliably create precompiled libraries (see above).</li>
+<li>Public C++ classes, including their private parts, must be declared completely in headers. &quot;Information hiding&quot; principle, where are you?</li>
+<li>You love <code>inline</code> methods; they give you a false feeling of efficiency.</li>
+<li>Although C++ supports abstract classes and virtual methods to define pure interfaces from which you
+could derive concrete implementations valid only in the minimal necessary context (even C++ has something good), you insist on not using
+them because of their alleged poor performance.</li>
+</ul>
+</li>
+</ul>
+<p>Astonishing news: there are programming languages in which things are references. No, not pointers to objects whose lifecycle is
+on you. References, with a built-in reference counter and automatic cleanup of underlying resources. Even more shocking revelation: there are
+languages for which there is no such thing as binary compatibility of modules. Indeed, there are languages in which strings are native types!
+Unicode strings, of course.</p>
+<p>By the way, you, dear C++ programmer, are an ardent believer in OOP principles, right? Everything is an object, with a precise lifecycle.
+Also, you diligently apply good coding practices, don't you?</p>
+<ul>
+<li>Global, or even static, objects are a gift from the devil. Everything must be created at runtime (especially because static constructors
+are hopelessly broken in C++).</li>
+<li>Every variable must be a member of a class.</li>
+<li>Methods should be reasonably short and easy-to-read blocks of code.</li>
+</ul>
+<p>In your code there are only a few local variables, and they are valid only in short internal compounds; the vast majority of symbols
+are methods or members, aren't they?</p>
+<p>So, why on earth do you put that useless <code>m_</code> prefix at the beginning of every member?</p>
+<h2 id="frameworks">To Angular, React, Vue etc. Programmers</h2>
+### ...for Angular, Electron, React, etc... programmers
+You had a difficult childhood and learned early on how harsh life can be. Browsers were unreliable, ready to betray you at the first opportunity.
+The `this` keyword changed its meaning without any apparent reason. Features upon which you had built your applications were suddenly deprecated and killed.
+Even the few things in which you placed your trust - Adobe Flash, Microsoft Silverlight - have abandoned you.
+But you didn't surrender. You worked hard. You fought. And eventually, you made it. Now, you live in a stunning loft on the top floor of a
+building. What a wonderful skyline!
+<p>You have unlimited power. Dozens of megabytes of open-source code kneel before you, ready to fulfill your every wish.
+You can create an entire portal in just a few lines. There is no convoluted
+backend logic, no overly complicated DB report that you can't handle with just a few instructions.</p>
+<p>But don't you feel a subtle uneasiness? A hint of dissatisfaction?</p>
+<p>Yes, your life is comfortable now, but you are losing the ability to enjoy simple things. Here's some advice for you: leave your loft for just one day and step out onto the street. Experience the simple joy of creating a <code>&lt;div&gt;</code>, giving it a name - not an automatically generated one, but a real, unique name: you can't love anything if you haven't given it a name -, seeing it run towards you, wagging its tail when you call it with <code>document.getElementById</code>, changing its text color by tenderly caressing its <code>style.color</code> property...</p>
+<h2 id="plainc">To C Programmers</h2>
+Dear C programmer, I have good news for you: the Lord is not going to punish you for having duplicated an array, nor for not having sorted it in place. In His infinite mercy, He hasn't even punished those who invented the `cmd.exe` syntax.
+<p>Dear C programmer, listen: release the burden of guilt that oppresses you for every single byte you wasted, for every single machine cycle
+you added. Managed languages like JavaScript are there to set us free!</p>
+<p>Dear C programmer, I am one of you too. I know what lies deep within your soul: the longing for a simple life, filled with small joys. The love for old things, from a time when the world was simple and people knew how a CPU worked. Today nobody cares about
+memory and processor usage anymore. But, in the depths of our passionate hearts, we preserve the awareness of how valuable a well-optimized piece of code is. &quot;We few, we happy few, we band of brothers&quot;.</p>
+</article>
+
+</section>
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AnsiTerm.html">AnsiTerm</a></li><li><a href="AnsiTermDecoration.html">AnsiTermDecoration</a></li><li><a href="AnsiTermDriver.html">AnsiTermDriver</a></li><li><a href="AnsiTermGenericScrollBar.html">AnsiTermGenericScrollBar</a></li><li><a href="AnsiTermGenericScrollBarAdder.html">AnsiTermGenericScrollBarAdder</a></li><li><a href="AnsiTermHistory.html">AnsiTermHistory</a></li><li><a href="AnsiTermHttpDriver.html">AnsiTermHttpDriver</a></li><li><a href="AnsiTermWebSocketDriver.html">AnsiTermWebSocketDriver</a></li></ul><h3>Tutorials</h3><ul><li><a href="tutorial-10-basic-page.html">10-basic-page</a></li><li><a href="tutorial-40-communication-drivers.html">40-communication-drivers</a></li><li><a href="tutorial-60-coding-conventions.html">60-coding-conventions</a></li><li><a href="tutorial-65-special-notes.html">65-special-notes</a></li><li><a href="tutorial-90-sample-server.html">90-sample-server</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Sat Aug 29 2026 21:18:09 GMT+0000 (Coordinated Universal Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
